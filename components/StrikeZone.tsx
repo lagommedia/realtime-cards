@@ -3,7 +3,7 @@
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
 function dotColor(result: Pitch['result']) {
-  return result === 'called_strike' || result === 'swinging_strike' ? '#ef4444' : '#22c55e';
+  return result === 'ball' ? '#22c55e' : '#ef4444'; // ball=green; called/swinging strike + foul=red
 }
 
 // Two layout modes — full (standalone) and compact (3-column inset)

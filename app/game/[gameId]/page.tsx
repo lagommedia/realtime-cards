@@ -84,6 +84,26 @@ function playerProfileUrl(pred: CardPrediction | undefined, fallbackId: number, 
   return `/player/${id}?${params}`;
 }
 
+// Events that are positive for the batter (hits + walks)
+const BATTER_POSITIVE = new Set([
+  'Single', 'Double', 'Triple', 'Home Run', 'Walk', 'Intent Walk', 'Hit By Pitch',
+]);
+
+function OutcomeTag({ event, forBatter }: { event: string; forBatter: boolean }) {
+  const isGood = forBatter ? BATTER_POSITIVE.has(event) : !BATTER_POSITIVE.has(event);
+  const color = isGood ? '#22c55e' : '#ef4444';
+  const bg = isGood ? '#22c55e14' : '#ef444414';
+  const short = event.replace('Grounded Into DP', 'GIDP').replace('Intent Walk', 'IBB');
+  return (
+    <span
+      className="text-[7px] font-black px-1.5 py-0.5 rounded-full"
+      style={{ color, backgroundColor: bg, border: `1px solid ${color}33` }}
+    >
+      {short}
+    </span>
+  );
+}
+
 function PlayerMatchupCard({
   pred,
   label,
@@ -95,6 +115,8 @@ function PlayerMatchupCard({
   router,
   pitchDelta = 0,
   lastDelta = 0,
+  outcome,
+  forBatter = true,
 }: {
   pred: CardPrediction | undefined;
   label: string;
@@ -106,6 +128,8 @@ function PlayerMatchupCard({
   router: ReturnType<typeof useRouter>;
   pitchDelta?: number;
   lastDelta?: number;
+  outcome?: string;
+  forBatter?: boolean;
 }) {
   const name = pred?.playerName ?? fallbackName;
   const adjustedPct = (pred?.percentageChange ?? 0) + pitchDelta;
@@ -144,6 +168,7 @@ function PlayerMatchupCard({
           </p>
         )}
       </div>
+      {outcome && <OutcomeTag event={outcome} forBatter={forBatter} />}
     </button>
   );
 }
@@ -246,6 +271,14 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [data, setData] = useState<GameData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSide, setSelectedSide] = useState<'away' | 'home'>('away');
+  // Fast live-only state — updated every 5s without re-fetching predictions
+  const [liveSnap, setLiveSnap] = useState<{
+    liveMatchup?: LiveMatchup;
+    inning?: string | null;
+    outs?: number;
+    awayScore?: number;
+    homeScore?: number;
+  } | null>(null);
 
   async function fetchGame() {
     try {
@@ -267,19 +300,30 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     }
   }
 
+  async function fetchLive() {
+    try {
+      const res = await fetch(`/api/game/${gameId}/live`);
+      if (res.ok) setLiveSnap(await res.json());
+    } catch { /* silently skip */ }
+  }
+
   useEffect(() => {
     fetchGame();
-    const interval = setInterval(fetchGame, 10_000);
-    return () => clearInterval(interval);
+    fetchLive();
+    // Full predictions refresh every 30s; live matchup every 5s
+    const fullInterval = setInterval(fetchGame, 30_000);
+    const liveInterval = setInterval(fetchLive, 5_000);
+    return () => { clearInterval(fullInterval); clearInterval(liveInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
   const predictions = data?.predictions ?? [];
   const isLive = data?.isLive ?? false;
-  const awayTeam = data?.awayTeam ?? EMPTY_TEAM;
-  const homeTeam = data?.homeTeam ?? EMPTY_TEAM;
-  const outs = data?.outs ?? 0;
-  const liveMatchup = data?.liveMatchup;
+  // Prefer live-snap scores/inning/matchup when available (updated every 5s)
+  const awayTeam = { ...(data?.awayTeam ?? EMPTY_TEAM), score: liveSnap?.awayScore ?? data?.awayTeam?.score ?? 0 };
+  const homeTeam = { ...(data?.homeTeam ?? EMPTY_TEAM), score: liveSnap?.homeScore ?? data?.homeTeam?.score ?? 0 };
+  const outs = liveSnap?.outs ?? data?.outs ?? 0;
+  const liveMatchup = liveSnap?.liveMatchup ?? data?.liveMatchup;
 
   const selectedTeamId = selectedSide === 'away' ? awayTeam.id : homeTeam.id;
   const sidePredictions = predictions.filter(p => p.teamId === selectedTeamId);
@@ -424,6 +468,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         router={router}
                         pitchDelta={batterDelta}
                         lastDelta={batterLast}
+                        outcome={liveMatchup.lastResult?.event}
+                        forBatter={true}
                       />
                       <button
                         className="w-full relative overflow-hidden rounded-xl active:opacity-75 transition-opacity"
@@ -466,6 +512,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         router={router}
                         pitchDelta={pitcherDelta}
                         lastDelta={pitcherLast}
+                        outcome={liveMatchup.lastResult?.event}
+                        forBatter={false}
                       />
                       <button
                         className="w-full relative overflow-hidden rounded-xl active:opacity-75 transition-opacity"

@@ -38,6 +38,7 @@ export interface LiveMatchup {
   };
   bases: { first: boolean; second: boolean; third: boolean };
   pitches: Pitch[];
+  lastResult?: { event: string; batterName: string };
 }
 
 export const DUMMY_GAME_META = {
