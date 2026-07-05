@@ -269,7 +269,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
 
   useEffect(() => {
     fetchGame();
-    const interval = setInterval(fetchGame, 90_000);
+    const interval = setInterval(fetchGame, 10_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);

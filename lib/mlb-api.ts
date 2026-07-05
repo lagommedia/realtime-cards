@@ -3,10 +3,12 @@ import { MLBGame, MLBPlayer, MLBTeam, LivePlayerStat } from '@/types';
 const MLB_BASE = 'https://statsapi.mlb.com/api/v1';
 const MLB_BASE_V1_1 = 'https://statsapi.mlb.com/api/v1.1';
 
-async function fetchMLB<T>(path: string, version = 'v1'): Promise<T> {
+async function fetchMLB<T>(path: string, version = 'v1', cacheSeconds = 30): Promise<T> {
   const base = version === 'v1.1' ? MLB_BASE_V1_1 : MLB_BASE;
   const res = await fetch(`${base}${path}`, {
-    next: { revalidate: 30 },
+    ...(cacheSeconds === 0
+      ? { cache: 'no-store' }
+      : { next: { revalidate: cacheSeconds } }),
     headers: { 'Accept': 'application/json' },
   });
   if (!res.ok) throw new Error(`MLB API error: ${res.status}`);
@@ -24,7 +26,8 @@ export async function getTodayGames(): Promise<MLBGame[]> {
 export async function getLiveGameFeed(gamePk: number) {
   const data = await fetchMLB<{ liveData: unknown; gameData: unknown }>(
     `/game/${gamePk}/feed/live`,
-    'v1.1'
+    'v1.1',
+    0  // no server-side cache — always fetch fresh from MLB
   );
   return data;
 }
