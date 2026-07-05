@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLiveGameFeed, extractLivePlayerStats } from '@/lib/mlb-api';
 import { getPlayerCardPricing } from '@/lib/ebay-api';
 import { generateCardPrediction } from '@/lib/predictions';
-import { DUMMY_GAME_ID, DUMMY_GAME_META, getDummyGamePredictions, LiveMatchup } from '@/lib/dummy-game-chc-stl';
+import { Pitch, LiveMatchup } from '@/lib/dummy-game-chc-stl';
 
 interface TeamInfo {
   id: number;
@@ -11,72 +11,191 @@ interface TeamInfo {
   score: number;
 }
 
+// MLB pitch result code → our Pitch result type
+const PITCH_CODE_MAP: Record<string, Pitch['result']> = {
+  B: 'ball', I: 'ball', P: 'ball',
+  C: 'called_strike',
+  S: 'swinging_strike', T: 'swinging_strike', M: 'swinging_strike', O: 'swinging_strike',
+  F: 'foul', L: 'foul', R: 'foul',
+};
+
+// MLB pitch coordinates (feet) → normalized 0–1 for StrikeZone component
+// pX: negative = catcher's left (RHH outside), positive = catcher's right (RHH inside)
+// pZ: feet from ground (~1.5–3.5 is the strike zone)
+function normX(pX: number) { return Math.max(0.05, Math.min(0.95, (pX + 1.25) / 2.5)); }
+function normY(pZ: number) { return Math.max(0.05, Math.min(0.95, (pZ - 1.0) / 3.0)); }
+
+function buildLiveMatchup(raw: Record<string, unknown>): LiveMatchup | null {
+  try {
+    const ld = (raw as { liveData?: Record<string, unknown> }).liveData;
+    const gd = (raw as { gameData?: Record<string, unknown> }).gameData;
+    if (!ld || !gd) return null;
+
+    const cp = (ld.plays as { currentPlay?: Record<string, unknown> } | undefined)?.currentPlay;
+    if (!cp) return null;
+
+    const matchup = cp.matchup as {
+      batter: { id: number; fullName: string };
+      pitcher: { id: number; fullName: string };
+    } | undefined;
+    if (!matchup?.batter?.id || !matchup?.pitcher?.id) return null;
+
+    const count = cp.count as { balls: number; strikes: number } | undefined;
+
+    // Jersey numbers from gameData.players
+    const gPlayers = (gd.players as Record<string, { primaryNumber?: string }>) ?? {};
+    const bNum = gPlayers[`ID${matchup.batter.id}`]?.primaryNumber ?? '?';
+    const pNum = gPlayers[`ID${matchup.pitcher.id}`]?.primaryNumber ?? '?';
+
+    // Season stats + today's stats from boxscore
+    let batterSeasonAvg = '.---';
+    let batterAB = 0;
+    let batterH = 0;
+    let pitcherEra = '-.-';
+    let pitcherPitches = 0;
+
+    const boxTeams = (ld.boxscore as { teams?: Record<string, {
+      players?: Record<string, {
+        person?: { id: number };
+        stats?: { batting?: { atBats?: number; hits?: number }; pitching?: { numberOfPitches?: number } };
+        seasonStats?: { batting?: { avg?: string }; pitching?: { era?: string } };
+      }>;
+    }> } | undefined)?.teams ?? {};
+
+    for (const side of ['away', 'home'] as const) {
+      for (const p of Object.values(boxTeams[side]?.players ?? {})) {
+        if (p.person?.id === matchup.batter.id) {
+          batterSeasonAvg = p.seasonStats?.batting?.avg ?? '.---';
+          batterAB = p.stats?.batting?.atBats ?? 0;
+          batterH = p.stats?.batting?.hits ?? 0;
+        }
+        if (p.person?.id === matchup.pitcher.id) {
+          pitcherEra = p.seasonStats?.pitching?.era ?? '-.-';
+          pitcherPitches = p.stats?.pitching?.numberOfPitches ?? 0;
+        }
+      }
+    }
+
+    // Pitcher name as "F. LastName"
+    const pParts = matchup.pitcher.fullName.split(' ');
+    const pitcherName = pParts.length > 1
+      ? `${pParts[0][0]}. ${pParts.slice(1).join(' ')}`
+      : matchup.pitcher.fullName;
+
+    // Pitches for this at-bat
+    const playEvents = cp.playEvents as Array<{
+      isPitch?: boolean;
+      pitchNumber?: number;
+      details?: { code?: string };
+      pitchData?: { coordinates?: { pX?: number | null; pZ?: number | null } };
+    }> | undefined;
+
+    const pitches: Pitch[] = (playEvents ?? [])
+      .filter(e => e.isPitch && e.pitchData?.coordinates?.pX != null && e.pitchData?.coordinates?.pZ != null)
+      .map(e => ({
+        seq: e.pitchNumber ?? 1,
+        x: normX(e.pitchData!.coordinates!.pX!),
+        y: normY(e.pitchData!.coordinates!.pZ!),
+        result: PITCH_CODE_MAP[e.details?.code ?? ''] ?? 'ball',
+      }))
+      .filter(p => p.result !== undefined);
+
+    // Base runners
+    const offense = (ld.linescore as {
+      offense?: { first?: { id: number }; second?: { id: number }; third?: { id: number } };
+    } | undefined)?.offense ?? {};
+
+    return {
+      batterId: matchup.batter.id,
+      pitcherId: matchup.pitcher.id,
+      batter: {
+        name: matchup.batter.fullName,
+        number: bNum,
+        seasonAvg: batterSeasonAvg,
+        atBatsToday: batterAB,
+        hitsToday: batterH,
+      },
+      pitcher: {
+        name: pitcherName,
+        number: pNum,
+        seasonEra: pitcherEra,
+        pitchCount: pitcherPitches,
+        balls: count?.balls ?? 0,
+        strikes: count?.strikes ?? 0,
+      },
+      bases: {
+        first: !!(offense as { first?: { id: number } }).first?.id,
+        second: !!(offense as { second?: { id: number } }).second?.id,
+        third: !!(offense as { third?: { id: number } }).third?.id,
+      },
+      pitches,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
   try {
     const { gameId } = await params;
+    const gamePk = parseInt(gameId, 10);
 
-    // ── Dummy CHC vs STL live game ──────────────────────────────────────────
-    if (gameId === DUMMY_GAME_ID) {
-      return NextResponse.json({
-        predictions: getDummyGamePredictions(),
-        awayTeam: DUMMY_GAME_META.awayTeam,
-        homeTeam: DUMMY_GAME_META.homeTeam,
-        isLive: true,
-        inning: DUMMY_GAME_META.inning,
-        outs: DUMMY_GAME_META.outs,
-        liveMatchup: DUMMY_GAME_META.liveMatchup,
-        playerCount: 25,
-      });
+    if (isNaN(gamePk)) {
+      return NextResponse.json({ error: 'Invalid game ID', predictions: [], isLive: false }, { status: 400 });
     }
 
-    const gamePk = parseInt(gameId, 10);
     const liveData = await getLiveGameFeed(gamePk);
-    const players = extractLivePlayerStats(liveData as Record<string, unknown>);
+    const rawFeed = liveData as Record<string, unknown>;
+    const players = extractLivePlayerStats(rawFeed);
 
-    // ── Extract structured game info ────────────────────────────────────────
-    const gameData = (liveData as Record<string, unknown>).gameData as {
+    // Structured game info
+    const gameData = (rawFeed.gameData as {
       teams?: {
         away?: { id?: number; name?: string; abbreviation?: string };
         home?: { id?: number; name?: string; abbreviation?: string };
       };
       status?: { abstractGameState?: string };
-    } | undefined;
+    } | undefined);
 
-    const liveDataFeed = (liveData as Record<string, unknown>).liveData as {
+    const liveDataFeed = (rawFeed.liveData as {
       linescore?: {
+        currentInning?: number;
         currentInningOrdinal?: string;
         inningHalf?: string;
+        outs?: number;
         teams?: {
           away?: { runs?: number };
           home?: { runs?: number };
         };
       };
-    } | undefined;
+    } | undefined);
 
     const isLive = gameData?.status?.abstractGameState === 'Live';
-    const inningOrdinal = liveDataFeed?.linescore?.currentInningOrdinal;
-    const inningHalf = liveDataFeed?.linescore?.inningHalf;
+    const ls = liveDataFeed?.linescore;
+    const inningOrdinal = ls?.currentInningOrdinal;
+    const inningHalf = ls?.inningHalf;
     const inning = inningOrdinal
       ? `${inningHalf === 'Top' ? '▲' : '▼'} ${inningOrdinal}`
       : null;
+    const outs = ls?.outs ?? 0;
 
     const awayTeam: TeamInfo = {
       id: gameData?.teams?.away?.id ?? 0,
       name: gameData?.teams?.away?.name ?? 'Away',
       abbreviation: gameData?.teams?.away?.abbreviation ?? 'AWY',
-      score: liveDataFeed?.linescore?.teams?.away?.runs ?? 0,
+      score: ls?.teams?.away?.runs ?? 0,
     };
     const homeTeam: TeamInfo = {
       id: gameData?.teams?.home?.id ?? 0,
       name: gameData?.teams?.home?.name ?? 'Home',
       abbreviation: gameData?.teams?.home?.abbreviation ?? 'HME',
-      score: liveDataFeed?.linescore?.teams?.home?.runs ?? 0,
+      score: ls?.teams?.home?.runs ?? 0,
     };
 
-    // ── Generate predictions (limit to 16 to avoid rate limits) ─────────────
+    // Card predictions (limit to 16 to avoid rate limits)
     const topPlayers = players.slice(0, 16);
     const predictions = await Promise.all(
       topPlayers.map(async (player) => {
@@ -85,12 +204,16 @@ export async function GET(
       })
     );
 
+    const liveMatchup = buildLiveMatchup(rawFeed);
+
     return NextResponse.json({
       predictions,
       awayTeam,
       homeTeam,
       isLive,
       inning,
+      outs,
+      liveMatchup,
       playerCount: players.length,
     });
   } catch (error) {
@@ -102,6 +225,8 @@ export async function GET(
       homeTeam: { id: 0, name: 'Home', abbreviation: 'HME', score: 0 },
       isLive: false,
       inning: null,
+      outs: 0,
+      liveMatchup: null,
       playerCount: 0,
     }, { status: 500 });
   }
