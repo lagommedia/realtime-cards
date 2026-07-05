@@ -35,7 +35,7 @@ export async function GET() {
       const topTrending = generateTrendingPredictions(flatPlayers).slice(0, 12);
       predictions = await Promise.all(
         topTrending.map(async (player) => {
-          const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName);
+          const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear);
           return generateCardPrediction(player, priceSummary);
         })
       );

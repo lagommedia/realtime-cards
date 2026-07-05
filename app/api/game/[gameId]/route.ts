@@ -214,7 +214,7 @@ export async function GET(
     const topPlayers = players.slice(0, 16);
     const predictions = await Promise.all(
       topPlayers.map(async (player) => {
-        const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName);
+        const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear);
         return generateCardPrediction(player, priceSummary);
       })
     );

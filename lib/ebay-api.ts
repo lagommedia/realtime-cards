@@ -188,7 +188,8 @@ export async function searchCardImage(
 
 export async function getPlayerCardPricing(
   playerId: number,
-  playerName: string
+  playerName: string,
+  rookieYear?: number
 ): Promise<CardPriceSummary> {
   const token = await getEbayToken();
 
@@ -196,7 +197,10 @@ export async function getPlayerCardPricing(
   let activeListing: EbayListing | undefined;
 
   if (token) {
-    const query = `${playerName} baseball card 2024`;
+    // Target the specific Topps Base Rookie Card when we know the debut year
+    const query = rookieYear
+      ? `${playerName} ${rookieYear} Topps rookie card RC`
+      : `${playerName} Topps rookie card RC baseball`;
     const [sold, active] = await Promise.all([
       searchEbayListings(query, token, true),
       searchEbayListings(query, token, false),
