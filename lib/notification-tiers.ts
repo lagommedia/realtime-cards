@@ -8,7 +8,7 @@ export interface TierConfig {
   icon: string;
   sendPush: boolean;
   silent: boolean;                           // true = no sound/vibration
-  urgency: 'very-high' | 'high' | 'normal' | 'low';
+  urgency: 'high' | 'normal' | 'low' | 'very-low';
   ttl: number;                               // push TTL in seconds
   autoDismissMs: number | null;              // null = stays until user taps
   inAppStyle: 'fullscreen' | 'overlay' | 'toast' | 'none';
@@ -25,7 +25,7 @@ export const TIER_CONFIGS: Record<NotificationTier, TierConfig> = {
     icon: '🚨',
     sendPush: true,
     silent: false,
-    urgency: 'very-high',
+    urgency: 'high',
     ttl: 86400,
     autoDismissMs: null,
     inAppStyle: 'fullscreen',
