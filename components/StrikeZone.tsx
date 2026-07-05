@@ -125,7 +125,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
           const fillOpacity = isBall ? '18' : pitch.result === 'foul' ? '28' : '44';
           const dash = isBall ? (compact ? '3 2' : '4 3') : undefined;
 
-          // Show speed label on dots in full mode
+          // Show speed label inside dot in full mode only
           const speed = !compact && pitch.velocity ? Math.round(pitch.velocity) : null;
 
           return (
@@ -163,6 +163,23 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             </g>
           );
         })}
+
+        {/* Static MPH readout — upper-right corner of frame */}
+        {mostRecent?.velocity && (
+          <text
+            x={F.x + F.w - 3}
+            y={F.y + F.h - (compact ? 4 : 5)}
+            textAnchor="end"
+            dominantBaseline="auto"
+            fontSize={compact ? 7 : 9}
+            fontWeight="900"
+            fill="#fbbf24"
+            fontFamily="monospace"
+            className="pitch-flash"
+          >
+            {Math.round(mostRecent.velocity)} MPH
+          </text>
+        )}
       </svg>
 
       {/* Legend — full mode only (compact legend is in page.tsx) */}
