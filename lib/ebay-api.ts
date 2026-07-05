@@ -137,12 +137,31 @@ function generateMockListings(playerName: string): EbayListing[] {
   ];
 }
 
+// ── Card image filtering ──────────────────────────────────────────────────────
+
+// Only these four Topps sets carry the official RC logo and are allowed
+const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
+
+// All other brands / Topps sub-products that should never appear
+const EXCLUDED_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;
+
+/**
+ * Returns true only for listings that are:
+ *   - A Topps Series 1 / Series 2 / Update / Chrome card
+ *   - Not a graded slab (PSA, BGS, SGC, CGC…)
+ *   - Not from an excluded brand (Bowman, Prizm, Donruss, Panini…)
+ */
+function isAllowedToppsRC(title: string): boolean {
+  if (EXCLUDED_BRANDS.test(title)) return false;
+  return TOPPS_ALLOWED_SETS.test(title);
+}
+
 /**
  * Searches eBay for a specific card (player + year + set) and returns an
  * image URL of a raw (ungraded) copy. Ranks results to prefer:
  *   1. eBay CDN images (i.ebayimg.com) — actual card photos from sellers
  *   2. Higher title-match scores for player name, year, and set keywords
- * Excludes PSA/BGS/SGC/CGC graded (slab) listings.
+ * Only returns Topps Series 1 / 2 / Update / Chrome listings.
  */
 export async function searchCardImage(
   playerName: string,
@@ -155,11 +174,17 @@ export async function searchCardImage(
   const query = `${playerName} ${cardYear} ${cardSet} rookie card RC`;
   const listings = await searchEbayListings(query, token, false);
 
-  // Exclude graded slab listings — their images show a plastic case, not the card face
-  const raw = listings.filter(l =>
-    l.imageUrl &&
-    !/\b(psa|bgs|sgc|cgc|beckett|graded|slab)\b/i.test(l.title)
-  );
+  // Strict: only allowed Topps RC sets, no slabs, must have an image
+  let raw = listings.filter(l => l.imageUrl && isAllowedToppsRC(l.title));
+
+  // Fallback: if strict filter yields nothing, allow any Topps listing without excluded brands
+  if (raw.length === 0) {
+    raw = listings.filter(l =>
+      l.imageUrl &&
+      /\btopps\b/i.test(l.title) &&
+      !EXCLUDED_BRANDS.test(l.title)
+    );
+  }
 
   // Score by title relevance
   const playerTokens = playerName.toLowerCase().split(/\s+/);
@@ -206,7 +231,11 @@ export async function getPlayerCardPricing(
       searchEbayListings(query, token, false),
     ]);
     recentSales = sold;
-    activeListing = active[0];
+    // Prefer a listing that matches the allowed Topps sets for the card image
+    activeListing =
+      active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
+      active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
+      active[0];
   } else {
     // Use mock data when no eBay credentials are configured
     recentSales = generateMockListings(playerName).slice(0, 2);
