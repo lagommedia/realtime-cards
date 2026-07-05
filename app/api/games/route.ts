@@ -4,7 +4,7 @@ import { DUMMY_GAME_ID, DUMMY_GAME_META } from '@/lib/dummy-game-chc-stl';
 import { MLBGame } from '@/types';
 
 const DUMMY_CHC_STL: MLBGame = {
-  gamePk: 99001,
+  gamePk: DUMMY_GAME_ID as unknown as number,
   gameDate: new Date().toISOString(),
   status: {
     abstractGameState: 'Live',
@@ -30,9 +30,6 @@ const DUMMY_CHC_STL: MLBGame = {
     inningHalf: 'Top',
     outs: DUMMY_GAME_META.outs,
   },
-  // Override gamePk with the string ID so the game link routes correctly
-  // The GameCard uses game.gamePk for the route, so we patch it here
-  gamePk: DUMMY_GAME_ID as unknown as number,
 };
 
 export async function GET() {
