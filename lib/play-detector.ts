@@ -136,6 +136,8 @@ export function getEventTier(t: PlayEventType): PlayTier {
     case 'grand_slam':
     case 'cycle':
       return 'epic';
+    default:
+      return 'minor';
   }
 }
 
