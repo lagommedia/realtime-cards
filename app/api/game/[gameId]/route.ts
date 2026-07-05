@@ -86,8 +86,8 @@ function buildLiveMatchup(raw: Record<string, unknown>): LiveMatchup | null {
     const playEvents = cp.playEvents as Array<{
       isPitch?: boolean;
       pitchNumber?: number;
-      details?: { code?: string };
-      pitchData?: { coordinates?: { pX?: number | null; pZ?: number | null } };
+      details?: { code?: string; type?: { code?: string } };
+      pitchData?: { coordinates?: { pX?: number | null; pZ?: number | null }; startSpeed?: number };
     }> | undefined;
 
     const pitches: Pitch[] = (playEvents ?? [])
@@ -97,6 +97,8 @@ function buildLiveMatchup(raw: Record<string, unknown>): LiveMatchup | null {
         x: normX(e.pitchData!.coordinates!.pX!),
         y: normY(e.pitchData!.coordinates!.pZ!),
         result: PITCH_CODE_MAP[e.details?.code ?? ''] ?? 'ball',
+        pitchType: e.details?.type?.code,
+        velocity: e.pitchData?.startSpeed,
       }))
       .filter(p => p.result !== undefined);
 
@@ -210,8 +212,21 @@ export async function GET(
       score: ls?.teams?.home?.runs ?? 0,
     };
 
-    // Card predictions (limit to 16 to avoid rate limits)
-    const topPlayers = players.slice(0, 16);
+    // Extract current batter id early so we can ensure they're in the predictions list
+    const currentBatterId = (() => {
+      try {
+        const ld = rawFeed.liveData as { plays?: { currentPlay?: { matchup?: { batter?: { id?: number } } } } } | undefined;
+        return ld?.plays?.currentPlay?.matchup?.batter?.id ?? null;
+      } catch { return null; }
+    })();
+
+    // Card predictions (limit to 16 to avoid rate limits; always include current batter)
+    let topPlayers = players.slice(0, 16);
+    if (currentBatterId && !topPlayers.some(p => p.playerId === currentBatterId)) {
+      const batterPlayer = players.find(p => p.playerId === currentBatterId);
+      if (batterPlayer) topPlayers = [...topPlayers, batterPlayer];
+    }
+
     const predictions = await Promise.all(
       topPlayers.map(async (player) => {
         const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear);

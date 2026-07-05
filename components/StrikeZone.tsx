@@ -2,8 +2,22 @@
 
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
-function dotColor(result: Pitch['result']) {
-  return result === 'ball' ? '#22c55e' : '#ef4444'; // ball=green; called/swinging strike + foul=red
+export const PITCH_TYPE_COLORS: Record<string, string> = {
+  FF: '#f97316', FA: '#f97316', // four-seam fastball
+  FT: '#fb923c', SI: '#fb923c', // two-seam / sinker
+  FC: '#ef4444',                // cutter
+  SL: '#a855f7', ST: '#a855f7', // slider / sweeper
+  SV: '#8b5cf6',                // slurve
+  CU: '#3b82f6', CS: '#3b82f6', // curveball
+  KC: '#60a5fa',                // knuckle-curve
+  CH: '#22c55e',                // changeup
+  FS: '#14b8a6', FO: '#14b8a6', // splitter / forkball
+  KN: '#eab308',                // knuckleball
+  EP: '#ec4899',                // eephus
+};
+
+function pitchColor(pitchType?: string): string {
+  return PITCH_TYPE_COLORS[pitchType ?? ''] ?? '#9ca3af';
 }
 
 // Two layout modes — full (standalone) and compact (3-column inset)
@@ -15,26 +29,25 @@ const MODES = {
     r: 12, fs: 9, sw: 1.8, plateW: 13, glowR: 17, glowSd: 3,
   },
   compact: {
-    vb: '0 0 120 185',
-    F:  { x: 8,   y: 10,  w: 104, h: 140 },
-    Z:  { x: 36,  y: 34,  w: 48,  h: 84  },
+    vb: '0 0 120 144',
+    F:  { x: 2,   y: 2,   w: 116, h: 140 },
+    Z:  { x: 36,  y: 26,  w: 48,  h: 84  },
     r: 7, fs: 7, sw: 1, plateW: 8, glowR: 11, glowSd: 2,
   },
 };
 
 export default function StrikeZone({ pitches, compact = false }: { pitches: Pitch[]; compact?: boolean }) {
   const m = compact ? MODES.compact : MODES.full;
-  const { F, Z, r, fs, sw, plateW, glowR, glowSd } = m;
-  const cx0 = F.x + F.w / 2;
+  const { F, Z, r, fs, sw, glowR, glowSd } = m;
   const mostRecent = pitches[pitches.length - 1];
   const filterId = compact ? 'sz-glow-c' : 'sz-glow-f';
   const gradId   = compact ? 'sz-bg-c'   : 'sz-bg-f';
 
-  function svgX(x: number) { return F.x + x * F.w; }
+  function svgX(x: number) { return F.x + (1 - x) * F.w; }
   function svgY(y: number) { return F.y + (1 - y) * F.h; }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col w-full h-full">
       <style>{`
         @keyframes pitch-flash {
           0%   { opacity: 0.05; }
@@ -52,7 +65,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
         </p>
       )}
 
-      <svg viewBox={m.vb} width="100%" style={{ display: 'block', flex: 1 }}>
+      <svg viewBox={m.vb} width="100%" height="100%" preserveAspectRatio="xMidYMin meet" style={{ display: 'block', flex: 1 }}>
         <defs>
           <filter id={filterId} x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation={glowSd} result="blur" />
@@ -102,54 +115,87 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
           </>
         )}
 
-        {/* Pitch dots */}
+        {/* Pitch dots — colored by pitch type; fill opacity by result */}
         {pitches.map(pitch => {
           const cx = svgX(pitch.x);
           const cy = svgY(pitch.y);
-          const color = dotColor(pitch.result);
+          const color = pitchColor(pitch.pitchType);
           const isLatest = pitch.seq === mostRecent?.seq;
+          const isBall = pitch.result === 'ball';
+          const fillOpacity = isBall ? '18' : pitch.result === 'foul' ? '28' : '44';
+          const dash = isBall ? (compact ? '3 2' : '4 3') : undefined;
+
+          // Show speed label on dots in full mode
+          const speed = !compact && pitch.velocity ? Math.round(pitch.velocity) : null;
 
           return (
             <g key={pitch.seq} filter={`url(#${filterId})`}>
               {isLatest && (
                 <circle
-                  key={`ring-${pitch.seq}`}
                   cx={cx} cy={cy} r={glowR} fill="none"
                   stroke={color} strokeWidth={compact ? 0.7 : 1}
+                  strokeDasharray={dash}
                   className="pitch-flash"
                 />
               )}
               <circle
-                key={`dot-${pitch.seq}`}
                 cx={cx} cy={cy} r={r}
-                fill={`${color}22`} stroke={color} strokeWidth={compact ? 1.2 : 1.8}
+                fill={`${color}${fillOpacity}`}
+                stroke={color} strokeWidth={compact ? 1.2 : 1.8}
+                strokeDasharray={dash}
                 className={isLatest ? 'pitch-flash' : undefined}
               />
-              <text x={cx} y={cy}
+              <text x={cx} y={speed ? cy - 2 : cy}
                 textAnchor="middle" dominantBaseline="central"
                 fontSize={fs} fontWeight="800" fill={color} fontFamily="monospace"
                 className={isLatest ? 'pitch-flash' : undefined}
               >
                 {pitch.seq}
               </text>
+              {speed && (
+                <text x={cx} y={cy + fs}
+                  textAnchor="middle" dominantBaseline="central"
+                  fontSize={fs - 2} fill={color} fontFamily="monospace" opacity="0.8"
+                >
+                  {speed}
+                </text>
+              )}
             </g>
           );
         })}
       </svg>
 
-      {/* Legend — full mode only */}
-      {!compact && (
-        <div className="flex gap-4 mt-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef444422', border: '1.5px solid #ef4444' }} />
-            <span className="text-[10px] text-gray-400">Strike</span>
+      {/* Legend — full mode only (compact legend is in page.tsx) */}
+      {!compact && (() => {
+        const seen = [...new Set(pitches.map(p => p.pitchType).filter(Boolean))] as string[];
+        const LABEL_MAP: Record<string, string> = {
+          FF:'Fastball',FA:'Fastball',FT:'2-Seam',SI:'Sinker',FC:'Cutter',
+          SL:'Slider',ST:'Sweeper',SV:'Slurve',CU:'Curve',CS:'Curve',KC:'Knuckle-C',
+          CH:'Changeup',FS:'Splitter',FO:'Forkball',KN:'Knuckleball',EP:'Eephus',
+        };
+        return (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+            {seen.map(type => (
+              <div key={type} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `${pitchColor(type)}44`, border: `1.5px solid ${pitchColor(type)}` }} />
+                <span className="text-[10px] text-gray-400">{LABEL_MAP[type] ?? type}</span>
+              </div>
+            ))}
+            {seen.length === 0 && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef444422', border: '1.5px solid #ef4444' }} />
+                  <span className="text-[10px] text-gray-400">Strike</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e22', border: '1.5px solid #22c55e' }} />
+                  <span className="text-[10px] text-gray-400">Ball</span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e22', border: '1.5px solid #22c55e' }} />
-            <span className="text-[10px] text-gray-400">Ball</span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

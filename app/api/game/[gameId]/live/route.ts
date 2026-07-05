@@ -63,8 +63,8 @@ function buildMatchup(raw: Record<string, unknown>): LiveMatchup | null {
     const playEvents = cp.playEvents as Array<{
       isPitch?: boolean;
       pitchNumber?: number;
-      details?: { code?: string };
-      pitchData?: { coordinates?: { pX?: number | null; pZ?: number | null } };
+      details?: { code?: string; type?: { code?: string } };
+      pitchData?: { coordinates?: { pX?: number | null; pZ?: number | null }; startSpeed?: number };
     }> | undefined;
 
     const pitches: Pitch[] = (playEvents ?? [])
@@ -74,6 +74,8 @@ function buildMatchup(raw: Record<string, unknown>): LiveMatchup | null {
         x: normX(e.pitchData!.coordinates!.pX!),
         y: normY(e.pitchData!.coordinates!.pZ!),
         result: PITCH_CODE_MAP[e.details?.code ?? ''] ?? 'ball',
+        pitchType: e.details?.type?.code,
+        velocity: e.pitchData?.startSpeed,
       }));
 
     const offense = (ld.linescore as {
@@ -146,6 +148,9 @@ export async function GET(
     const inningOrdinal = ls?.currentInningOrdinal;
     const inningHalf = ls?.inningHalf;
     const inning = inningOrdinal ? `${inningHalf === 'Top' ? '▲' : '▼'} ${inningOrdinal}` : null;
+    const gameState = (raw as { gameData?: { status?: { abstractGameState?: string } } })
+      .gameData?.status?.abstractGameState;
+    const isFinal = gameState === 'Final';
 
     return NextResponse.json({
       liveMatchup: buildMatchup(raw),
@@ -153,6 +158,7 @@ export async function GET(
       outs: ls?.outs ?? 0,
       awayScore: ls?.teams?.away?.runs ?? 0,
       homeScore: ls?.teams?.home?.runs ?? 0,
+      isFinal,
     });
   } catch (error) {
     console.error('Live matchup error:', error);
