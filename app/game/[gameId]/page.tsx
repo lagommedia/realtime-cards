@@ -483,6 +483,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           cardType="Rookie Card"
                           cardYear={batterPred?.rookieCardOptions?.[0]?.year}
                           cardSet={batterPred?.rookieCardOptions?.[0]?.set}
+                          ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
                         />
                         <div
                           className="absolute inset-x-0 bottom-0 flex items-end justify-center pb-1.5"
@@ -527,6 +528,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           cardType="Rookie Card"
                           cardYear={pitcherPred?.rookieCardOptions?.[0]?.year}
                           cardSet={pitcherPred?.rookieCardOptions?.[0]?.set}
+                          ebayImageUrl={pitcherPred?.priceSummary?.activeListing?.imageUrl}
                         />
                         <div
                           className="absolute inset-x-0 bottom-0 flex items-end justify-center pb-1.5"

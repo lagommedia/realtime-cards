@@ -30,6 +30,10 @@ export default function BaseballCardImage({
   const theme = getTeamTheme(teamId);
 
   useEffect(() => {
+    // Skip the DuckDuckGo search when we already have a real eBay listing image —
+    // the listing photo is a verified card photo and loads immediately.
+    if (ebayImageUrl) return;
+
     setSearchedUrl(null);
     setSearchedErrored(false);
     const params = new URLSearchParams({ player: playerName });
@@ -41,11 +45,12 @@ export default function BaseballCardImage({
         if (data.imageUrl) setSearchedUrl(data.imageUrl);
       })
       .catch(() => {});
-  }, [playerName, cardYear, cardSet]);
+  }, [playerName, cardYear, cardSet, ebayImageUrl]);
 
-  // Targeted search image takes priority; eBay listing image is fallback
-  const activeUrl = (!searchedErrored && searchedUrl) ? searchedUrl
-    : (ebayImageUrl && !ebayErrored) ? ebayImageUrl
+  // eBay listing image (real card photo tied to the actual sale) takes priority.
+  // DuckDuckGo targeted search is the fallback when no listing image exists.
+  const activeUrl = (ebayImageUrl && !ebayErrored) ? ebayImageUrl
+    : (!searchedErrored && searchedUrl) ? searchedUrl
     : null;
 
   // ── Real card image ───────────────────────────────────────────────────────

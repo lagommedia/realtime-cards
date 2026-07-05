@@ -323,6 +323,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 cardType={featuredCard?.cardType ?? 'Base Card'}
                 cardYear={selectedCard?.year}
                 cardSet={selectedCard?.set}
+                ebayImageUrl={prediction.priceSummary?.activeListing?.imageUrl}
                 width={80}
                 height={112}
               />
