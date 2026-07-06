@@ -655,7 +655,25 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         </div>
                       </div>
                       <div className="flex-1 min-h-0 w-full">
-                        <StrikeZone pitches={liveMatchup.pitches} compact pitchDelivery={pitchDelivery} />
+                        <StrikeZone pitches={liveMatchup.pitches} compact />
+                      </div>
+                      {/* Pitch result label */}
+                      <div className="h-5 flex items-center justify-center">
+                        {pitchDelivery && (() => {
+                          const isBall = pitchDelivery.result === 'ball';
+                          const isFoul = pitchDelivery.result === 'foul' || pitchDelivery.result === 'foul_tip';
+                          const label = isBall ? 'BALL' : isFoul ? 'FOUL BALL' : 'STRIKE';
+                          const color = isBall ? '#22c55e' : isFoul ? '#f59e0b' : '#ef4444';
+                          return (
+                            <span
+                              key={pitchDelivery.animKey}
+                              className="pitch-label text-[11px] font-black uppercase tracking-widest"
+                              style={{ color }}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

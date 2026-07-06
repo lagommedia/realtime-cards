@@ -36,23 +36,7 @@ const MODES = {
   },
 };
 
-interface PitchDelivery {
-  x: number;
-  y: number;
-  result: string;
-  pitchType?: string;
-  animKey: string;
-}
-
-export default function StrikeZone({
-  pitches,
-  compact = false,
-  pitchDelivery = null,
-}: {
-  pitches: Pitch[];
-  compact?: boolean;
-  pitchDelivery?: PitchDelivery | null;
-}) {
+export default function StrikeZone({ pitches, compact = false }: { pitches: Pitch[]; compact?: boolean }) {
   const m = compact ? MODES.compact : MODES.full;
   const { F, Z, r, fs, sw, glowR, glowSd } = m;
   const mostRecent = pitches[pitches.length - 1];
@@ -197,50 +181,6 @@ export default function StrikeZone({
           </text>
         )}
 
-        {/* Pitch result overlay — flashes outcome text on each pitch */}
-        {pitchDelivery && (() => {
-          const isBall = pitchDelivery.result === 'ball';
-          const isFoul = pitchDelivery.result === 'foul' || pitchDelivery.result === 'foul_tip';
-          const resultLabel = isBall ? 'BALL' : isFoul ? 'FOUL' : 'STRIKE';
-          const resultColor = isBall ? '#22c55e' : isFoul ? '#f59e0b' : '#ef4444';
-          const textY = F.y + F.h * 0.52;
-          const textSize = compact ? 15 : 22;
-
-          return (
-            <g key={pitchDelivery.animKey}>
-              {/* Dim overlay */}
-              <rect x={F.x} y={F.y} width={F.w} height={F.h}
-                fill="#07111f" rx={compact ? 4 : 8} opacity="0">
-                <animate attributeName="opacity"
-                  values="0;0.82;0.82;0"
-                  keyTimes="0;0.08;0.88;1"
-                  dur="2.2s" fill="freeze" />
-              </rect>
-
-              {/* Outcome text */}
-              <text x={F.x + F.w / 2} y={textY}
-                textAnchor="middle" dominantBaseline="central"
-                fontSize={textSize} fontWeight="900"
-                fill={resultColor} fontFamily="monospace"
-                opacity="0">
-                <animate attributeName="opacity"
-                  values="0;1;1;0" keyTimes="0;0.08;0.88;1" dur="2.2s" fill="freeze" />
-                {resultLabel}
-              </text>
-
-              {/* Glow behind text */}
-              <text x={F.x + F.w / 2} y={textY}
-                textAnchor="middle" dominantBaseline="central"
-                fontSize={textSize + (compact ? 4 : 6)} fontWeight="900"
-                fill={resultColor} fontFamily="monospace"
-                opacity="0" filter={`url(#${filterId})`}>
-                <animate attributeName="opacity"
-                  values="0;0.35;0.35;0" keyTimes="0;0.08;0.88;1" dur="2.2s" fill="freeze" />
-                {resultLabel}
-              </text>
-            </g>
-          );
-        })()}
       </svg>
 
       {/* Legend — full mode only (compact legend is in page.tsx) */}

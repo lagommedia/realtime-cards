@@ -28,3 +28,13 @@ body {
 * {
   scrollbar-width: none;
 }
+
+@keyframes pitch-label-pop {
+  0%   { opacity: 0; transform: translateY(3px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.pitch-label {
+  animation: pitch-label-pop 2.3s ease-out forwards;
+}
