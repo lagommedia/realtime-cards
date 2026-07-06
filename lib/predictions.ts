@@ -1,10 +1,11 @@
 import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption } from '@/types';
 import { generateCardValueProjection } from '@/lib/card-value-model';
 
-// Only these three Topps sets are shown — Series 1, Series 2, and Chrome
+// Only these four Topps sets are shown — Series 1, Series 2, Update, and Chrome
 const TOPPS_RC_SETS: Array<{ set: string; shortName: string }> = [
   { set: 'Topps Series 1', shortName: 'Topps S1' },
   { set: 'Topps Series 2', shortName: 'Topps S2' },
+  { set: 'Topps Update', shortName: 'Update' },
   { set: 'Topps Chrome', shortName: 'Chrome' },
 ];
 
@@ -12,6 +13,7 @@ const TOPPS_RC_SETS: Array<{ set: string; shortName: string }> = [
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
   'Topps Series 1': 1.0,
   'Topps Series 2': 0.85,
+  'Topps Update': 0.9,
   'Topps Chrome': 2.8,
 };
 

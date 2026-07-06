@@ -140,7 +140,7 @@ function generateMockListings(playerName: string): EbayListing[] {
 // ── Card image filtering ──────────────────────────────────────────────────────
 
 // Only these four Topps sets carry the official RC logo and are allowed
-const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|chrome)\b/i;
+const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
 
 // All other brands / Topps sub-products that should never appear
 const EXCLUDED_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;

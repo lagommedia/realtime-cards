@@ -95,6 +95,8 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [gradingMode, setGradingMode] = useState<'raw' | 'psa'>('raw');
+  const cardTouchStartRef = useRef<number | null>(null);
+  const topCardInnerRef = useRef<HTMLDivElement>(null);
   const [psaGrade, setPsaGrade] = useState(10);
 
   const isUp = prediction.direction === 'up';
@@ -224,31 +226,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       {expanded && (
         <div className="border-t border-white/10 p-4 space-y-4">
 
-          {/* Card type selector */}
-          {rookieOptions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Rookie Card Type</p>
-              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                {rookieOptions.map((opt, i) => {
-                  const active = selectedCardIdx === i;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedCardIdx(i)}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                      style={{
-                        backgroundColor: active ? theme.primary : '#ffffff12',
-                        color: active ? '#fff' : '#9ca3af',
-                        border: `1px solid ${active ? theme.primary : '#ffffff20'}`,
-                      }}
-                    >
-                      {opt.year} {opt.shortName}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Grading toggle */}
           <div>
@@ -309,85 +286,136 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             )}
           </div>
 
-          {/* ── Card valuation — card FIRST ── */}
+          {/* ── Card valuation — full-width stack ── */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
               {gradingMode === 'psa' ? `PSA ${psaGrade} Valuation` : 'Highest Rising Card'}
             </p>
-            <div className="rounded-xl p-3 flex gap-3 items-start" style={{ backgroundColor: '#ffffff08' }}>
-              <BaseballCardImage
-                playerId={prediction.playerId}
-                playerName={prediction.playerName}
-                teamId={prediction.teamId}
-                position={prediction.position}
-                cardType={featuredCard?.cardType ?? 'Base Card'}
-                cardYear={selectedCard?.year}
-                cardSet={selectedCard?.set}
-                ebayImageUrl={prediction.priceSummary?.activeListing?.imageUrl}
-                width={80}
-                height={112}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full inline-block"
-                    style={{ backgroundColor: `${theme.primary}33`, color: theme.primary }}
-                  >
-                    {selectedCard
-                      ? `${selectedCard.year} ${selectedCard.shortName}`
-                      : (featuredCard?.badge ?? '📄 Base')}
+
+            {/* Card stack */}
+            {(() => {
+              const stackCount = Math.min(rookieOptions.length - selectedCardIdx, 3);
+              if (stackCount === 0) return null;
+              return (
+                <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
+                  {Array.from({ length: stackCount }, (_, depth) => {
+                    const cardIdx = selectedCardIdx + depth;
+                    const opt = rookieOptions[cardIdx];
+                    const isTop = depth === 0;
+                    return (
+                      <div
+                        key={`${opt.year}-${opt.set}`}
+                        className="absolute inset-0 overflow-hidden"
+                        style={{
+                          borderRadius: 8,
+                          zIndex: stackCount - depth,
+                          transform: `translateY(${depth * 7}px) scale(${1 - depth * 0.04})`,
+                          transformOrigin: 'top center',
+                          transition: 'transform 0.25s ease',
+                          boxShadow: isTop ? '0 6px 28px rgba(0,0,0,0.65)' : '0 2px 10px rgba(0,0,0,0.35)',
+                        }}
+                      >
+                        <div
+                          ref={isTop ? topCardInnerRef : undefined}
+                          style={{ width: '100%', height: '100%' }}
+                          onTouchStart={!isTop ? undefined : e => {
+                            cardTouchStartRef.current = e.touches[0].clientX;
+                          }}
+                          onTouchMove={!isTop ? undefined : e => {
+                            if (cardTouchStartRef.current === null || !topCardInnerRef.current) return;
+                            const dx = e.touches[0].clientX - cardTouchStartRef.current;
+                            topCardInnerRef.current.style.transition = 'none';
+                            topCardInnerRef.current.style.transform = `translateX(${dx}px) rotate(${dx * 0.035}deg)`;
+                          }}
+                          onTouchEnd={!isTop ? undefined : e => {
+                            if (cardTouchStartRef.current === null) return;
+                            const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
+                            cardTouchStartRef.current = null;
+                            const el = topCardInnerRef.current;
+                            if (!el) return;
+                            if (Math.abs(diff) < 8) {
+                              el.style.transition = '';
+                              el.style.transform = '';
+                            } else if (diff > 50 && selectedCardIdx < rookieOptions.length - 1) {
+                              el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
+                              el.style.transform = 'translateX(-160%) rotate(-15deg)';
+                              el.style.opacity = '0';
+                              setTimeout(() => setSelectedCardIdx(i => i + 1), 250);
+                            } else if (diff < -50 && selectedCardIdx > 0) {
+                              el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
+                              el.style.transform = 'translateX(160%) rotate(15deg)';
+                              el.style.opacity = '0';
+                              setTimeout(() => setSelectedCardIdx(i => i - 1), 250);
+                            } else {
+                              el.style.transition = 'transform 0.22s ease-out';
+                              el.style.transform = '';
+                            }
+                          }}
+                        >
+                          <BaseballCardImage
+                            playerId={prediction.playerId}
+                            playerName={prediction.playerName}
+                            teamId={prediction.teamId}
+                            position={prediction.position}
+                            cardType="Rookie Card"
+                            cardYear={opt.year}
+                            cardSet={opt.set}
+                            ebayImageUrl={cardIdx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
+                            width={300}
+                            height={420}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Stack dots */}
+            {rookieOptions.length > 1 && (
+              <div className="flex justify-center gap-1.5 py-2">
+                {rookieOptions.map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full transition-all"
+                    style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Price info */}
+            <div
+              className="rounded-xl px-3 py-2.5 mt-2 flex flex-col gap-1"
+              style={{ backgroundColor: '#ffffff08', transition: 'background-color 0.6s ease-out', ...(flash ? { backgroundColor: flashBg } : {}) }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
+                    ${livePrice.toFixed(2)}
                   </span>
-                  {gradingMode === 'psa' && (
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: `${psaGradeColor(psaGrade)}22`,
-                        color: psaGradeColor(psaGrade),
-                      }}
-                    >
-                      PSA {psaGrade}
-                    </span>
-                  )}
+                  <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
+                  </span>
                 </div>
-
-                <p className="text-white text-xs font-medium leading-4 mb-2 line-clamp-2">
-                  {selectedCard
-                    ? `${prediction.playerName} ${selectedCard.year} ${selectedCard.set} RC`
-                    : (featuredCard?.listing.title ?? `${prediction.playerName} Baseball Card`)}
-                </p>
-
-                {/* Live price — flashes on tick */}
-                <div
-                  className="rounded-lg px-2 py-1.5 mb-2 -mx-1"
-                  style={{
-                    backgroundColor: flashBg,
-                    transition: 'background-color 0.6s ease-out',
-                  }}
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-black text-lg tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
-                      ${livePrice.toFixed(2)}
-                    </span>
-                    <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
-                      {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-gray-500 text-[10px]">proj.</span>
-                    <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
-                    <span className="text-[10px]" style={{ color: directionColor }}>
-                      ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}
-                >
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}>
                   {prediction.confidence} confidence
                 </span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-500 text-[10px]">proj.</span>
+                <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
+                <span className="text-[10px]" style={{ color: directionColor }}>
+                  ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
+                </span>
+              </div>
+              {selectedCard && (
+                <p className="text-gray-500 text-[10px] mt-0.5">
+                  {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
+                  {gradingMode === 'psa' ? ` · PSA ${psaGrade}` : ''}
+                </p>
+              )}
             </div>
 
             {/* eBay CTA */}
