@@ -16,7 +16,8 @@ async function fetchMLB<T>(path: string, version = 'v1', cacheSeconds = 30): Pro
 }
 
 export async function getTodayGames(): Promise<MLBGame[]> {
-  const today = new Date().toISOString().split('T')[0];
+  // Use Eastern time — MLB schedules games by ET date, not UTC
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   const data = await fetchMLB<{ dates: Array<{ games: MLBGame[] }> }>(
     `/schedule?sportId=1&date=${today}&hydrate=team,linescore,flags`
   );
