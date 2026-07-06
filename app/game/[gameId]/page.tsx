@@ -300,10 +300,11 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     homeScore?: number;
     isFinal?: boolean;
   } | null>(null);
-  const [outcomeOverlay, setOutcomeOverlay] = useState<{ event: string; batterName: string } | null>(null);
+  const [outcomeOverlay, setOutcomeOverlay] = useState<{ event: string; batterName: string; switchingSides: boolean } | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<{ teamName: string; awayScore: number; homeScore: number } | null>(null);
   const prevBatterIdRef = useRef<number | null>(null);
   const prevResultKeyRef = useRef<string | null>(null);
+  const prevOutsRef = useRef<number>(0);
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
@@ -359,32 +360,39 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  // Detect at-bat completion → flash outcome overlay for 2.5s.
-  // Watches lastResult key (not just batterId) so end-of-inning outs resolve immediately
-  // rather than waiting for the next team's first batter.
+  // Detect at-bat completion → show outcome overlay until the next batter steps in.
+  // Detects third out by checking if outs reset to 0 from 2 (half-inning flipped).
   useEffect(() => {
     const lastResult = liveSnap?.liveMatchup?.lastResult;
+    const currentOuts = liveSnap?.outs ?? 0;
     const key = lastResult ? `${lastResult.batterName}::${lastResult.event}` : '';
     prevBatterIdRef.current = liveSnap?.liveMatchup?.batterId ?? null;
 
     if (prevResultKeyRef.current === null) {
       // First data load — record state without showing overlay
       prevResultKeyRef.current = key;
+      prevOutsRef.current = currentOuts;
       return;
     }
 
     if (key && key !== prevResultKeyRef.current) {
       prevResultKeyRef.current = key;
+      // Third out: outs was 2 before this play and reset to 0 (half-inning flipped)
+      const switchingSides = prevOutsRef.current === 2 && currentOuts === 0;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
-      setOutcomeOverlay(lastResult!);
-      outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 2500);
+      setOutcomeOverlay({ event: lastResult!.event, batterName: lastResult!.batterName, switchingSides });
+      // Safety fallback: clear after 15s if no new batter appears
+      outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 15_000);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId]);
 
-  // Reset card carousel when batter changes
+    prevOutsRef.current = currentOuts;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.outs]);
+
+  // Clear overlay and reset card carousel when next batter steps up
   useEffect(() => {
     setSelectedCardIdx(0);
+    setOutcomeOverlay(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.batterId]);
 
@@ -801,14 +809,14 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                     );
                   })()}
 
-                  {/* At-bat outcome overlay — flashes for 2.5s when batter changes */}
+                  {/* At-bat outcome overlay — persists until the next batter steps up */}
                   {outcomeOverlay && (
                     <div
-                      className="absolute inset-0 flex flex-col items-center justify-center z-30 rounded-xl"
+                      className="absolute inset-0 flex flex-col items-center justify-center z-30 rounded-xl gap-1"
                       style={{ backgroundColor: 'rgba(7,17,31,0.93)', backdropFilter: 'blur(4px)' }}
                     >
                       <span
-                        className="text-3xl font-black tracking-wide mb-2"
+                        className="text-3xl font-black tracking-wide"
                         style={{
                           color: overlayColor(outcomeOverlay.event),
                           textShadow: `0 0 32px ${overlayColor(outcomeOverlay.event)}88`,
@@ -816,7 +824,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       >
                         {outcomeLabel(outcomeOverlay.event)}
                       </span>
-                      <span className="text-gray-400 text-xs font-semibold">{outcomeOverlay.batterName}</span>
+                      <span className="text-gray-400 text-xs font-semibold mb-1">{outcomeOverlay.batterName}</span>
+                      {outcomeOverlay.switchingSides && (
+                        <span
+                          className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full"
+                          style={{ color: '#f59e0b', backgroundColor: '#f59e0b18', border: '1px solid #f59e0b44' }}
+                        >
+                          Switching Sides
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
