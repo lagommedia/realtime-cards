@@ -16,12 +16,29 @@ async function fetchMLB<T>(path: string, version = 'v1', cacheSeconds = 30): Pro
 }
 
 export async function getTodayGames(): Promise<MLBGame[]> {
-  // Use Eastern time — MLB schedules games by ET date, not UTC
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  const data = await fetchMLB<{ dates: Array<{ games: MLBGame[] }> }>(
-    `/schedule?sportId=1&date=${today}&hydrate=team,linescore,flags`
-  );
-  return data.dates?.[0]?.games ?? [];
+  // MLB schedules games by Eastern date, not UTC.
+  // After midnight ET, West Coast games started "yesterday" (ET) are still live —
+  // so we always fetch both the current ET date and the previous ET date, keeping
+  // only still-Live games from the prior date to cover those late-night windows.
+  const etNow = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const etYesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+  const fetchDate = (date: string) =>
+    fetchMLB<{ dates: Array<{ games: MLBGame[] }> }>(
+      `/schedule?sportId=1&date=${date}&hydrate=team,linescore,flags`,
+      'v1',
+      0
+    ).then(d => d.dates?.[0]?.games ?? []);
+
+  const [todayGames, yesterdayGames] = await Promise.all([
+    fetchDate(etNow),
+    fetchDate(etYesterday),
+  ]);
+
+  // After midnight ET, carry over yesterday's games that are Live (still in progress)
+  // or Final (completed late — so users can still see results). Skip Preview (postponed etc.)
+  const carryover = yesterdayGames.filter(g => g.status.abstractGameState !== 'Preview');
+  return [...carryover, ...todayGames];
 }
 
 export async function getLiveGameFeed(gamePk: number) {

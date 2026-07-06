@@ -35,7 +35,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchGames();
-    const interval = setInterval(fetchGames, 60_000);
+    const interval = setInterval(fetchGames, 30_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -122,7 +122,7 @@ export default function HomePage() {
 
         {lastUpdated && !loading && (
           <p className="text-center text-xs text-gray-600 pb-4">
-            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Auto-refreshes every minute
+            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Auto-refreshes every 30s
           </p>
         )}
       </div>
