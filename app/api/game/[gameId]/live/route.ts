@@ -82,14 +82,20 @@ function buildMatchup(raw: Record<string, unknown>): LiveMatchup | null {
       offense?: { first?: { id: number }; second?: { id: number }; third?: { id: number } };
     } | undefined)?.offense ?? {};
 
-    // Last completed at-bat result
+    // Last completed at-bat result — prefer the CURRENT play when it's already done
+    // (catches 3rd-out / end-of-inning immediately, before a new batter appears)
     const atBatIndex = (cp.atBatIndex as number | undefined) ?? 0;
     const allPlays = (ld.plays as { allPlays?: Array<{
       result: { event: string };
       matchup: { batter: { fullName: string } };
     }> } | undefined)?.allPlays ?? [];
+    const currentAbout = (cp.about as { isComplete?: boolean } | undefined);
+    const currentResult = (cp.result as { event?: string } | undefined);
     let lastResult: { event: string; batterName: string } | undefined;
-    if (atBatIndex > 0) {
+    if (currentAbout?.isComplete && currentResult?.event && currentResult.event !== 'In Progress') {
+      // Current at-bat is complete — report it immediately
+      lastResult = { event: currentResult.event, batterName: matchup.batter.fullName };
+    } else if (atBatIndex > 0) {
       const prev = allPlays[atBatIndex - 1];
       if (prev?.result?.event && prev.result.event !== 'In Progress') {
         lastResult = { event: prev.result.event, batterName: prev.matchup.batter.fullName };

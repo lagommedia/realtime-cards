@@ -303,6 +303,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [outcomeOverlay, setOutcomeOverlay] = useState<{ event: string; batterName: string } | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<{ teamName: string; awayScore: number; homeScore: number } | null>(null);
   const prevBatterIdRef = useRef<number | null>(null);
+  const prevResultKeyRef = useRef<string | null>(null);
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
@@ -348,21 +349,28 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  // Detect batter change → flash at-bat outcome overlay for 2.5s
+  // Detect at-bat completion → flash outcome overlay for 2.5s.
+  // Watches lastResult key (not just batterId) so end-of-inning outs resolve immediately
+  // rather than waiting for the next team's first batter.
   useEffect(() => {
-    const currentId = liveSnap?.liveMatchup?.batterId ?? null;
-    const prevId = prevBatterIdRef.current;
-    if (currentId && prevId !== null && currentId !== prevId) {
-      const lastResult = liveSnap?.liveMatchup?.lastResult;
-      if (lastResult) {
-        if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
-        setOutcomeOverlay(lastResult);
-        outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 2500);
-      }
+    const lastResult = liveSnap?.liveMatchup?.lastResult;
+    const key = lastResult ? `${lastResult.batterName}::${lastResult.event}` : '';
+    prevBatterIdRef.current = liveSnap?.liveMatchup?.batterId ?? null;
+
+    if (prevResultKeyRef.current === null) {
+      // First data load — record state without showing overlay
+      prevResultKeyRef.current = key;
+      return;
     }
-    prevBatterIdRef.current = currentId;
+
+    if (key && key !== prevResultKeyRef.current) {
+      prevResultKeyRef.current = key;
+      if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
+      setOutcomeOverlay(lastResult!);
+      outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 2500);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.batterId]);
+  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId]);
 
   // Reset card carousel when batter changes
   useEffect(() => {
