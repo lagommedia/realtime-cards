@@ -177,13 +177,28 @@ export async function searchCardImage(
   // Strict: only allowed Topps RC sets, no slabs, must have an image
   let raw = listings.filter(l => l.imageUrl && isAllowedToppsRC(l.title));
 
-  // Fallback: if strict filter yields nothing, allow any Topps listing without excluded brands
+  // Fallback 1: any Topps listing without excluded brands
   if (raw.length === 0) {
     raw = listings.filter(l =>
       l.imageUrl &&
       /\btopps\b/i.test(l.title) &&
       !EXCLUDED_BRANDS.test(l.title)
     );
+  }
+
+  // Fallback 2: any listing with an image from the specific query
+  if (raw.length === 0) {
+    raw = listings.filter(l => l.imageUrl);
+  }
+
+  // Fallback 3: broaden to just player name + Topps RC if still nothing
+  if (raw.length === 0) {
+    const broadQuery = `${playerName} Topps rookie card RC baseball`;
+    const broadListings = await searchEbayListings(broadQuery, token, false);
+    raw = broadListings.filter(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title));
+    if (raw.length === 0) {
+      raw = broadListings.filter(l => l.imageUrl);
+    }
   }
 
   // Score by title relevance
@@ -235,6 +250,7 @@ export async function getPlayerCardPricing(
     activeListing =
       active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
       active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
+      active.find(l => l.imageUrl) ??
       active[0];
   } else {
     // Use mock data when no eBay credentials are configured
