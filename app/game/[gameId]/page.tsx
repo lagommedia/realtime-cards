@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, use, useRef } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
@@ -309,6 +309,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = topCardInnerRef.current;
+    if (!el) return;
+    el.style.transition = '';
+    el.style.transform = '';
+    el.style.opacity = '';
+  }, [selectedCardIdx]);
+
   const [pitchDelivery, setPitchDelivery] = useState<{ x: number; y: number; result: string; pitchType?: string; animKey: string } | null>(null);
   const prevPitchKeyRef = useRef('');
   const pitchDeliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

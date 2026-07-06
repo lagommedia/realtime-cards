@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { CardPrediction, RookieCardOption } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, ExternalLink, ShoppingCart, Star } from 'lucide-react';
@@ -97,6 +97,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const [gradingMode, setGradingMode] = useState<'raw' | 'psa'>('raw');
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
+
+  // Reset stale inline styles on the top card whenever the index changes.
+  // Without this, swiping back to a previously-visited card reuses the same
+  // DOM node (same key) which still has transform/opacity from its last swipe.
+  useLayoutEffect(() => {
+    const el = topCardInnerRef.current;
+    if (!el) return;
+    el.style.transition = '';
+    el.style.transform = '';
+    el.style.opacity = '';
+  }, [selectedCardIdx]);
   const [psaGrade, setPsaGrade] = useState(10);
 
   const isUp = prediction.direction === 'up';
