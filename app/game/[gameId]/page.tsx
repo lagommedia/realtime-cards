@@ -308,6 +308,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
+  const topCardInnerRef = useRef<HTMLDivElement>(null);
   const [pitchDelivery, setPitchDelivery] = useState<{ x: number; y: number; result: string; pitchType?: string; animKey: string } | null>(null);
   const prevPitchKeyRef = useRef('');
   const pitchDeliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -565,31 +566,86 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         lastDelta={batterLast}
                         noBorder={true}
                       />
-                      <button
-                        className="w-full relative overflow-hidden active:opacity-75 transition-opacity"
-                        onClick={() => router.push(playerProfileUrl(batterPred, liveMatchup.batterId, liveMatchup.batter.name, gameId))}
-                        onTouchStart={e => { cardTouchStartRef.current = e.touches[0].clientX; }}
-                        onTouchEnd={e => {
-                          if (cardTouchStartRef.current === null) return;
-                          const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
-                          const opts = batterPred?.rookieCardOptions ?? [];
-                          if (diff > 40 && selectedCardIdx < opts.length - 1) setSelectedCardIdx(i => i + 1);
-                          else if (diff < -40 && selectedCardIdx > 0) setSelectedCardIdx(i => i - 1);
-                          cardTouchStartRef.current = null;
-                        }}
-                      >
-                        <ResponsiveCardImage
-                          playerId={batterPred?.playerId ?? 0}
-                          playerName={batterPred?.playerName ?? liveMatchup.batter.name}
-                          teamId={batterPred?.teamId ?? 0}
-                          position={batterPred?.position ?? 'OF'}
-                          cardType="Rookie Card"
-                          cardYear={batterPred?.rookieCardOptions?.[selectedCardIdx]?.year}
-                          cardSet={batterPred?.rookieCardOptions?.[selectedCardIdx]?.set}
-                          ebayImageUrl={selectedCardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
-                        />
-                      </button>
-                      {/* Swipe dots — only shown when multiple rookie card options */}
+                      {/* Card stack — cards sit on top of each other; swipe top card away */}
+                      {(() => {
+                        const opts = batterPred?.rookieCardOptions ?? [];
+                        const stackCount = Math.min(opts.length - selectedCardIdx, 3);
+                        if (stackCount === 0) return null;
+                        return (
+                          <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
+                            {Array.from({ length: stackCount }, (_, depth) => {
+                              const cardIdx = selectedCardIdx + depth;
+                              const opt = opts[cardIdx];
+                              const isTop = depth === 0;
+                              return (
+                                <div
+                                  key={`${opt.year}-${opt.set}`}
+                                  className="absolute inset-0 overflow-hidden"
+                                  style={{
+                                    borderRadius: 8,
+                                    zIndex: stackCount - depth,
+                                    transform: `translateY(${depth * 7}px) scale(${1 - depth * 0.04})`,
+                                    transformOrigin: 'top center',
+                                    transition: 'transform 0.25s ease',
+                                    boxShadow: isTop ? '0 6px 28px rgba(0,0,0,0.65)' : '0 2px 10px rgba(0,0,0,0.35)',
+                                  }}
+                                >
+                                  <div
+                                    ref={isTop ? topCardInnerRef : undefined}
+                                    style={{ width: '100%', height: '100%' }}
+                                    onTouchStart={!isTop ? undefined : e => {
+                                      cardTouchStartRef.current = e.touches[0].clientX;
+                                    }}
+                                    onTouchMove={!isTop ? undefined : e => {
+                                      if (cardTouchStartRef.current === null || !topCardInnerRef.current) return;
+                                      const dx = e.touches[0].clientX - cardTouchStartRef.current;
+                                      topCardInnerRef.current.style.transition = 'none';
+                                      topCardInnerRef.current.style.transform = `translateX(${dx}px) rotate(${dx * 0.035}deg)`;
+                                    }}
+                                    onTouchEnd={!isTop ? undefined : e => {
+                                      if (cardTouchStartRef.current === null) return;
+                                      const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
+                                      cardTouchStartRef.current = null;
+                                      const el = topCardInnerRef.current;
+                                      if (!el) return;
+                                      if (Math.abs(diff) < 8) {
+                                        el.style.transition = '';
+                                        el.style.transform = '';
+                                        router.push(playerProfileUrl(batterPred, liveMatchup.batterId, liveMatchup.batter.name, gameId));
+                                      } else if (diff > 50 && selectedCardIdx < opts.length - 1) {
+                                        el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
+                                        el.style.transform = 'translateX(-160%) rotate(-15deg)';
+                                        el.style.opacity = '0';
+                                        setTimeout(() => setSelectedCardIdx(i => i + 1), 250);
+                                      } else if (diff < -50 && selectedCardIdx > 0) {
+                                        el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
+                                        el.style.transform = 'translateX(160%) rotate(15deg)';
+                                        el.style.opacity = '0';
+                                        setTimeout(() => setSelectedCardIdx(i => i - 1), 250);
+                                      } else {
+                                        el.style.transition = 'transform 0.22s ease-out';
+                                        el.style.transform = '';
+                                      }
+                                    }}
+                                  >
+                                    <ResponsiveCardImage
+                                      playerId={batterPred?.playerId ?? 0}
+                                      playerName={batterPred?.playerName ?? liveMatchup.batter.name}
+                                      teamId={batterPred?.teamId ?? 0}
+                                      position={batterPred?.position ?? 'OF'}
+                                      cardType="Rookie Card"
+                                      cardYear={opt.year}
+                                      cardSet={opt.set}
+                                      ebayImageUrl={cardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                      {/* Stack dots */}
                       {(batterPred?.rookieCardOptions?.length ?? 0) > 1 && (
                         <div className="flex justify-center gap-1.5 py-1.5">
                           {batterPred!.rookieCardOptions!.map((opt, i) => (

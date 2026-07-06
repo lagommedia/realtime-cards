@@ -1,11 +1,10 @@
 import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption } from '@/types';
 import { generateCardValueProjection } from '@/lib/card-value-model';
 
-// Standard sets that carry the official RC logo in the modern Topps era
+// Only these three Topps sets are shown — Series 1, Series 2, and Chrome
 const TOPPS_RC_SETS: Array<{ set: string; shortName: string }> = [
   { set: 'Topps Series 1', shortName: 'Topps S1' },
   { set: 'Topps Series 2', shortName: 'Topps S2' },
-  { set: 'Topps Update Series', shortName: 'Update' },
   { set: 'Topps Chrome', shortName: 'Chrome' },
 ];
 
@@ -13,7 +12,6 @@ const TOPPS_RC_SETS: Array<{ set: string; shortName: string }> = [
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
   'Topps Series 1': 1.0,
   'Topps Series 2': 0.85,
-  'Topps Update Series': 0.95,
   'Topps Chrome': 2.8,
 };
 
