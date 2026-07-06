@@ -305,6 +305,11 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const prevBatterIdRef = useRef<number | null>(null);
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedCardIdx, setSelectedCardIdx] = useState(0);
+  const cardTouchStartRef = useRef<number | null>(null);
+  const [pitchDelivery, setPitchDelivery] = useState<{ x: number; y: number; result: string; pitchType?: string; animKey: string } | null>(null);
+  const prevPitchKeyRef = useRef('');
+  const pitchDeliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchGame() {
     try {
@@ -358,6 +363,26 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     prevBatterIdRef.current = currentId;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.batterId]);
+
+  // Reset card carousel when batter changes
+  useEffect(() => {
+    setSelectedCardIdx(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSnap?.liveMatchup?.batterId]);
+
+  // Fire pitch delivery animation on each new pitch
+  useEffect(() => {
+    const pitches = liveSnap?.liveMatchup?.pitches ?? [];
+    const last = pitches[pitches.length - 1];
+    if (!last) return;
+    const key = `${liveSnap?.liveMatchup?.batterId ?? 0}-${last.seq}`;
+    if (key === prevPitchKeyRef.current) return;
+    prevPitchKeyRef.current = key;
+    if (pitchDeliveryTimerRef.current) clearTimeout(pitchDeliveryTimerRef.current);
+    setPitchDelivery({ x: last.x, y: last.y, result: last.result, pitchType: last.pitchType, animKey: key });
+    pitchDeliveryTimerRef.current = setTimeout(() => setPitchDelivery(null), 2300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSnap?.liveMatchup?.pitches?.length, liveSnap?.liveMatchup?.batterId]);
 
   // Detect live → final transition → show winning team popup
   useEffect(() => {
@@ -535,6 +560,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       <button
                         className="w-full relative overflow-hidden active:opacity-75 transition-opacity"
                         onClick={() => router.push(playerProfileUrl(batterPred, liveMatchup.batterId, liveMatchup.batter.name, gameId))}
+                        onTouchStart={e => { cardTouchStartRef.current = e.touches[0].clientX; }}
+                        onTouchEnd={e => {
+                          if (cardTouchStartRef.current === null) return;
+                          const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
+                          const opts = batterPred?.rookieCardOptions ?? [];
+                          if (diff > 40 && selectedCardIdx < opts.length - 1) setSelectedCardIdx(i => i + 1);
+                          else if (diff < -40 && selectedCardIdx > 0) setSelectedCardIdx(i => i - 1);
+                          cardTouchStartRef.current = null;
+                        }}
                       >
                         <ResponsiveCardImage
                           playerId={batterPred?.playerId ?? 0}
@@ -542,19 +576,24 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           teamId={batterPred?.teamId ?? 0}
                           position={batterPred?.position ?? 'OF'}
                           cardType="Rookie Card"
-                          cardYear={batterPred?.rookieCardOptions?.[0]?.year}
-                          cardSet={batterPred?.rookieCardOptions?.[0]?.set}
-                          ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
+                          cardYear={batterPred?.rookieCardOptions?.[selectedCardIdx]?.year}
+                          cardSet={batterPred?.rookieCardOptions?.[selectedCardIdx]?.set}
+                          ebayImageUrl={selectedCardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
                         />
-                        <div
-                          className="absolute inset-x-0 bottom-0 flex items-end justify-center pb-1.5"
-                          style={{ height: '45%', background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 100%)', pointerEvents: 'none', zIndex: 20 }}
-                        >
-                          <span className="px-2 py-0.5 rounded-full text-[7px] font-black text-white" style={{ backgroundColor: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.28)' }}>
-                            Buy Now
-                          </span>
-                        </div>
                       </button>
+                      {/* Swipe dots — only shown when multiple rookie card options */}
+                      {(batterPred?.rookieCardOptions?.length ?? 0) > 1 && (
+                        <div className="flex justify-center gap-1.5 py-1.5">
+                          {batterPred!.rookieCardOptions!.map((opt, i) => (
+                            <div
+                              key={i}
+                              className="w-1.5 h-1.5 rounded-full transition-all"
+                              style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
+                              title={opt.shortName ?? String(opt.year ?? '')}
+                            />
+                          ))}
+                        </div>
+                      )}
                       {/* Live card price strip */}
                       {batterPred && (batterPred.currentPrice > 0 || (batterPred.priceSummary?.averagePrice ?? 0) > 0) && (() => {
                         const basePrice = batterPred.currentPrice > 0
@@ -608,7 +647,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         </div>
                       </div>
                       <div className="flex-1 min-h-0 w-full">
-                        <StrikeZone pitches={liveMatchup.pitches} compact />
+                        <StrikeZone pitches={liveMatchup.pitches} compact pitchDelivery={pitchDelivery} />
                       </div>
                     </div>
                   </div>

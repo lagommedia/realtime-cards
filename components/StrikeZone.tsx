@@ -36,7 +36,23 @@ const MODES = {
   },
 };
 
-export default function StrikeZone({ pitches, compact = false }: { pitches: Pitch[]; compact?: boolean }) {
+interface PitchDelivery {
+  x: number;
+  y: number;
+  result: string;
+  pitchType?: string;
+  animKey: string;
+}
+
+export default function StrikeZone({
+  pitches,
+  compact = false,
+  pitchDelivery = null,
+}: {
+  pitches: Pitch[];
+  compact?: boolean;
+  pitchDelivery?: PitchDelivery | null;
+}) {
   const m = compact ? MODES.compact : MODES.full;
   const { F, Z, r, fs, sw, glowR, glowSd } = m;
   const mostRecent = pitches[pitches.length - 1];
@@ -180,6 +196,90 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             {Math.round(mostRecent.velocity)} MPH
           </text>
         )}
+
+        {/* Pitch delivery animation — batter's-eye-view ball trajectory */}
+        {pitchDelivery && (() => {
+          const startX = F.x + F.w / 2;
+          const startY = F.y + 4;
+          const endX = svgX(pitchDelivery.x);
+          const endY = svgY(pitchDelivery.y);
+          const color = pitchColor(pitchDelivery.pitchType);
+          const isBall = pitchDelivery.result === 'ball';
+          const isFoul = pitchDelivery.result === 'foul' || pitchDelivery.result === 'foul_tip';
+          const resultLabel = isBall ? 'BALL' : isFoul ? 'FOUL' : 'STRIKE';
+          const resultColor = isBall ? '#22c55e' : isFoul ? '#f59e0b' : '#ef4444';
+          const dx = endX - startX;
+          const dy = endY - startY;
+          const pathLen = Math.round(Math.sqrt(dx * dx + dy * dy));
+          const endR = compact ? 10 : 15;
+          const startR = compact ? 1.5 : 2.5;
+          const textY = F.y + F.h * 0.52;
+          const textSize = compact ? 15 : 22;
+
+          return (
+            <g key={pitchDelivery.animKey}>
+              {/* Dim overlay fades in then out */}
+              <rect x={F.x} y={F.y} width={F.w} height={F.h}
+                fill="#07111f" rx={compact ? 4 : 8} opacity="0">
+                <animate attributeName="opacity"
+                  values="0;0.82;0.82;0.82;0"
+                  keyTimes="0;0.08;0.5;0.88;1"
+                  dur="2.2s" fill="freeze" />
+              </rect>
+
+              {/* Trail — line drawn as ball travels */}
+              <line x1={startX} y1={startY} x2={endX} y2={endY}
+                stroke={color} strokeWidth={compact ? 1 : 1.5}
+                strokeDasharray={pathLen} strokeDashoffset={pathLen} opacity="0.4">
+                <animate attributeName="stroke-dashoffset"
+                  from={pathLen} to="0" dur="0.55s" fill="freeze" />
+                <animate attributeName="opacity"
+                  values="0.4;0.4;0;0" keyTimes="0;0.45;0.7;1" dur="2.2s" fill="freeze" />
+              </line>
+
+              {/* Glow halo around ball */}
+              <circle cx={startX} cy={startY} r={startR * 2} fill={color}
+                opacity="0.25" filter={`url(#${filterId})`}>
+                <animate attributeName="cx" from={startX} to={endX} dur="0.55s" fill="freeze" />
+                <animate attributeName="cy" from={startY} to={endY} dur="0.55s" fill="freeze" />
+                <animate attributeName="r" from={startR * 2} to={endR * 1.6} dur="0.55s" fill="freeze" />
+                <animate attributeName="opacity"
+                  values="0.25;0.35;0.2;0" keyTimes="0;0.25;0.7;1" dur="2.2s" fill="freeze" />
+              </circle>
+
+              {/* Main ball */}
+              <circle cx={startX} cy={startY} r={startR} fill={color} opacity="0.95">
+                <animate attributeName="cx" from={startX} to={endX} dur="0.55s" fill="freeze" />
+                <animate attributeName="cy" from={startY} to={endY} dur="0.55s" fill="freeze" />
+                <animate attributeName="r" from={startR} to={endR} dur="0.55s" fill="freeze" />
+                <animate attributeName="opacity"
+                  values="0.95;1;1;0.5;0" keyTimes="0;0.25;0.55;0.85;1" dur="2.2s" fill="freeze" />
+              </circle>
+
+              {/* Outcome text — fades in after ball lands */}
+              <text x={F.x + F.w / 2} y={textY}
+                textAnchor="middle" dominantBaseline="central"
+                fontSize={textSize} fontWeight="900"
+                fill={resultColor} fontFamily="monospace"
+                opacity="0">
+                <animate attributeName="opacity"
+                  values="0;0;1;1;0" keyTimes="0;0.27;0.38;0.88;1" dur="2.2s" fill="freeze" />
+                {resultLabel}
+              </text>
+
+              {/* Subtle glow behind outcome text */}
+              <text x={F.x + F.w / 2} y={textY}
+                textAnchor="middle" dominantBaseline="central"
+                fontSize={textSize + (compact ? 4 : 6)} fontWeight="900"
+                fill={resultColor} fontFamily="monospace"
+                opacity="0" filter={`url(#${filterId})`}>
+                <animate attributeName="opacity"
+                  values="0;0;0.35;0.35;0" keyTimes="0;0.27;0.38;0.88;1" dur="2.2s" fill="freeze" />
+                {resultLabel}
+              </text>
+            </g>
+          );
+        })()}
       </svg>
 
       {/* Legend — full mode only (compact legend is in page.tsx) */}

@@ -53,6 +53,13 @@ export default function BaseballCardImage({
     : (!searchedErrored && searchedUrl) ? searchedUrl
     : null;
 
+  // eBay CDN and MLB static load fine cross-origin; everything else is proxied
+  // to avoid CORS/CORP blocks from tcdb.com, pricecharting, etc.
+  function proxied(url: string): string {
+    if (url.startsWith('/') || url.includes('ebayimg.com') || url.includes('mlbstatic.com')) return url;
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+
   // ── Real card image ───────────────────────────────────────────────────────
   if (activeUrl) {
     return (
@@ -62,7 +69,7 @@ export default function BaseballCardImage({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={activeUrl}
+          src={proxied(activeUrl)}
           alt={`${playerName} card`}
           style={{ width, height, objectFit: 'cover' }}
           onError={() => {
