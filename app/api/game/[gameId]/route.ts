@@ -220,8 +220,10 @@ export async function GET(
       } catch { return null; }
     })();
 
-    // Card predictions (limit to 16 to avoid rate limits; always include current batter)
-    let topPlayers = players.slice(0, 16);
+    // Include both teams — split by teamId so one team can't crowd out the other
+    const homePlayers = homeTeam.id ? players.filter(p => p.teamId === homeTeam.id) : [];
+    const awayPlayers = awayTeam.id ? players.filter(p => p.teamId === awayTeam.id) : [];
+    let topPlayers = [...homePlayers.slice(0, 16), ...awayPlayers.slice(0, 16)];
     if (currentBatterId && !topPlayers.some(p => p.playerId === currentBatterId)) {
       const batterPlayer = players.find(p => p.playerId === currentBatterId);
       if (batterPlayer) topPlayers = [...topPlayers, batterPlayer];
