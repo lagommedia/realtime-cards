@@ -292,6 +292,39 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               {gradingMode === 'psa' ? `PSA ${psaGrade} Valuation` : 'Highest Rising Card'}
             </p>
 
+            {/* Price info — above the card, updates on swipe */}
+            <div
+              className="rounded-xl px-3 py-2.5 mb-3 flex flex-col gap-1"
+              style={{ backgroundColor: flash ? flashBg : '#ffffff08', transition: 'background-color 0.6s ease-out' }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
+                    ${livePrice.toFixed(2)}
+                  </span>
+                  <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
+                  </span>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}>
+                  {prediction.confidence} confidence
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-500 text-[10px]">proj.</span>
+                <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
+                <span className="text-[10px]" style={{ color: directionColor }}>
+                  ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
+                </span>
+              </div>
+              {selectedCard && (
+                <p className="text-gray-500 text-[10px] mt-0.5">
+                  {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
+                  {gradingMode === 'psa' ? ` · PSA ${psaGrade}` : ''}
+                </p>
+              )}
+            </div>
+
             {/* Card stack */}
             {(() => {
               const stackCount = Math.min(rookieOptions.length - selectedCardIdx, 3);
@@ -384,39 +417,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 ))}
               </div>
             )}
-
-            {/* Price info */}
-            <div
-              className="rounded-xl px-3 py-2.5 mt-2 flex flex-col gap-1"
-              style={{ backgroundColor: '#ffffff08', transition: 'background-color 0.6s ease-out', ...(flash ? { backgroundColor: flashBg } : {}) }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
-                    ${livePrice.toFixed(2)}
-                  </span>
-                  <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
-                    {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
-                  </span>
-                </div>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}>
-                  {prediction.confidence} confidence
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 text-[10px]">proj.</span>
-                <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
-                <span className="text-[10px]" style={{ color: directionColor }}>
-                  ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
-                </span>
-              </div>
-              {selectedCard && (
-                <p className="text-gray-500 text-[10px] mt-0.5">
-                  {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
-                  {gradingMode === 'psa' ? ` · PSA ${psaGrade}` : ''}
-                </p>
-              )}
-            </div>
 
             {/* eBay CTA */}
             <a
