@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
+import { useBroadcast, BROADCAST_PLATFORMS } from '@/context/BroadcastContext';
 import { ALL_TEAMS } from '@/lib/team-themes';
 import { Check, X } from 'lucide-react';
 import TeamLogo from '@/components/TeamLogo';
@@ -10,6 +11,7 @@ const DIVISIONS = ['AL East', 'AL Central', 'AL West', 'NL East', 'NL Central', 
 
 export default function SettingsPage() {
   const { theme, selectedTeamId, setSelectedTeamId } = useTeam();
+  const { platformId, setPlatformId } = useBroadcast();
   const [search, setSearch] = useState('');
 
   const filteredTeams = ALL_TEAMS.filter(t =>
@@ -28,6 +30,36 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-6 pb-6">
+        {/* Broadcast platform */}
+        <div>
+          <p className="text-sm font-semibold text-white mb-1">How do you watch your games?</p>
+          <p className="text-xs text-gray-500 mb-3">Calibrates live data to match your broadcast delay</p>
+          <div className="grid grid-cols-2 gap-2">
+            {BROADCAST_PLATFORMS.map(platform => {
+              const selected = platformId === platform.id;
+              return (
+                <button
+                  key={platform.id}
+                  onClick={() => setPlatformId(selected ? null : platform.id)}
+                  className="flex flex-col items-start px-3 py-3 rounded-xl transition-all text-left"
+                  style={{
+                    backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+                    border: `1px solid ${selected ? theme.primary : 'transparent'}`,
+                  }}
+                >
+                  <div className="flex items-center justify-between w-full mb-0.5">
+                    <span className="text-white text-sm font-medium leading-tight">{platform.label}</span>
+                    {selected && <Check size={13} style={{ color: theme.primary, flexShrink: 0 }} />}
+                  </div>
+                  <span className="text-xs" style={{ color: selected ? theme.primary : '#6b7280' }}>
+                    {platform.sublabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Current team */}
         <div className="rounded-2xl p-4 border border-white/10" style={{ backgroundColor: theme.cardBackground }}>
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-medium">Favorite Team</p>

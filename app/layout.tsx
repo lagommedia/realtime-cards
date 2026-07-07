@@ -3,6 +3,7 @@ import './globals.css';
 import { TeamProvider } from '@/context/TeamContext';
 import { WatchListProvider } from '@/context/WatchListContext';
 import { LiveEventsProvider } from '@/context/LiveEventsContext';
+import { BroadcastProvider } from '@/context/BroadcastContext';
 import Navigation from '@/components/Navigation';
 
 export const metadata: Metadata = {
@@ -22,14 +23,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="antialiased" style={{ backgroundColor: '#0a0f1e', color: '#fff', minHeight: '100dvh' }}>
         <TeamProvider>
-          <WatchListProvider>
-            <LiveEventsProvider>
-              <div className="min-h-dvh max-w-lg mx-auto relative">
-                <main className="pb-20">{children}</main>
-                <Navigation />
-              </div>
-            </LiveEventsProvider>
-          </WatchListProvider>
+          <BroadcastProvider>
+            <WatchListProvider>
+              <LiveEventsProvider>
+                <div className="min-h-dvh max-w-lg mx-auto relative">
+                  <main className="pb-20">{children}</main>
+                  <Navigation />
+                </div>
+              </LiveEventsProvider>
+            </WatchListProvider>
+          </BroadcastProvider>
         </TeamProvider>
       </body>
     </html>

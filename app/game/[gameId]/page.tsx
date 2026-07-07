@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, use, useRef } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
+import { useBroadcast } from '@/context/BroadcastContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { ArrowLeft, RefreshCw, Radio, CheckCircle, Flame } from 'lucide-react';
@@ -286,6 +287,10 @@ function MatchupStrip({ matchup }: { matchup: LiveMatchup }) {
 export default function GamePage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = use(params);
   const { theme } = useTeam();
+  const { delaySec } = useBroadcast();
+  const delaySecRef = useRef(delaySec);
+  useEffect(() => { delaySecRef.current = delaySec; }, [delaySec]);
+  const snapQueueRef = useRef<Array<{ snap: unknown; ts: number }>>([]);
   const router = useRouter();
 
   const [data, setData] = useState<GameData | null>(null);
@@ -347,7 +352,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   async function fetchLive() {
     try {
       const res = await fetch(`/api/game/${gameId}/live`);
-      if (res.ok) setLiveSnap(await res.json());
+      if (!res.ok) return;
+      const snap = await res.json();
+      // Queue every snapshot with a timestamp; the display ticker applies the delay
+      snapQueueRef.current.push({ snap, ts: Date.now() });
     } catch { /* silently skip */ }
   }
 
@@ -360,6 +368,22 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     return () => { clearInterval(fullInterval); clearInterval(liveInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
+
+  // Display ticker — applies the broadcast delay by releasing queued snapshots
+  // only once they are old enough to match what's on screen
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      const delayMs = delaySecRef.current * 1000;
+      const now = Date.now();
+      const ready = snapQueueRef.current.filter(s => now - s.ts >= delayMs);
+      if (ready.length === 0) return;
+      setLiveSnap(ready[ready.length - 1].snap as Parameters<typeof setLiveSnap>[0]);
+      // Prune entries that are no longer needed
+      snapQueueRef.current = snapQueueRef.current.filter(s => now - s.ts < delayMs + 120_000);
+    }, 1_000);
+    return () => clearInterval(ticker);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Single effect handles both showing the overlay on at-bat completion and clearing it
   // when the next batter steps in. Keeping this as one effect avoids a race where a
