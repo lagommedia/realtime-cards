@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { CardPrediction, RookieCardOption } from '@/types';
 import { useTeam } from '@/context/TeamContext';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, ExternalLink, ShoppingCart, Star } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import TeamLogo from '@/components/TeamLogo';
 import BaseballCardImage from '@/components/BaseballCardImage';
@@ -19,32 +19,6 @@ interface Props {
   defaultChartView?: 'season' | 'game';
   isLive?: boolean;
   defaultExpanded?: boolean;
-}
-
-const PSA_MULTIPLIERS: Record<number, number> = {
-  10: 10.0, 9: 4.0, 8: 2.0, 7: 1.3,
-  6: 1.0, 5: 0.75, 4: 0.6, 3: 0.45,
-  2: 0.35, 1: 0.25,
-};
-
-function psaGradeColor(grade: number): string {
-  if (grade === 10) return '#f59e0b';
-  if (grade >= 8) return '#22c55e';
-  if (grade >= 5) return '#3b82f6';
-  return '#ef4444';
-}
-
-function psaGradeLabel(grade: number): string {
-  if (grade === 10) return 'Gem Mint';
-  if (grade === 9) return 'Mint';
-  if (grade === 8) return 'NM/MT';
-  if (grade === 7) return 'NM';
-  if (grade === 6) return 'EX/MT';
-  if (grade === 5) return 'EX';
-  if (grade === 4) return 'VG/EX';
-  if (grade === 3) return 'VG';
-  if (grade === 2) return 'Good';
-  return 'Poor';
 }
 
 // Micro-volatility ticker — simulates live market movement
@@ -94,7 +68,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const { isWatched, toggleWatch } = useWatchList();
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
-  const [gradingMode, setGradingMode] = useState<'raw' | 'psa'>('raw');
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +81,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     el.style.transform = '';
     el.style.opacity = '';
   }, [selectedCardIdx]);
-  const [psaGrade, setPsaGrade] = useState(10);
 
   const isUp = prediction.direction === 'up';
   const directionColor = isUp ? '#22c55e' : '#ef4444';
@@ -120,9 +92,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const rookieOptions: RookieCardOption[] = prediction.rookieCardOptions ?? [];
   const selectedCard = rookieOptions[selectedCardIdx] ?? null;
 
-  const setMultiplier = selectedCard ? (SET_PRICE_MULTIPLIERS[selectedCard.set] ?? 1.0) : 1.0;
-  const psaMultiplier = gradingMode === 'psa' ? PSA_MULTIPLIERS[psaGrade] : 1.0;
-  const totalMultiplier = setMultiplier * psaMultiplier;
+  const totalMultiplier = selectedCard ? (SET_PRICE_MULTIPLIERS[selectedCard.set] ?? 1.0) : 1.0;
 
   const baseCurrentPrice = prediction.currentPrice * totalMultiplier;
   const displayProjectedPrice = prediction.projectedPrice * totalMultiplier;
@@ -142,13 +112,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     ...(prediction.priceSummary?.activeListing ? [prediction.priceSummary.activeListing] : []),
   ];
   const featuredCard = getFeaturedCard(allListings);
-
-  const ebayQuery = [
-    prediction.playerName,
-    selectedCard ? `${selectedCard.year} ${selectedCard.set}` : 'rookie card',
-    gradingMode === 'psa' ? `PSA ${psaGrade}` : '',
-  ].filter(Boolean).join(' ');
-  const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(ebayQuery)}&_sacat=212`;
 
   // Flash bg color for the live price
   const flashBg = flash === 'up' ? '#22c55e18' : flash === 'down' ? '#ef444418' : 'transparent';
@@ -238,69 +201,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         <div className="border-t border-white/10 p-4 space-y-4">
 
 
-          {/* Grading toggle */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Condition</p>
-            <div
-              className="flex rounded-xl overflow-hidden border border-white/10"
-              style={{ backgroundColor: '#ffffff08' }}
-            >
-              {(['raw', 'psa'] as const).map(mode => {
-                const active = gradingMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => setGradingMode(mode)}
-                    className="flex-1 py-2 text-xs font-bold transition-all"
-                    style={{
-                      backgroundColor: active ? `${theme.primary}22` : 'transparent',
-                      color: active ? theme.primary : '#6b7280',
-                      borderBottom: active ? `2px solid ${theme.primary}` : '2px solid transparent',
-                    }}
-                  >
-                    {mode === 'raw' ? 'Raw / Ungraded' : 'PSA Graded'}
-                  </button>
-                );
-              })}
-            </div>
-
-            {gradingMode === 'psa' && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-gray-500">PSA Grade</span>
-                  <span className="text-xs font-bold" style={{ color: psaGradeColor(psaGrade) }}>
-                    PSA {psaGrade} — {psaGradeLabel(psaGrade)}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => {
-                    const active = psaGrade === g;
-                    return (
-                      <button
-                        key={g}
-                        onClick={() => setPsaGrade(g)}
-                        className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
-                        style={{
-                          backgroundColor: active ? psaGradeColor(g) : '#ffffff10',
-                          color: active ? '#fff' : '#6b7280',
-                        }}
-                      >
-                        {g}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] text-gray-600 mt-1.5 text-center">
-                  Prices estimated using industry PSA grade multipliers
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* ── Card valuation — full-width stack ── */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              {gradingMode === 'psa' ? `PSA ${psaGrade} Valuation` : 'Highest Rising Card'}
+              Highest Rising Card
             </p>
 
             {/* Price info — above the card, updates on swipe */}
@@ -331,7 +235,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               {selectedCard && (
                 <p className="text-gray-500 text-[10px] mt-0.5">
                   {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
-                  {gradingMode === 'psa' ? ` · PSA ${psaGrade}` : ''}
                 </p>
               )}
             </div>
@@ -429,20 +332,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               </div>
             )}
 
-            {/* eBay CTA */}
-            <a
-              href={ebayUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 mt-3 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{ backgroundColor: theme.primary, color: '#fff' }}
-            >
-              <ShoppingCart size={14} />
-              {gradingMode === 'psa'
-                ? `Shop PSA ${psaGrade} ${selectedCard?.shortName ?? 'RC'} on eBay`
-                : `Shop ${prediction.playerName} Cards on eBay`}
-              <ExternalLink size={12} />
-            </a>
           </div>
 
           {/* ── Value Projection Engine ── */}

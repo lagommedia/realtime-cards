@@ -1,4 +1,5 @@
 import { EbayListing, CardPriceSummary } from '@/types';
+import { getFlagshipRC } from '@/lib/flagship-rc';
 
 const EBAY_API_BASE = 'https://api.ebay.com';
 
@@ -293,13 +294,12 @@ export async function getPlayerCardPricing(
   let activeListing: EbayListing | undefined;
 
   if (token) {
+    const flagship = getFlagshipRC(playerId, rookieYear);
     const companyLabel = gradingCompany?.toUpperCase() ?? '';
     const gradeLabel = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
     const query = gradingCompany
-      ? `${playerName} ${rookieYear ?? ''} Topps ${companyLabel}${gradeLabel} rookie card RC`.replace(/\s+/g, ' ').trim()
-      : rookieYear
-        ? `${playerName} ${rookieYear} Topps rookie card RC`
-        : `${playerName} Topps rookie card RC baseball`;
+      ? `${playerName} ${flagship.year} ${flagship.set} ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
+      : `${playerName} ${flagship.year} ${flagship.set} RC`;
 
     const [sold, active] = await Promise.all([
       searchEbayListings(query, token, true),

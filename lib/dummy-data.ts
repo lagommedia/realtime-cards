@@ -181,7 +181,7 @@ export function getDummyTrendingPredictions(): CardPrediction[] {
       projectedPrice,
       liveStats,
       priceSummary,
-      rookieCardOptions: getRookieCardOptions(p.debutYear),
+      rookieCardOptions: getRookieCardOptions(p.playerId, p.debutYear),
       projection,
     } satisfies CardPrediction;
   });

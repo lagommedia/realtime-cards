@@ -1,13 +1,6 @@
 import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption } from '@/types';
 import { generateCardValueProjection } from '@/lib/card-value-model';
-
-// Only these four Topps sets are shown — Series 1, Series 2, Update, and Chrome
-const TOPPS_RC_SETS: Array<{ set: string; shortName: string }> = [
-  { set: 'Topps Series 1', shortName: 'Topps S1' },
-  { set: 'Topps Series 2', shortName: 'Topps S2' },
-  { set: 'Topps Update', shortName: 'Update' },
-  { set: 'Topps Chrome', shortName: 'Chrome' },
-];
+import { getFlagshipRC } from '@/lib/flagship-rc';
 
 // Price premium of each set relative to Series 1 base price
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
@@ -17,9 +10,9 @@ export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
   'Topps Chrome': 2.8,
 };
 
-export function getRookieCardOptions(debutYear: number | undefined): RookieCardOption[] {
-  const year = debutYear ?? new Date().getFullYear();
-  return TOPPS_RC_SETS.map(s => ({ year, ...s }));
+export function getRookieCardOptions(playerId: number, debutYear: number | undefined): RookieCardOption[] {
+  const flagship = getFlagshipRC(playerId, debutYear);
+  return [flagship];
 }
 
 interface ScoringFactors {
@@ -162,7 +155,7 @@ export function generateCardPrediction(
     projectedPrice: finalProjectedPrice,
     liveStats: player.todayStats,
     priceSummary,
-    rookieCardOptions: getRookieCardOptions(player.debutYear),
+    rookieCardOptions: getRookieCardOptions(player.playerId, player.debutYear),
     projection,
   };
 }

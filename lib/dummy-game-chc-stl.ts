@@ -361,7 +361,7 @@ function buildPredictions(roster: RosterEntry[]): CardPrediction[] {
       projectedPrice: parseFloat((p.basePrice * (1 + pct / 100)).toFixed(2)),
       liveStats,
       priceSummary,
-      rookieCardOptions: getRookieCardOptions(p.debutYear),
+      rookieCardOptions: getRookieCardOptions(p.playerId, p.debutYear),
       projection,
     } satisfies CardPrediction;
   });

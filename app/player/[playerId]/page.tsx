@@ -8,8 +8,7 @@ import { useWatchList } from '@/context/WatchListContext';
 import { useGrading, GRADING_COMPANIES, GRADING_GRADES, GradingCompanyId, DEFAULT_GRADE } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
-import { ArrowLeft, Star, ShoppingCart, ExternalLink } from 'lucide-react';
-import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
+import { ArrowLeft, Star } from 'lucide-react';
 import { getTeamTheme } from '@/lib/team-themes';
 
 interface TrendingResponse {
@@ -86,19 +85,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
       })
       .finally(() => setLoading(false));
   }, [playerId, searchParams, localCompanyId, localGradeValue]);
-
-  const firstCard = prediction?.rookieCardOptions?.[0];
-  const setMultiplier = firstCard ? (SET_PRICE_MULTIPLIERS[firstCard.set] ?? 1) : 1;
-  const displayPrice = (prediction?.currentPrice ?? 0) * setMultiplier;
-
-  const ebayQuery = [
-    prediction?.playerName ?? '',
-    firstCard ? `${firstCard.year} ${firstCard.set}` : 'rookie card',
-    localCompanyId.toUpperCase(),
-    localGradeValue,
-    'baseball card',
-  ].filter(Boolean).join(' ');
-  const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(ebayQuery)}&_sacat=212&_sop=15`;
 
   const watched = isWatched(playerId);
 
@@ -183,33 +169,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
           </div>
         </div>
 
-        {/* ── Quick Buy CTA — prominent above the card ── */}
-        {!loading && prediction && (
-          <a
-            href={ebayUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between gap-3 px-4 py-4 rounded-2xl"
-            style={{ backgroundColor: theme.primary }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-              >
-                <ShoppingCart size={20} color="#fff" />
-              </div>
-              <div>
-                <p className="text-white font-black text-base leading-tight">Buy on eBay Now</p>
-                <p className="text-white/75 text-xs leading-tight mt-0.5">
-                  {firstCard ? `${firstCard.year} ${firstCard.shortName} RC` : 'Rookie Card'}
-                  {displayPrice > 0 ? ` · ~$${displayPrice.toFixed(0)}` : ''}
-                </p>
-              </div>
-            </div>
-            <ExternalLink size={16} color="rgba(255,255,255,0.7)" />
-          </a>
-        )}
       </div>
 
       {/* Loading shimmer */}
@@ -249,25 +208,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
             </button>
           </div>
 
-          {/* eBay search CTA */}
-          <a
-            href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(`${fallbackName} rookie card baseball`)}&_sacat=212&_sop=15`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between gap-3 px-4 py-4 rounded-2xl"
-            style={{ backgroundColor: fallbackTheme.primary }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                <ShoppingCart size={20} color="#fff" />
-              </div>
-              <div>
-                <p className="text-white font-black text-base leading-tight">Search on eBay</p>
-                <p className="text-white/75 text-xs leading-tight mt-0.5">{fallbackName} · Rookie Card</p>
-              </div>
-            </div>
-            <ExternalLink size={16} color="rgba(255,255,255,0.7)" />
-          </a>
         </div>
       )}
 
