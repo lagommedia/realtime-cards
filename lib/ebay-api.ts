@@ -77,7 +77,7 @@ async function searchEbayListings(
       price: parseFloat(item.lastSoldPrice?.value ?? '0'),
       currency: item.lastSoldPrice?.currency ?? 'USD',
       condition: item.condition ?? 'Unknown',
-      imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl,
+      imageUrl: upgradeEbayImageUrl(item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl),
       itemUrl: item.itemWebUrl ?? '',
       soldDate: item.lastSoldDate,
     }));
@@ -89,7 +89,7 @@ async function searchEbayListings(
     price: parseFloat(item.price?.value ?? '0'),
     currency: item.price?.currency ?? 'USD',
     condition: item.condition ?? 'Unknown',
-    imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl,
+    imageUrl: upgradeEbayImageUrl(item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl),
     itemUrl: item.itemWebUrl ?? '',
   }));
 }
@@ -137,6 +137,12 @@ function generateMockListings(playerName: string): EbayListing[] {
       itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps gold')}`,
     },
   ];
+}
+
+// Upgrade eBay CDN image URLs from thumbnails (s-l140, s-l300) to full-size (s-l500)
+function upgradeEbayImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.replace(/\/s-l\d+(\.\w+)$/, '/s-l500$1');
 }
 
 // ── Card image filtering ──────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useWatchList } from '@/context/WatchListContext';
+import { useGrading, GRADING_COMPANIES, GRADING_GRADES, GradingCompanyId, DEFAULT_GRADE } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import { ArrowLeft, Star, ShoppingCart, ExternalLink } from 'lucide-react';
@@ -23,6 +24,27 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
   const searchParams = useSearchParams();
   const { theme } = useTeam();
   const { isWatched, toggleWatch } = useWatchList();
+  const { companyId: globalCompanyId, gradeValue: globalGradeValue, setCompanyId, setGradeValue } = useGrading();
+
+  // Per-card grading — defaults to global preference, falls back to PSA 10
+  const initCompany: GradingCompanyId = (globalCompanyId as GradingCompanyId) ?? 'psa';
+  const [localCompanyId, setLocalCompanyId] = useState<GradingCompanyId>(initCompany);
+  const [localGradeValue, setLocalGradeValue] = useState<string>(
+    globalGradeValue ?? DEFAULT_GRADE[initCompany]
+  );
+
+  function handleCompanyChange(id: GradingCompanyId) {
+    setLocalCompanyId(id);
+    setCompanyId(id);
+    const grade = DEFAULT_GRADE[id];
+    setLocalGradeValue(grade);
+    setGradeValue(grade);
+  }
+
+  function handleGradeChange(grade: string) {
+    setLocalGradeValue(grade);
+    setGradeValue(grade);
+  }
 
   // Fallback info passed as query params from the game view
   const fallbackName = searchParams.get('name') ?? 'Player';
@@ -36,8 +58,11 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
 
   useEffect(() => {
     const fallbackGameId = searchParams.get('gameId');
+    const gradingParams = new URLSearchParams({ grading: localCompanyId, grade: localGradeValue });
 
-    const fromTrending = fetch('/api/trending')
+    setLoading(true);
+
+    const fromTrending = fetch(`/api/trending?${gradingParams}`)
       .then(r => r.json())
       .then((data: TrendingResponse) => {
         if (!data.usedDummy) setIsLive(true);
@@ -46,7 +71,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
       .catch(() => null);
 
     const fromGame = fallbackGameId
-      ? fetch(`/api/game/${fallbackGameId}`)
+      ? fetch(`/api/game/${fallbackGameId}?${gradingParams}`)
           .then(r => r.json())
           .then((data: { predictions?: CardPrediction[]; isLive?: boolean }) => {
             if (data.isLive) setIsLive(true);
@@ -60,7 +85,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
         setPrediction(trendingResult ?? gameResult);
       })
       .finally(() => setLoading(false));
-  }, [playerId, searchParams]);
+  }, [playerId, searchParams, localCompanyId, localGradeValue]);
 
   const firstCard = prediction?.rookieCardOptions?.[0];
   const setMultiplier = firstCard ? (SET_PRICE_MULTIPLIERS[firstCard.set] ?? 1) : 1;
@@ -69,6 +94,8 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
   const ebayQuery = [
     prediction?.playerName ?? '',
     firstCard ? `${firstCard.year} ${firstCard.set}` : 'rookie card',
+    localCompanyId.toUpperCase(),
+    localGradeValue,
     'baseball card',
   ].filter(Boolean).join(' ');
   const ebayUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(ebayQuery)}&_sacat=212&_sop=15`;
@@ -118,6 +145,42 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
               <Star size={18} fill={watched ? '#f59e0b' : 'none'} />
             </button>
           )}
+        </div>
+
+        {/* ── Grading picker ── */}
+        <div className="mb-3">
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {GRADING_COMPANIES.map(c => (
+              <button
+                key={c.id}
+                onClick={() => handleCompanyChange(c.id)}
+                className="py-2 px-2 rounded-xl text-xs font-bold text-center transition-all border"
+                style={{
+                  backgroundColor: localCompanyId === c.id ? `${theme.primary}33` : theme.cardBackground,
+                  borderColor: localCompanyId === c.id ? theme.primary : 'rgba(255,255,255,0.1)',
+                  color: localCompanyId === c.id ? theme.primary : '#9ca3af',
+                }}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {GRADING_GRADES[localCompanyId].map(g => (
+              <button
+                key={g.value}
+                onClick={() => handleGradeChange(g.value)}
+                className="flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-xl border transition-all"
+                style={{
+                  backgroundColor: localGradeValue === g.value ? `${theme.primary}33` : theme.cardBackground,
+                  borderColor: localGradeValue === g.value ? theme.primary : 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <span className="text-white text-xs font-bold whitespace-nowrap">{g.label}</span>
+                <span className="text-gray-400 text-[10px] whitespace-nowrap">{g.description}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Quick Buy CTA — prominent above the card ── */}

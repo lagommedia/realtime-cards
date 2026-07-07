@@ -293,6 +293,16 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const delaySecRef = useRef(delaySec);
   useEffect(() => { delaySecRef.current = delaySec; }, [delaySec]);
   const snapQueueRef = useRef<Array<{ snap: unknown; ts: number }>>([]);
+  // True once the initial delay window has elapsed — suppresses the real-time
+  // data?.liveMatchup fallback so the matchup only appears after the queue syncs
+  const [syncDone, setSyncDone] = useState(delaySec === 0);
+  useEffect(() => {
+    if (delaySec === 0) { setSyncDone(true); return; }
+    setSyncDone(false);
+    const timer = setTimeout(() => setSyncDone(true), delaySec * 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const router = useRouter();
 
   const [data, setData] = useState<GameData | null>(null);
@@ -473,7 +483,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const awayTeam = { ...(data?.awayTeam ?? EMPTY_TEAM), score: liveSnap?.awayScore ?? data?.awayTeam?.score ?? 0 };
   const homeTeam = { ...(data?.homeTeam ?? EMPTY_TEAM), score: liveSnap?.homeScore ?? data?.homeTeam?.score ?? 0 };
   const outs = liveSnap?.outs ?? data?.outs ?? 0;
-  const liveMatchup = liveSnap?.liveMatchup ?? data?.liveMatchup;
+  // Only fall back to real-time data?.liveMatchup once the delay window has elapsed
+  const liveMatchup = syncDone
+    ? (liveSnap?.liveMatchup ?? data?.liveMatchup) ?? null
+    : liveSnap?.liveMatchup ?? null;
 
   const selectedTeamId = selectedSide === 'away' ? awayTeam.id : homeTeam.id;
   const sidePredictions = predictions.filter(p => p.teamId === selectedTeamId);
@@ -579,6 +592,14 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                 </div>
               </div>
             </div>
+
+            {/* Syncing indicator — shown during the broadcast delay window */}
+            {isLive && !syncDone && delaySec > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/8 flex items-center justify-center gap-2 py-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-amber-400 text-xs font-semibold">Syncing with your broadcast ({delaySec}s)…</span>
+              </div>
+            )}
 
             {/* Live batter / pitcher matchup strip */}
             {isLive && liveMatchup && <MatchupStrip matchup={liveMatchup} />}
