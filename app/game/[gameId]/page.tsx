@@ -303,6 +303,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [outcomeOverlay, setOutcomeOverlay] = useState<{ event: string; batterName: string; switchingSides: boolean } | null>(null);
   const [gameOverWinner, setGameOverWinner] = useState<{ teamName: string; awayScore: number; homeScore: number } | null>(null);
   const prevBatterIdRef = useRef<number | null>(null);
+  const prevBatterIdForOverlayRef = useRef<number | null>(null);
   const prevResultKeyRef = useRef<string | null>(null);
   const prevOutsRef = useRef<number>(0);
   const wasLiveRef = useRef(false);
@@ -360,39 +361,54 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  // Detect at-bat completion → show outcome overlay until the next batter steps in.
-  // Detects third out by checking if outs reset to 0 from 2 (half-inning flipped).
+  // Single effect handles both showing the overlay on at-bat completion and clearing it
+  // when the next batter steps in. Keeping this as one effect avoids a race where a
+  // result and a batterId change arrive in the same poll response: if both fire as
+  // separate effects in the same render, the clearing effect would win. Here, a
+  // simultaneous result + batterId change always shows the overlay (result takes priority);
+  // a batterId change with no new result means the next batter is up → clear.
   useEffect(() => {
     const lastResult = liveSnap?.liveMatchup?.lastResult;
     const currentOuts = liveSnap?.outs ?? 0;
+    const currentBatterId = liveSnap?.liveMatchup?.batterId ?? null;
     const key = lastResult ? `${lastResult.batterName}::${lastResult.event}` : '';
-    prevBatterIdRef.current = liveSnap?.liveMatchup?.batterId ?? null;
+    prevBatterIdRef.current = currentBatterId;
 
     if (prevResultKeyRef.current === null) {
-      // First data load — record state without showing overlay
+      // First data load — record baseline without showing overlay
       prevResultKeyRef.current = key;
       prevOutsRef.current = currentOuts;
+      prevBatterIdForOverlayRef.current = currentBatterId;
       return;
     }
 
-    if (key && key !== prevResultKeyRef.current) {
+    const resultChanged = key !== '' && key !== prevResultKeyRef.current;
+    const batterChanged = currentBatterId !== null && currentBatterId !== prevBatterIdForOverlayRef.current;
+
+    if (resultChanged) {
+      // New at-bat completed — show overlay. If batterId also changed in the same
+      // render (race condition), result takes priority and overlay is still shown.
       prevResultKeyRef.current = key;
-      // Third out: outs was 2 before this play and reset to 0 (half-inning flipped)
       const switchingSides = prevOutsRef.current === 2 && currentOuts === 0;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
       setOutcomeOverlay({ event: lastResult!.event, batterName: lastResult!.batterName, switchingSides });
-      // Safety fallback: clear after 15s if no new batter appears
+      prevBatterIdForOverlayRef.current = currentBatterId;
+      // Safety: clear after 15s if the next batter never arrives (e.g. game ends)
       outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 15_000);
+    } else if (batterChanged) {
+      // Batter changed without a new result → next batter stepped in, clear overlay
+      prevBatterIdForOverlayRef.current = currentBatterId;
+      if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
+      setOutcomeOverlay(null);
     }
 
     prevOutsRef.current = currentOuts;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.outs]);
+  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId, liveSnap?.outs]);
 
-  // Clear overlay and reset card carousel when next batter steps up
+  // Reset card carousel when batter changes (kept separate — no overlay logic here)
   useEffect(() => {
     setSelectedCardIdx(0);
-    setOutcomeOverlay(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.batterId]);
 

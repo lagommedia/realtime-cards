@@ -34,7 +34,7 @@ async function searchEbayListings(
 
   const endpoint = sold
     ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10`
-    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10${filterParam}`;
+    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10&fieldgroups=EXTENDED${filterParam}`;
 
   const res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
     headers: {
@@ -55,6 +55,7 @@ async function searchEbayListings(
       lastSoldDate?: string;
       condition?: string;
       image?: { imageUrl: string };
+      thumbnailImages?: Array<{ imageUrl: string }>;
       itemWebUrl?: string;
     }>;
     itemSales?: Array<{
@@ -64,6 +65,7 @@ async function searchEbayListings(
       lastSoldDate?: string;
       condition?: string;
       image?: { imageUrl: string };
+      thumbnailImages?: Array<{ imageUrl: string }>;
       itemWebUrl?: string;
     }>;
   };
@@ -75,7 +77,7 @@ async function searchEbayListings(
       price: parseFloat(item.lastSoldPrice?.value ?? '0'),
       currency: item.lastSoldPrice?.currency ?? 'USD',
       condition: item.condition ?? 'Unknown',
-      imageUrl: item.image?.imageUrl,
+      imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl,
       itemUrl: item.itemWebUrl ?? '',
       soldDate: item.lastSoldDate,
     }));
@@ -87,7 +89,7 @@ async function searchEbayListings(
     price: parseFloat(item.price?.value ?? '0'),
     currency: item.price?.currency ?? 'USD',
     condition: item.condition ?? 'Unknown',
-    imageUrl: item.image?.imageUrl,
+    imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl,
     itemUrl: item.itemWebUrl ?? '',
   }));
 }
@@ -189,16 +191,6 @@ export async function searchCardImage(
   // Fallback 2: any listing with an image from the specific query
   if (raw.length === 0) {
     raw = listings.filter(l => l.imageUrl);
-  }
-
-  // Fallback 3: broaden to just player name + Topps RC if still nothing
-  if (raw.length === 0) {
-    const broadQuery = `${playerName} Topps rookie card RC baseball`;
-    const broadListings = await searchEbayListings(broadQuery, token, false);
-    raw = broadListings.filter(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title));
-    if (raw.length === 0) {
-      raw = broadListings.filter(l => l.imageUrl);
-    }
   }
 
   // Score by title relevance
