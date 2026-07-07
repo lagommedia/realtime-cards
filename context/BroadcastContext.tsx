@@ -4,13 +4,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export const BROADCAST_PLATFORMS = [
   { id: 'ballpark', label: 'At the Ballpark',  sublabel: 'No delay',   delaySec: 0  },
-  { id: 'cable',    label: 'Cable / Satellite', sublabel: '~7 sec',     delaySec: 7  },
-  { id: 'youtube',  label: 'YouTube TV',        sublabel: '~45 sec',    delaySec: 45 },
-  { id: 'hulu',     label: 'Hulu + Live TV',    sublabel: '~45 sec',    delaySec: 45 },
-  { id: 'fubotv',   label: 'fuboTV',            sublabel: '~45 sec',    delaySec: 45 },
-  { id: 'apple',    label: 'Apple TV+',         sublabel: '~60 sec',    delaySec: 60 },
-  { id: 'peacock',  label: 'Peacock',           sublabel: '~60 sec',    delaySec: 60 },
-  { id: 'mlbtv',    label: 'MLB.tv',            sublabel: '~90 sec',    delaySec: 90 },
+  { id: 'cable',    label: 'Cable / Satellite', sublabel: '~2 sec',     delaySec: 2  },
+  { id: 'youtube',  label: 'YouTube TV',        sublabel: '~40 sec',    delaySec: 40 },
+  { id: 'hulu',     label: 'Hulu + Live TV',    sublabel: '~40 sec',    delaySec: 40 },
+  { id: 'fubotv',   label: 'fuboTV',            sublabel: '~40 sec',    delaySec: 40 },
+  { id: 'apple',    label: 'Apple TV+',         sublabel: '~55 sec',    delaySec: 55 },
+  { id: 'peacock',  label: 'Peacock',           sublabel: '~55 sec',    delaySec: 55 },
+  { id: 'mlbtv',    label: 'MLB.tv',            sublabel: '~85 sec',    delaySec: 85 },
 ] as const;
 
 export type BroadcastPlatformId = typeof BROADCAST_PLATFORMS[number]['id'];

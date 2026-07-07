@@ -4,6 +4,7 @@ import { TeamProvider } from '@/context/TeamContext';
 import { WatchListProvider } from '@/context/WatchListContext';
 import { LiveEventsProvider } from '@/context/LiveEventsContext';
 import { BroadcastProvider } from '@/context/BroadcastContext';
+import { GradingProvider } from '@/context/GradingContext';
 import Navigation from '@/components/Navigation';
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased" style={{ backgroundColor: '#0a0f1e', color: '#fff', minHeight: '100dvh' }}>
         <TeamProvider>
           <BroadcastProvider>
+            <GradingProvider>
             <WatchListProvider>
               <LiveEventsProvider>
                 <div className="min-h-dvh max-w-lg mx-auto relative">
@@ -32,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </LiveEventsProvider>
             </WatchListProvider>
+            </GradingProvider>
           </BroadcastProvider>
         </TeamProvider>
       </body>

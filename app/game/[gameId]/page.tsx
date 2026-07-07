@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState, use, useRef } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useBroadcast } from '@/context/BroadcastContext';
+import { useGrading } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { ArrowLeft, RefreshCw, Radio, CheckCircle, Flame } from 'lucide-react';
@@ -288,6 +289,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const { gameId } = use(params);
   const { theme } = useTeam();
   const { delaySec } = useBroadcast();
+  const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const delaySecRef = useRef(delaySec);
   useEffect(() => { delaySecRef.current = delaySec; }, [delaySec]);
   const snapQueueRef = useRef<Array<{ snap: unknown; ts: number }>>([]);
@@ -331,7 +333,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
 
   async function fetchGame() {
     try {
-      const res = await fetch(`/api/game/${gameId}`);
+      const params = new URLSearchParams();
+      if (gradingCompanyId) { params.set('grading', gradingCompanyId); if (gradingGradeValue) params.set('grade', gradingGradeValue); }
+      const url = params.size ? `/api/game/${gameId}?${params}` : `/api/game/${gameId}`;
+      const res = await fetch(url);
       const json = await res.json() as GameData;
       setData(json);
     } catch {

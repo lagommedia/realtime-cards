@@ -114,16 +114,18 @@ async function fetchFromDDG(player: string, year: string, set: string): Promise<
 }
 
 export async function GET(request: NextRequest) {
-  const player   = request.nextUrl.searchParams.get('player') ?? '';
-  const cardYear = request.nextUrl.searchParams.get('year')   ?? '';
-  const cardSet  = request.nextUrl.searchParams.get('set')    ?? '';
+  const player   = request.nextUrl.searchParams.get('player')  ?? '';
+  const cardYear = request.nextUrl.searchParams.get('year')    ?? '';
+  const cardSet  = request.nextUrl.searchParams.get('set')     ?? '';
+  const grading  = request.nextUrl.searchParams.get('grading') ?? undefined;
+  const grade    = request.nextUrl.searchParams.get('grade')   ?? undefined;
 
   if (!player) return NextResponse.json({ imageUrl: null });
 
   // Strategy 1: eBay API with set-specific query (most reliable when credentials exist)
   let imageUrl: string | null = null;
   if (cardYear && cardSet) {
-    imageUrl = await searchCardImage(player, cardYear, cardSet);
+    imageUrl = await searchCardImage(player, cardYear, cardSet, grading, grade);
   }
 
   // Strategy 2: DuckDuckGo (works on residential IPs; may be blocked on Vercel datacenters)

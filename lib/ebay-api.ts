@@ -144,8 +144,18 @@ function generateMockListings(playerName: string): EbayListing[] {
 // Only these four Topps sets carry the official RC logo and are allowed
 const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
 
-// All other brands / Topps sub-products that should never appear
+// Non-brand exclusions shared between raw and graded searches
+const EXCLUDED_CARD_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
+
+// For raw (ungraded) searches — also excludes grading terms
 const EXCLUDED_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;
+
+function gradingPattern(company: string): RegExp {
+  if (company === 'psa') return /\bpsa\b/i;
+  if (company === 'bgs') return /\b(bgs|beckett)\b/i;
+  if (company === 'sgc') return /\bsgc\b/i;
+  return /(?!)/;
+}
 
 /**
  * Returns true only for listings that are:
@@ -169,28 +179,50 @@ export async function searchCardImage(
   playerName: string,
   cardYear: string,
   cardSet: string,
+  gradingCompany?: string,
+  gradeValue?: string,
 ): Promise<string | null> {
   const token = await getEbayToken();
   if (!token) return null;
 
-  const query = `${playerName} ${cardYear} ${cardSet} rookie card RC`;
+  const companyLabel = gradingCompany?.toUpperCase() ?? '';
+  const gradeLabel = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
+  const query = gradingCompany
+    ? `${playerName} ${cardYear} ${companyLabel}${gradeLabel} ${cardSet} rookie card RC`
+    : `${playerName} ${cardYear} ${cardSet} rookie card RC`;
   const listings = await searchEbayListings(query, token, false);
 
-  // Strict: only allowed Topps RC sets, no slabs, must have an image
-  let raw = listings.filter(l => l.imageUrl && isAllowedToppsRC(l.title));
+  let raw: EbayListing[];
 
-  // Fallback 1: any Topps listing without excluded brands
-  if (raw.length === 0) {
-    raw = listings.filter(l =>
-      l.imageUrl &&
-      /\btopps\b/i.test(l.title) &&
-      !EXCLUDED_BRANDS.test(l.title)
-    );
-  }
+  if (gradingCompany) {
+    const gPat = gradingPattern(gradingCompany);
+    const gradePat = gradeValue ? new RegExp(`\\b${gradeValue.replace('.', '\\.')}\\b`) : null;
+    // Prefer: company + grade + no excluded brands
+    raw = listings.filter(l => l.imageUrl && gPat.test(l.title)
+      && (!gradePat || gradePat.test(l.title))
+      && !EXCLUDED_CARD_BRANDS.test(l.title));
+    // Fallback 1: company + grade (any brand)
+    if (raw.length === 0 && gradePat)
+      raw = listings.filter(l => l.imageUrl && gPat.test(l.title) && gradePat.test(l.title));
+    // Fallback 2: company only
+    if (raw.length === 0) raw = listings.filter(l => l.imageUrl && gPat.test(l.title));
+  } else {
+    // Raw card: only allowed Topps RC sets, no slabs, must have an image
+    raw = listings.filter(l => l.imageUrl && isAllowedToppsRC(l.title));
 
-  // Fallback 2: any listing with an image from the specific query
-  if (raw.length === 0) {
-    raw = listings.filter(l => l.imageUrl);
+    // Fallback 1: any Topps listing without excluded brands
+    if (raw.length === 0) {
+      raw = listings.filter(l =>
+        l.imageUrl &&
+        /\btopps\b/i.test(l.title) &&
+        !EXCLUDED_BRANDS.test(l.title)
+      );
+    }
+
+    // Fallback 2: any listing with an image from the specific query
+    if (raw.length === 0) {
+      raw = listings.filter(l => l.imageUrl);
+    }
   }
 
   // Fallback 3: item-detail lookup — the search summary often omits image fields;
@@ -245,7 +277,9 @@ export async function searchCardImage(
 export async function getPlayerCardPricing(
   playerId: number,
   playerName: string,
-  rookieYear?: number
+  rookieYear?: number,
+  gradingCompany?: string,
+  gradeValue?: string,
 ): Promise<CardPriceSummary> {
   const token = await getEbayToken();
 
@@ -253,21 +287,37 @@ export async function getPlayerCardPricing(
   let activeListing: EbayListing | undefined;
 
   if (token) {
-    // Target the specific Topps Base Rookie Card when we know the debut year
-    const query = rookieYear
-      ? `${playerName} ${rookieYear} Topps rookie card RC`
-      : `${playerName} Topps rookie card RC baseball`;
+    const companyLabel = gradingCompany?.toUpperCase() ?? '';
+    const gradeLabel = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
+    const query = gradingCompany
+      ? `${playerName} ${rookieYear ?? ''} Topps ${companyLabel}${gradeLabel} rookie card RC`.replace(/\s+/g, ' ').trim()
+      : rookieYear
+        ? `${playerName} ${rookieYear} Topps rookie card RC`
+        : `${playerName} Topps rookie card RC baseball`;
+
     const [sold, active] = await Promise.all([
       searchEbayListings(query, token, true),
       searchEbayListings(query, token, false),
     ]);
     recentSales = sold;
-    // Prefer a listing that matches the allowed Topps sets and has an image
-    activeListing =
-      active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
-      active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
-      active.find(l => l.imageUrl) ??
-      active[0];
+
+    if (gradingCompany) {
+      const gPat = gradingPattern(gradingCompany);
+      const gradePat = gradeValue ? new RegExp(`\\b${gradeValue.replace('.', '\\.')}\\b`) : null;
+      // Prefer: company + grade + image + clean brand
+      activeListing =
+        active.find(l => l.imageUrl && gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
+        active.find(l => gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
+        active.find(l => l.imageUrl && gPat.test(l.title)) ??
+        active.find(l => gPat.test(l.title));
+    } else {
+      // Prefer a listing that matches the allowed Topps sets and has an image
+      activeListing =
+        active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
+        active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
+        active.find(l => l.imageUrl) ??
+        active[0];
+    }
 
     // If the chosen listing has no imageUrl, fetch the full item detail — the
     // item_summary search often omits image fields even when the item has photos.

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { getPlayerHeadshotUrl } from '@/components/PlayerHeadshot';
 import { getTeamTheme } from '@/lib/team-themes';
+import { useGrading } from '@/context/GradingContext';
 
 interface Props {
   playerId: number;
@@ -23,6 +24,7 @@ export default function BaseballCardImage({
   playerId, playerName, teamId, position, cardType, cardYear, cardSet,
   ebayImageUrl, width = 90, height = 126,
 }: Props) {
+  const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const [ebayErrored, setEbayErrored] = useState(false);
   const [headshotErrored, setHeadshotErrored] = useState(false);
   const [searchedUrl, setSearchedUrl] = useState<string | null>(null);
@@ -39,13 +41,14 @@ export default function BaseballCardImage({
     const params = new URLSearchParams({ player: playerName });
     if (cardYear) params.set('year', String(cardYear));
     if (cardSet) params.set('set', cardSet);
+    if (gradingCompanyId) { params.set('grading', gradingCompanyId); if (gradingGradeValue) params.set('grade', gradingGradeValue); }
     fetch(`/api/card-image?${params}`)
       .then(r => r.json())
       .then((data: { imageUrl?: string | null }) => {
         if (data.imageUrl) setSearchedUrl(data.imageUrl);
       })
       .catch(() => {});
-  }, [playerName, cardYear, cardSet, ebayImageUrl]);
+  }, [playerName, cardYear, cardSet, ebayImageUrl, gradingCompanyId, gradingGradeValue]);
 
   // eBay listing image (real card photo tied to the actual sale) takes priority.
   // DuckDuckGo targeted search is the fallback when no listing image exists.

@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getTodayGames, getLiveGameFeed, extractLivePlayerStats } from '@/lib/mlb-api';
 import { getPlayerCardPricing } from '@/lib/ebay-api';
 import { generateCardPrediction, generateTrendingPredictions } from '@/lib/predictions';
 import { getDummyTrendingPredictions } from '@/lib/dummy-data';
 import { LivePlayerStat } from '@/types';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const grading = req.nextUrl.searchParams.get('grading') ?? undefined;
+  const grade   = req.nextUrl.searchParams.get('grade')   ?? undefined;
   try {
     const games = await getTodayGames();
 
@@ -35,7 +37,7 @@ export async function GET() {
       const topTrending = generateTrendingPredictions(flatPlayers).slice(0, 12);
       predictions = await Promise.all(
         topTrending.map(async (player) => {
-          const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear);
+          const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear, grading, grade);
           return generateCardPrediction(player, priceSummary);
         })
       );

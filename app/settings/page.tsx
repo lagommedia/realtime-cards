@@ -3,15 +3,18 @@
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
 import { useBroadcast, BROADCAST_PLATFORMS } from '@/context/BroadcastContext';
+import { useGrading, GRADING_COMPANIES, GRADING_GRADES } from '@/context/GradingContext';
 import { ALL_TEAMS } from '@/lib/team-themes';
 import { Check, X } from 'lucide-react';
 import TeamLogo from '@/components/TeamLogo';
+import { PlatformIcon } from '@/components/PlatformIcon';
 
 const DIVISIONS = ['AL East', 'AL Central', 'AL West', 'NL East', 'NL Central', 'NL West'];
 
 export default function SettingsPage() {
   const { theme, selectedTeamId, setSelectedTeamId } = useTeam();
   const { platformId, setPlatformId } = useBroadcast();
+  const { companyId, setCompanyId, gradeValue, setGradeValue } = useGrading();
   const [search, setSearch] = useState('');
 
   const filteredTeams = ALL_TEAMS.filter(t =>
@@ -30,6 +33,78 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-6 pb-6">
+        {/* Grading company */}
+        <div>
+          <p className="text-sm font-semibold text-white mb-1">Default Grading Company</p>
+          <p className="text-xs text-gray-500 mb-3">Cards and prices will be filtered to your preferred grader</p>
+          <div className="grid grid-cols-3 gap-2">
+            {GRADING_COMPANIES.map(company => {
+              const selected = companyId === company.id;
+              return (
+                <button
+                  key={company.id}
+                  onClick={() => setCompanyId(selected ? null : company.id)}
+                  className="flex flex-col items-center justify-center px-3 py-4 rounded-xl transition-all text-center"
+                  style={{
+                    backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+                    border: `1px solid ${selected ? theme.primary : 'transparent'}`,
+                  }}
+                >
+                  <span
+                    className="text-xl font-black tracking-tight mb-1"
+                    style={{ color: selected ? theme.primary : 'white' }}
+                  >
+                    {company.label}
+                  </span>
+                  <span className="text-xs leading-tight" style={{ color: selected ? theme.primary : '#6b7280' }}>
+                    {company.description}
+                  </span>
+                  {selected && (
+                    <Check size={12} className="mt-1.5" style={{ color: theme.primary }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Grade picker — appears when a company is selected */}
+          {companyId && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Select Grade</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {GRADING_GRADES[companyId].map(grade => {
+                  const selected = gradeValue === grade.value;
+                  return (
+                    <button
+                      key={grade.value}
+                      onClick={() => setGradeValue(grade.value)}
+                      className="flex flex-col items-center flex-shrink-0 px-4 py-3 rounded-xl transition-all"
+                      style={{
+                        backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+                        border: `1px solid ${selected ? theme.primary : 'transparent'}`,
+                        minWidth: 72,
+                      }}
+                    >
+                      <span
+                        className="text-base font-black tracking-tight"
+                        style={{ color: selected ? theme.primary : 'white' }}
+                      >
+                        {grade.label}
+                      </span>
+                      <span
+                        className="text-xs mt-0.5 whitespace-nowrap"
+                        style={{ color: selected ? theme.primary : '#6b7280' }}
+                      >
+                        {grade.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Broadcast platform */}
         <div>
           <p className="text-sm font-semibold text-white mb-1">How do you watch your games?</p>
@@ -47,11 +122,12 @@ export default function SettingsPage() {
                     border: `1px solid ${selected ? theme.primary : 'transparent'}`,
                   }}
                 >
-                  <div className="flex items-center justify-between w-full mb-0.5">
-                    <span className="text-white text-sm font-medium leading-tight">{platform.label}</span>
-                    {selected && <Check size={13} style={{ color: theme.primary, flexShrink: 0 }} />}
+                  <div className="flex items-start justify-between w-full mb-2">
+                    <PlatformIcon id={platform.id} />
+                    {selected && <Check size={13} style={{ color: theme.primary, flexShrink: 0, marginTop: 2 }} />}
                   </div>
-                  <span className="text-xs" style={{ color: selected ? theme.primary : '#6b7280' }}>
+                  <span className="text-white text-sm font-medium leading-tight">{platform.label}</span>
+                  <span className="text-xs mt-0.5" style={{ color: selected ? theme.primary : '#6b7280' }}>
                     {platform.sublabel}
                   </span>
                 </button>

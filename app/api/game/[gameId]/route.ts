@@ -153,9 +153,11 @@ function buildLiveMatchup(raw: Record<string, unknown>): LiveMatchup | null {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
+  const grading = req.nextUrl.searchParams.get('grading') ?? undefined;
+  const grade   = req.nextUrl.searchParams.get('grade')   ?? undefined;
   try {
     const { gameId } = await params;
     const gamePk = parseInt(gameId, 10);
@@ -231,7 +233,7 @@ export async function GET(
 
     const predictions = await Promise.all(
       topPlayers.map(async (player) => {
-        const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear);
+        const priceSummary = await getPlayerCardPricing(player.playerId, player.playerName, player.debutYear, grading, grade);
         return generateCardPrediction(player, priceSummary);
       })
     );

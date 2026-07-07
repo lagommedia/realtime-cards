@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
+import { useGrading } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TeamLogo from '@/components/TeamLogo';
@@ -14,6 +15,7 @@ type Scope = 'overall' | 'myteam';
 
 export default function TrendingPage() {
   const { theme, selectedTeamId } = useTeam();
+  const { companyId, gradeValue } = useGrading();
   const [predictions, setPredictions] = useState<CardPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameCount, setGameCount] = useState(0);
@@ -26,7 +28,10 @@ export default function TrendingPage() {
   async function fetchTrending() {
     try {
       setError('');
-      const res = await fetch('/api/trending');
+      const params = new URLSearchParams();
+      if (companyId) { params.set('grading', companyId); if (gradeValue) params.set('grade', gradeValue); }
+      const url = params.size ? `/api/trending?${params}` : '/api/trending';
+      const res = await fetch(url);
       const data = await res.json() as {
         predictions: CardPrediction[]; gameCount: number;
         usedDummy?: boolean; error?: string;
@@ -46,10 +51,12 @@ export default function TrendingPage() {
   }
 
   useEffect(() => {
+    setLoading(true);
     fetchTrending();
     const interval = setInterval(fetchTrending, 120_000);
     return () => clearInterval(interval);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, gradeValue]);
 
   // Apply scope filter
   const scoped = scope === 'myteam' && selectedTeamId
