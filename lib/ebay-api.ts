@@ -1,5 +1,5 @@
 import { EbayListing, CardPriceSummary } from '@/types';
-import { getFlagshipRC } from '@/lib/flagship-rc';
+import { getFlagshipRC, hasKnownRC, detectSetFromListings, cacheDiscoveredRC } from '@/lib/flagship-rc';
 
 const EBAY_API_BASE = 'https://api.ebay.com';
 
@@ -294,18 +294,33 @@ export async function getPlayerCardPricing(
   let activeListing: EbayListing | undefined;
 
   if (token) {
-    const flagship = getFlagshipRC(playerId, rookieYear);
+    const knownPlayer = hasKnownRC(playerId);
+    let flagship = getFlagshipRC(playerId, rookieYear);
     const companyLabel = gradingCompany?.toUpperCase() ?? '';
     const gradeLabel = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
-    const query = gradingCompany
-      ? `${playerName} ${flagship.year} ${flagship.set} ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
-      : `${playerName} ${flagship.year} ${flagship.set} RC`;
+
+    // Known players: target their exact set for precision.
+    // Unknown players: broad "Topps RC" probe — we detect S1/S2/Update from the titles.
+    const query = knownPlayer
+      ? (gradingCompany
+          ? `${playerName} ${flagship.year} ${flagship.set} ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
+          : `${playerName} ${flagship.year} ${flagship.set} RC`)
+      : (gradingCompany
+          ? `${playerName} ${flagship.year} Topps ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
+          : `${playerName} ${flagship.year} Topps RC`);
 
     const [sold, active] = await Promise.all([
       searchEbayListings(query, token, true),
       searchEbayListings(query, token, false),
     ]);
     recentSales = sold;
+
+    // Detect and cache the correct set for this player from the live eBay results
+    if (!knownPlayer && active.length > 0) {
+      const detected = detectSetFromListings(active, flagship.year);
+      cacheDiscoveredRC(playerId, detected);
+      flagship = detected;
+    }
 
     if (gradingCompany) {
       const gPat = gradingPattern(gradingCompany);

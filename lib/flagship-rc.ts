@@ -91,13 +91,47 @@ export const FLAGSHIP_RC: Record<number, FlagshipRC> = {
   694568: { year: 2024, set: 'Topps Update', shortName: 'Update' },      // Junior Caminero
 };
 
+// Runtime discovery cache — populated from live eBay results for players not in
+// the curated map above. Survives for the lifetime of one serverless function instance.
+const runtimeCache = new Map<number, FlagshipRC>();
+
+/** True if we have a confirmed RC entry (curated or runtime-discovered). */
+export function hasKnownRC(playerId: number): boolean {
+  return playerId in FLAGSHIP_RC || runtimeCache.has(playerId);
+}
+
+/** Store a runtime-discovered RC so subsequent calls for the same player skip the probe. */
+export function cacheDiscoveredRC(playerId: number, rc: FlagshipRC): void {
+  runtimeCache.set(playerId, rc);
+}
+
 /**
- * Returns the flagship RC for a player, or derives a reasonable default
- * from their debut year when no curated entry exists.
+ * Returns the flagship RC for a player.
+ * Priority: curated static map → runtime-discovered → default (Topps Update, debut year).
  */
 export function getFlagshipRC(playerId: number, debutYear?: number): FlagshipRC {
-  const known = FLAGSHIP_RC[playerId];
-  if (known) return known;
-  const year = debutYear ?? new Date().getFullYear();
+  return FLAGSHIP_RC[playerId] ?? runtimeCache.get(playerId) ?? {
+    year: debutYear ?? new Date().getFullYear(),
+    set: 'Topps Update',
+    shortName: 'Update',
+  };
+}
+
+/**
+ * Detects which Topps set contains a player's RC by scanning eBay listing titles.
+ * Applies the canonical priority: Series 1 → Series 2 → Update.
+ * Called after a broad "Player YEAR Topps RC" search returns results for an unknown player.
+ */
+export function detectSetFromListings(
+  listings: Array<{ title: string }>,
+  year: number,
+): FlagshipRC {
+  const isRC = (t: string) => /\brc\b|rookie\s*card/i.test(t);
+  if (listings.some(l => /topps\s+series\s*1\b/i.test(l.title) && isRC(l.title))) {
+    return { year, set: 'Topps Series 1', shortName: 'S1' };
+  }
+  if (listings.some(l => /topps\s+series\s*2\b/i.test(l.title) && isRC(l.title))) {
+    return { year, set: 'Topps Series 2', shortName: 'S2' };
+  }
   return { year, set: 'Topps Update', shortName: 'Update' };
 }
