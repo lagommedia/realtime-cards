@@ -34,7 +34,7 @@ async function searchEbayListings(
 
   const endpoint = sold
     ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10`
-    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10&fieldgroups=EXTENDED${filterParam}`;
+    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10${filterParam}`;
 
   const res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
     headers: {
@@ -193,6 +193,30 @@ export async function searchCardImage(
     raw = listings.filter(l => l.imageUrl);
   }
 
+  // Fallback 3: item-detail lookup — the search summary often omits image fields;
+  // the full item endpoint always returns them. Try the best-scoring listing.
+  if (raw.length === 0 && listings.length > 0) {
+    const bestId = listings.find(l => isAllowedToppsRC(l.title))?.itemId
+      ?? listings.find(l => /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title))?.itemId
+      ?? listings[0]?.itemId;
+    if (bestId) {
+      try {
+        const detailRes = await fetch(`${EBAY_API_BASE}/buy/browse/v1/item/${bestId}`, {
+          headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
+          next: { revalidate: 3600 },
+        });
+        if (detailRes.ok) {
+          const detail = await detailRes.json() as {
+            image?: { imageUrl: string };
+            additionalImages?: Array<{ imageUrl: string }>;
+          };
+          const url = detail.image?.imageUrl ?? detail.additionalImages?.[0]?.imageUrl;
+          if (url) return url;
+        }
+      } catch { /* fall through */ }
+    }
+  }
+
   // Score by title relevance
   const playerTokens = playerName.toLowerCase().split(/\s+/);
   const setTokens = cardSet.toLowerCase().split(/\s+/).filter(t => t.length > 2);
@@ -238,12 +262,29 @@ export async function getPlayerCardPricing(
       searchEbayListings(query, token, false),
     ]);
     recentSales = sold;
-    // Prefer a listing that matches the allowed Topps sets for the card image
+    // Prefer a listing that matches the allowed Topps sets and has an image
     activeListing =
       active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
       active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
       active.find(l => l.imageUrl) ??
       active[0];
+
+    // If the chosen listing has no imageUrl, fetch the full item detail — the
+    // item_summary search often omits image fields even when the item has photos.
+    if (activeListing && !activeListing.imageUrl) {
+      try {
+        const detailRes = await fetch(`${EBAY_API_BASE}/buy/browse/v1/item/${activeListing.itemId}`, {
+          headers: { Authorization: `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
+          next: { revalidate: 3600 },
+        });
+        if (detailRes.ok) {
+          const detail = await detailRes.json() as { image?: { imageUrl: string } };
+          if (detail.image?.imageUrl) {
+            activeListing = { ...activeListing, imageUrl: detail.image.imageUrl };
+          }
+        }
+      } catch { /* leave imageUrl undefined */ }
+    }
   } else {
     // Use mock data when no eBay credentials are configured
     recentSales = generateMockListings(playerName).slice(0, 2);
