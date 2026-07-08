@@ -192,70 +192,70 @@ function matchesGrading(title: string, company: string, grade?: string): boolean
   return true;
 }
 
+// Topps flagship sets we recognize in listing titles
+const TOPPS_SET_MAP: Array<{ pattern: RegExp; set: string; shortName: string }> = [
+  { pattern: /\btopps\s+chrome\b/i,                            set: 'Topps Chrome',   shortName: 'Chrome' },
+  { pattern: /\btopps\s+update\b/i,                            set: 'Topps Update',   shortName: 'Update' },
+  { pattern: /\btopps\s+series\s*(?:2|two)\b|\btopps\s+s2\b/i, set: 'Topps Series 2', shortName: 'S2'     },
+  { pattern: /\btopps\s+series\s*(?:1|one)\b|\btopps\s+s1\b/i, set: 'Topps Series 1', shortName: 'S1'     },
+];
+
+const NON_TOPPS_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy|allen|archives|gallery|inception|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
+
 /**
- * Queries eBay for each of the four Topps flagship RC sets and returns only
- * those where a real listing (exact title match) exists. Sold prices come from
- * the Marketplace Insights API; card images and click-through URLs come from
- * Buy It Now active listings only.
+ * Single eBay BIN search for a player's Topps RC PSA listings.
+ * Returns up to 10 active Buy-It-Now listings.
  */
 export async function getPlayerCardSets(
   playerName: string,
   rookieYear: number,
-  gradingCompany?: string,
+  _gradingCompany?: string,  // reserved — PSA is always used
   gradeValue?: string,
 ): Promise<SetCardResult[]> {
-  // Check module-level result cache first
-  const cacheKey = `${playerName}|${rookieYear}|${gradingCompany ?? ''}|${gradeValue ?? ''}`;
+  const grade = gradeValue ?? '10';
+  const cacheKey = `${playerName}|${rookieYear}|psa|${grade}`;
   const cached = _resultCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.sets;
 
   const token = await getEbayToken();
   if (!token) return [];
 
-  const companyLabel = gradingCompany?.toUpperCase() ?? '';
-  const gradeLabel   = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
-  const gradingStr   = gradingCompany ? ` ${companyLabel}${gradeLabel}` : '';
-  const yearStr      = rookieYear > 0 ? ` ${rookieYear}` : '';
+  const yearStr = rookieYear > 0 ? ` ${rookieYear}` : '';
+  const query   = `${playerName}${yearStr} Topps RC PSA ${grade}`;
 
-  // 4 parallel BIN-only calls (one per set). Sold-price calls are omitted to
-  // halve the number of eBay round-trips — BIN price is the primary signal.
-  const binResults = await Promise.all(
-    TOPPS_SET_DEFS.map(({ set }) => {
-      const q = `${playerName}${yearStr} ${set}${gradingStr} RC`;
-      return searchEbayListings(q, token, false, 10).then(listings => ({ set, listings }));
-    })
-  );
-
-  const isRCListing = (title: string) =>
-    RC_PATTERN.test(title) &&
-    !EXCLUDED_CARD_BRANDS.test(title) &&
-    (gradingCompany ? matchesGrading(title, gradingCompany, gradeValue) : true);
+  const listings = await searchEbayListings(query, token, false, 10);
 
   const results: SetCardResult[] = [];
 
-  for (const { set, shortName } of TOPPS_SET_DEFS) {
-    const binListings = binResults.find(r => r.set === set)?.listings ?? [];
-    const binMatches  = binListings.filter(l => isRCListing(l.title) && !!l.itemUrl);
-    for (const bin of binMatches) {
-      results.push({
-        set, shortName, year: rookieYear,
-        binPrice: bin.price, soldPrice: null, soldDate: undefined,
-        imageUrl: bin.imageUrl, itemUrl: bin.itemUrl,
-      });
-    }
+  for (const listing of listings) {
+    if (!listing.itemUrl) continue;
+
+    const title = listing.title;
+
+    // Must be a Topps RC with PSA — skip non-Topps brands and ungraded cards
+    if (NON_TOPPS_BRANDS.test(title)) continue;
+    if (!/\btopps\b/i.test(title)) continue;
+    if (!/\brc\b|\brookie\b/i.test(title)) continue;
+    if (!/\bpsa\b/i.test(title)) continue;
+
+    // Identify which Topps set — skip if it doesn't match a known flagship set
+    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title));
+    if (!setInfo) continue;
+
+    results.push({
+      set: setInfo.set,
+      shortName: setInfo.shortName,
+      year: rookieYear,
+      binPrice: listing.price,
+      soldPrice: null,
+      soldDate:  undefined,
+      imageUrl:  listing.imageUrl,
+      itemUrl:   listing.itemUrl,
+    });
   }
 
-  // Deduplicate — the same eBay listing can surface in multiple per-set queries
-  const seen = new Set<string>();
-  const deduped = results.filter(r => {
-    if (!r.itemUrl || seen.has(r.itemUrl)) return false;
-    seen.add(r.itemUrl);
-    return true;
-  });
-
-  // Store in module-level cache (5 min TTL)
-  _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
-  return deduped;
+  _resultCache.set(cacheKey, { sets: results, expiresAt: Date.now() + 5 * 60 * 1000 });
+  return results;
 }
 
 // ── Card image search (BaseballCardImage component) ───────────────────────────
