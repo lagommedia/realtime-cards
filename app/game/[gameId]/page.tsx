@@ -133,7 +133,7 @@ function PlayerMatchupCard({
   gameId,
   statLine,
   theme,
-  router,
+  onSelect,
   pitchDelta = 0,
   lastDelta = 0,
   outcome,
@@ -147,7 +147,7 @@ function PlayerMatchupCard({
   gameId: string;
   statLine: string;
   theme: import('@/types').TeamTheme;
-  router: ReturnType<typeof useRouter>;
+  onSelect: () => void;
   pitchDelta?: number;
   lastDelta?: number;
   outcome?: string;
@@ -170,7 +170,7 @@ function PlayerMatchupCard({
     <button
       className={`w-full p-1.5 flex flex-col items-center gap-1.5 text-center active:opacity-75 transition-opacity${noBorder ? '' : ' rounded-xl border border-white/8'}`}
       style={{ backgroundColor: noBorder ? 'transparent' : '#07111f' }}
-      onClick={() => router.push(playerProfileUrl(pred, fallbackPlayerId, fallbackName, gameId))}
+      onClick={onSelect}
     >
       <span className="text-[7px] font-bold uppercase tracking-widest text-gray-500">{label}</span>
 
@@ -332,6 +332,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const el = topCardInnerRef.current;
@@ -505,6 +506,16 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     ? (liveSnap?.liveMatchup ?? data?.liveMatchup) ?? null
     : liveSnap?.liveMatchup ?? null;
 
+  function expandPlayer(playerId: number, teamId: number) {
+    const targetSide = teamId === awayTeam.id ? 'away' : 'home';
+    setSelectedSide(targetSide);
+    setExpandedPlayerId(playerId);
+    // Wait for the team-tab re-render before scrolling
+    setTimeout(() => {
+      document.getElementById(`player-card-${playerId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+
   const selectedTeamId = selectedSide === 'away' ? awayTeam.id : homeTeam.id;
   const sidePredictions = predictions.filter(p => p.teamId === selectedTeamId);
 
@@ -661,7 +672,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         gameId={gameId}
                         statLine=""
                         theme={theme}
-                        router={router}
+                        onSelect={() => expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? (selectedSide === 'away' ? awayTeam.id : homeTeam.id))}
                         pitchDelta={batterDelta}
                         lastDelta={batterLast}
                         noBorder={true}
@@ -711,7 +722,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                                       if (Math.abs(diff) < 8) {
                                         el.style.transition = '';
                                         el.style.transform = '';
-                                        router.push(playerProfileUrl(batterPred, liveMatchup.batterId, liveMatchup.batter.name, gameId));
+                                        expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? awayTeam.id);
                                       } else if (diff > 50 && selectedCardIdx < opts.length - 1) {
                                         el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
                                         el.style.transform = 'translateX(-160%) rotate(-15deg)';
@@ -988,7 +999,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                     key={p.playerId}
                     className="flex-1 flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-white/8 active:opacity-75 transition-opacity"
                     style={{ backgroundColor: theme.cardBackground }}
-                    onClick={() => router.push(`/player/${p.playerId}?name=${encodeURIComponent(p.playerName)}&teamId=${p.teamId}&position=${encodeURIComponent(p.position)}&gameId=${gameId}`)}
+                    onClick={() => expandPlayer(p.playerId, p.teamId)}
                   >
                     <PlayerHeadshot playerId={p.playerId} playerName={p.playerName} size={46} />
                     <div className="text-center w-full min-w-0">
@@ -1017,13 +1028,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
             </p>
             <div className="space-y-3 mb-6">
               {lineup.map((prediction, i) => (
-                <TrendingPlayerCard
-                  key={prediction.playerId}
-                  prediction={prediction}
-                  rank={i + 1}
-                  defaultChartView="game"
-                  isLive={isLive}
-                />
+                <div key={prediction.playerId} id={`player-card-${prediction.playerId}`}>
+                  <TrendingPlayerCard
+                    prediction={prediction}
+                    rank={i + 1}
+                    defaultChartView="game"
+                    isLive={isLive}
+                    forceExpanded={expandedPlayerId === prediction.playerId}
+                  />
+                </div>
               ))}
             </div>
           </>
@@ -1037,13 +1050,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
             </p>
             <div className="space-y-3 pb-8">
               {pitchers.map((prediction, i) => (
-                <TrendingPlayerCard
-                  key={prediction.playerId}
-                  prediction={prediction}
-                  rank={i + 1}
-                  defaultChartView="game"
-                  isLive={isLive}
-                />
+                <div key={prediction.playerId} id={`player-card-${prediction.playerId}`}>
+                  <TrendingPlayerCard
+                    prediction={prediction}
+                    rank={i + 1}
+                    defaultChartView="game"
+                    isLive={isLive}
+                    forceExpanded={expandedPlayerId === prediction.playerId}
+                  />
+                </div>
               ))}
             </div>
           </>

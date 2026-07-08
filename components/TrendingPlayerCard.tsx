@@ -20,6 +20,7 @@ interface Props {
   isLive?: boolean;
   defaultExpanded?: boolean;
   hideCardImage?: boolean;
+  forceExpanded?: boolean;
 }
 
 // Micro-volatility ticker — simulates live market movement
@@ -64,10 +65,14 @@ function useLivePriceTicker(
   return { livePrice, flash };
 }
 
-export default function TrendingPlayerCard({ prediction, rank, defaultChartView, isLive, defaultExpanded, hideCardImage }: Props) {
+export default function TrendingPlayerCard({ prediction, rank, defaultChartView, isLive, defaultExpanded, hideCardImage, forceExpanded }: Props) {
   const { theme } = useTeam();
   const { isWatched, toggleWatch } = useWatchList();
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
+
+  useEffect(() => {
+    if (forceExpanded) setExpanded(true);
+  }, [forceExpanded]);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
