@@ -112,10 +112,15 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
   const totalMultiplier = selectedCard ? (SET_PRICE_MULTIPLIERS[selectedCard.set] ?? 1.0) : 1.0;
 
+  // Real eBay listing prices — used instead of the simulated ticker when available
+  const selectedSetCard = setCards.length > 0 ? (setCards[selectedCardIdx] ?? null) : null;
+  const actualBinPrice: number | null = selectedSetCard?.binPrice ?? null;
+  const actualSoldPrice: number | null = selectedSetCard?.soldPrice ?? null;
+
   const baseCurrentPrice = prediction.currentPrice * totalMultiplier;
   const displayProjectedPrice = prediction.projectedPrice * totalMultiplier;
 
-  // Live ticker: always runs when expanded, faster during live games
+  // Live ticker: runs as fallback when no real BIN price is available
   const { livePrice, flash } = useLivePriceTicker(
     baseCurrentPrice,
     prediction.direction,
@@ -131,7 +136,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   ];
   const featuredCard = getFeaturedCard(allListings);
 
-  // Flash bg color for the live price
   const flashBg = flash === 'up' ? '#22c55e18' : flash === 'down' ? '#ef444418' : 'transparent';
 
   return (
@@ -221,35 +225,59 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
           {/* ── Card valuation — full-width stack ── */}
           {!hideCardImage && <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Highest Rising Card
-            </p>
 
             {/* Price info — above the card, updates on swipe */}
             <div
               className="rounded-xl px-3 py-2.5 mb-3 flex flex-col gap-1"
-              style={{ backgroundColor: flash ? flashBg : '#ffffff08', transition: 'background-color 0.6s ease-out' }}
+              style={{
+                backgroundColor: actualBinPrice === null && flash ? flashBg : '#ffffff08',
+                transition: 'background-color 0.6s ease-out',
+              }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
-                    ${livePrice.toFixed(2)}
-                  </span>
-                  <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
-                    {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
-                  </span>
+                  {actualBinPrice !== null ? (
+                    <>
+                      <span className="font-black text-xl tabular-nums" style={{ color: '#fff' }}>
+                        ${actualBinPrice.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: '#22c55e18', color: '#22c55e' }}>
+                        BIN
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
+                        ${livePrice.toFixed(2)}
+                      </span>
+                      <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
+                        {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
+                      </span>
+                    </>
+                  )}
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}>
                   {prediction.confidence} confidence
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 text-[10px]">proj.</span>
-                <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
-                <span className="text-[10px]" style={{ color: directionColor }}>
-                  ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
-                </span>
-              </div>
+
+              {actualBinPrice !== null ? (
+                actualSoldPrice !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-500 text-[10px]">last sold</span>
+                    <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${actualSoldPrice.toFixed(2)}</span>
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-gray-500 text-[10px]">proj.</span>
+                  <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
+                  <span className="text-[10px]" style={{ color: directionColor }}>
+                    ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
+                  </span>
+                </div>
+              )}
+
               {selectedCard && (
                 <p className="text-gray-500 text-[10px] mt-0.5">
                   {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
