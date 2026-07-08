@@ -200,54 +200,46 @@ export async function getPlayerCardSets(
 
   // Two broad searches cover S1/S2/Update; one Chrome-specific search for precision.
   // 4 total calls run in parallel — sold prices from Insights, images from BIN Browse.
-  const broadQuery  = `${playerName}${yearStr} Topps${gradingStr} RC`;
-  const chromeQuery = `${playerName}${yearStr} Topps Chrome${gradingStr} RC`;
+  // One targeted search per set — eBay relevance does the set matching so we
+  // don't need strict title patterns. 8 calls run in parallel and are cached.
+  const setSearches = await Promise.all(
+    TOPPS_SET_DEFS.flatMap(({ set }) => {
+      const q = `${playerName}${yearStr} ${set}${gradingStr} RC`;
+      return [
+        searchEbayListings(q, token, true,  10).then(l => ({ set, type: 'sold' as const, listings: l })),
+        searchEbayListings(q, token, false, 25).then(l => ({ set, type: 'bin'  as const, listings: l })),
+      ];
+    })
+  );
 
-  const [broadSold, broadBIN, chromeSold, chromeBIN] = await Promise.all([
-    searchEbayListings(broadQuery,  token, true,  20),
-    searchEbayListings(broadQuery,  token, false, 50), // more BIN listings to swipe through
-    searchEbayListings(chromeQuery, token, true,  10),
-    searchEbayListings(chromeQuery, token, false, 25),
-  ]);
+  const isRCListing = (title: string) =>
+    RC_PATTERN.test(title) &&
+    !EXCLUDED_CARD_BRANDS.test(title) &&
+    (gradingCompany ? matchesGrading(title, gradingCompany, gradeValue) : true);
 
   const results: SetCardResult[] = [];
 
-  for (const { set, shortName, pattern } of TOPPS_SET_DEFS) {
-    const isChrome  = set === 'Topps Chrome';
-    const soldPool  = isChrome ? chromeSold : broadSold;
-    const binPool   = isChrome ? chromeBIN  : broadBIN;
+  for (const { set, shortName } of TOPPS_SET_DEFS) {
+    const soldListings = setSearches.find(s => s.set === set && s.type === 'sold')?.listings ?? [];
+    const binListings  = setSearches.find(s => s.set === set && s.type === 'bin')?.listings  ?? [];
 
-    const isExact = (title: string) => pattern.test(title) && RC_PATTERN.test(title);
-    const isGradingMatch = (title: string) =>
-      gradingCompany ? matchesGrading(title, gradingCompany, gradeValue) : true;
+    const soldRef   = soldListings.find(l  => isRCListing(l.title));
+    const binMatches = binListings.filter(l => isRCListing(l.title) && !!l.itemUrl);
 
-    // One sold-price reference for the whole set
-    const soldMatch = soldPool.find(l => isExact(l.title) && isGradingMatch(l.title));
-    // ALL matching BIN listings — each becomes a swipeable card
-    const binMatches = binPool.filter(l => isExact(l.title) && isGradingMatch(l.title) && !!l.itemUrl);
-
-    if (binMatches.length === 0 && !soldMatch) continue;
+    if (binMatches.length === 0 && !soldRef) continue;
 
     if (binMatches.length === 0) {
-      // No BIN available but we have a sold reference — show one placeholder card
       results.push({
         set, shortName, year: rookieYear,
-        binPrice:  null,
-        soldPrice: soldMatch!.price,
-        soldDate:  soldMatch!.soldDate,
-        imageUrl:  soldMatch!.imageUrl,
-        itemUrl:   soldMatch!.itemUrl ?? '',
+        binPrice: null, soldPrice: soldRef!.price, soldDate: soldRef!.soldDate,
+        imageUrl: soldRef!.imageUrl, itemUrl: soldRef!.itemUrl ?? '',
       });
     } else {
-      // One card per BIN listing; all share the same sold-price reference
       for (const bin of binMatches) {
         results.push({
           set, shortName, year: rookieYear,
-          binPrice:  bin.price,
-          soldPrice: soldMatch?.price ?? null,
-          soldDate:  soldMatch?.soldDate,
-          imageUrl:  bin.imageUrl,
-          itemUrl:   bin.itemUrl,
+          binPrice: bin.price, soldPrice: soldRef?.price ?? null, soldDate: soldRef?.soldDate,
+          imageUrl: bin.imageUrl, itemUrl: bin.itemUrl,
         });
       }
     }
