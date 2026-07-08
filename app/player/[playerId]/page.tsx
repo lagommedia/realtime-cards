@@ -58,13 +58,19 @@ function SetCardSwiper({
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
             <span className="font-black text-xl tabular-nums text-white">
-              {current.soldPrice != null ? `$${current.soldPrice.toFixed(2)}` : '—'}
+              {current.binPrice != null ? `$${current.binPrice.toFixed(2)}` : '—'}
             </span>
-            <span className="text-xs text-gray-500">last sold</span>
+            <span
+              className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: '#22c55e18', color: '#22c55e' }}
+            >
+              Buy It Now
+            </span>
           </div>
-          {current.soldDate && (
+          {current.soldPrice != null && (
             <span className="text-[10px] text-gray-600">
-              {new Date(current.soldDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              sold ${current.soldPrice.toFixed(2)}
+              {current.soldDate && ` · ${new Date(current.soldDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
             </span>
           )}
         </div>

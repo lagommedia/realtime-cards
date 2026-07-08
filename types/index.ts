@@ -70,7 +70,8 @@ export interface SetCardResult {
   set: string;       // "Topps Series 1"
   shortName: string; // "S1"
   year: number;
-  soldPrice: number | null;
+  binPrice: number | null;   // Ask price of the specific BIN listing shown
+  soldPrice: number | null;  // Most recent sold price (reference only)
   soldDate?: string;
   imageUrl?: string;
   itemUrl: string;   // Buy It Now eBay listing URL
