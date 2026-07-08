@@ -279,7 +279,11 @@ export async function getPlayerCardSets(
 
   const deduped = results.slice(0, 10);
 
-  _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
+  // Only cache non-empty results — a cold eBay response or rate-limit returning []
+  // would otherwise block all retries for 5 minutes.
+  if (deduped.length > 0) {
+    _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
+  }
   return deduped;
 }
 

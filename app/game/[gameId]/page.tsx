@@ -470,8 +470,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   useEffect(() => {
     const id = liveSnap?.liveMatchup?.batterId;
     if (!id) return;
-    if (batterSetCacheRef.current[id]) {
-      setBatterSetCards(batterSetCacheRef.current[id]);
+    // Only use cache if it has actual results — empty arrays are truthy but meaningless
+    const cached = batterSetCacheRef.current[id];
+    if (cached && cached.length > 0) {
+      setBatterSetCards(cached);
       return;
     }
     setBatterSetCards([]);
@@ -492,7 +494,9 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
       .then((json: { sets?: SetCardResult[] }) => {
         if (cancelled) return;
         const sets = json.sets ?? [];
-        batterSetCacheRef.current[id] = sets;
+        // Only cache non-empty results so a failed/empty eBay response doesn't
+        // permanently suppress listings for the rest of the at-bat
+        if (sets.length > 0) batterSetCacheRef.current[id] = sets;
         setBatterSetCards(sets);
       })
       .catch(() => {});
@@ -760,8 +764,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                                 </button>
                               ) : (
                                 <div
-                                  className="w-full rounded-lg"
-                                  style={{ aspectRatio: '2.5/3.5', backgroundColor: 'rgba(255,255,255,0.04)' }}
+                                  className="w-full rounded-lg animate-pulse"
+                                  style={{ aspectRatio: '2.5/3.5', backgroundColor: 'rgba(255,255,255,0.08)' }}
                                 />
                               )}
                             </div>
