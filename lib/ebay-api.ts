@@ -1,5 +1,4 @@
-import { EbayListing, CardPriceSummary } from '@/types';
-import { getFlagshipRC, hasKnownRC, detectSetFromListings, cacheDiscoveredRC } from '@/lib/flagship-rc';
+import { EbayListing, CardPriceSummary, SetCardResult } from '@/types';
 
 const EBAY_API_BASE = 'https://api.ebay.com';
 
@@ -16,7 +15,7 @@ async function getEbayToken(): Promise<string | null> {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope',
-    next: { revalidate: 7000 }, // tokens last ~2 hours
+    next: { revalidate: 7000 },
   });
   if (!res.ok) return null;
   const data = await res.json() as { access_token?: string };
@@ -26,16 +25,17 @@ async function getEbayToken(): Promise<string | null> {
 async function searchEbayListings(
   query: string,
   token: string,
-  sold = false
+  sold = false,
+  limit = 10,
 ): Promise<EbayListing[]> {
   const category = '212'; // Sports Trading Cards
-  const filterParam = sold
-    ? '&filter=buyingOptions:{AUCTION|FIXED_PRICE},conditionIds:{1000|1500|2000|2500|3000}'
-    : '';
+
+  // Active listings: Buy It Now only. Sold listings use the Marketplace Insights API.
+  const filterParam = sold ? '' : '&filter=buyingOptions:{FIXED_PRICE}';
 
   const endpoint = sold
-    ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10`
-    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=10${filterParam}`;
+    ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}`
+    : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}${filterParam}`;
 
   const res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
     headers: {
@@ -53,7 +53,6 @@ async function searchEbayListings(
       itemId: string;
       title: string;
       price?: { value: string; currency: string };
-      lastSoldDate?: string;
       condition?: string;
       image?: { imageUrl: string };
       thumbnailImages?: Array<{ imageUrl: string }>;
@@ -115,47 +114,35 @@ function generateMockListings(playerName: string): EbayListing[] {
   return [
     {
       itemId: `mock-${Date.now()}-1`,
-      title: `${playerName} 2024 Topps Base Card RC`,
+      title: `${playerName} 2024 Topps Series 1 Base Card RC`,
       price: parseFloat(basePrice.toFixed(2)),
       currency: 'USD',
       condition: 'Near Mint',
-      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' baseball card')}`,
+      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps series 1 RC')}`,
     },
     {
       itemId: `mock-${Date.now()}-2`,
-      title: `${playerName} 2024 Bowman Chrome Prospect`,
-      price: parseFloat((basePrice * 1.8).toFixed(2)),
+      title: `${playerName} 2024 Topps Chrome RC`,
+      price: parseFloat((basePrice * 2.8).toFixed(2)),
       currency: 'USD',
       condition: 'Mint',
-      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' bowman chrome')}`,
-    },
-    {
-      itemId: `mock-${Date.now()}-3`,
-      title: `${playerName} 2023 Topps Update Gold Parallel /50`,
-      price: parseFloat((basePrice * 3.5).toFixed(2)),
-      currency: 'USD',
-      condition: 'Mint',
-      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps gold')}`,
+      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps chrome RC')}`,
     },
   ];
 }
 
-// Upgrade eBay CDN image URLs from thumbnails (s-l140, s-l300) to full-size (s-l500)
 function upgradeEbayImageUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   return url.replace(/\/s-l\d+(\.\w+)$/, '/s-l500$1');
 }
 
-// ── Card image filtering ──────────────────────────────────────────────────────
+// ── Filtering helpers ─────────────────────────────────────────────────────────
 
-// Only these four Topps sets carry the official RC logo and are allowed
-const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
-
-// Non-brand exclusions shared between raw and graded searches
 const EXCLUDED_CARD_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
 
-// For raw (ungraded) searches — also excludes grading terms
 const EXCLUDED_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;
+
+const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
 
 function gradingPattern(company: string): RegExp {
   if (company === 'psa') return /\bpsa\b/i;
@@ -164,24 +151,98 @@ function gradingPattern(company: string): RegExp {
   return /(?!)/;
 }
 
-/**
- * Returns true only for listings that are:
- *   - A Topps Series 1 / Series 2 / Update / Chrome card
- *   - Not a graded slab (PSA, BGS, SGC, CGC…)
- *   - Not from an excluded brand (Bowman, Prizm, Donruss, Panini…)
- */
 function isAllowedToppsRC(title: string): boolean {
   if (EXCLUDED_BRANDS.test(title)) return false;
   return TOPPS_ALLOWED_SETS.test(title);
 }
 
+// ── Per-set RC search (player profile swiper) ─────────────────────────────────
+
+const RC_PATTERN = /\brc\b|\brookie\s*card\b/i;
+
+// Exact title patterns for each Topps flagship set
+const TOPPS_SET_DEFS = [
+  { set: 'Topps Series 1', shortName: 'S1',     pattern: /\btopps\s+series\s*(?:1|one)\b/i },
+  { set: 'Topps Series 2', shortName: 'S2',     pattern: /\btopps\s+series\s*(?:2|two)\b/i },
+  { set: 'Topps Update',   shortName: 'Update', pattern: /\btopps\s+update\b/i },
+  { set: 'Topps Chrome',   shortName: 'Chrome', pattern: /\btopps\s+chrome\b/i },
+] as const;
+
+function matchesGrading(title: string, company: string, grade?: string): boolean {
+  const gPat = gradingPattern(company);
+  if (!gPat.test(title)) return false;
+  if (grade) {
+    const gradePat = new RegExp(`\\b${grade.replace('.', '\\.')}\\b`);
+    if (!gradePat.test(title)) return false;
+  }
+  return true;
+}
+
 /**
- * Searches eBay for a specific card (player + year + set) and returns an
- * image URL of a raw (ungraded) copy. Ranks results to prefer:
- *   1. eBay CDN images (i.ebayimg.com) — actual card photos from sellers
- *   2. Higher title-match scores for player name, year, and set keywords
- * Only returns Topps Series 1 / 2 / Update / Chrome listings.
+ * Queries eBay for each of the four Topps flagship RC sets and returns only
+ * those where a real listing (exact title match) exists. Sold prices come from
+ * the Marketplace Insights API; card images and click-through URLs come from
+ * Buy It Now active listings only.
  */
+export async function getPlayerCardSets(
+  playerName: string,
+  rookieYear: number,
+  gradingCompany?: string,
+  gradeValue?: string,
+): Promise<SetCardResult[]> {
+  const token = await getEbayToken();
+  if (!token) return [];
+
+  const companyLabel = gradingCompany?.toUpperCase() ?? '';
+  const gradeLabel   = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
+  const gradingStr   = gradingCompany ? ` ${companyLabel}${gradeLabel}` : '';
+  const yearStr      = rookieYear > 0 ? ` ${rookieYear}` : '';
+
+  // Two broad searches cover S1/S2/Update; one Chrome-specific search for precision.
+  // 4 total calls run in parallel — sold prices from Insights, images from BIN Browse.
+  const broadQuery  = `${playerName}${yearStr} Topps${gradingStr} RC`;
+  const chromeQuery = `${playerName}${yearStr} Topps Chrome${gradingStr} RC`;
+
+  const [broadSold, broadBIN, chromeSold, chromeBIN] = await Promise.all([
+    searchEbayListings(broadQuery,  token, true,  20),
+    searchEbayListings(broadQuery,  token, false, 20),
+    searchEbayListings(chromeQuery, token, true,  10),
+    searchEbayListings(chromeQuery, token, false, 10),
+  ]);
+
+  const results: SetCardResult[] = [];
+
+  for (const { set, shortName, pattern } of TOPPS_SET_DEFS) {
+    const isChrome  = set === 'Topps Chrome';
+    const soldPool  = isChrome ? chromeSold : broadSold;
+    const binPool   = isChrome ? chromeBIN  : broadBIN;
+
+    const isExact = (title: string) => pattern.test(title) && RC_PATTERN.test(title);
+    const isGradingMatch = (title: string) =>
+      gradingCompany ? matchesGrading(title, gradingCompany, gradeValue) : true;
+
+    const soldMatch = soldPool.find(l => isExact(l.title) && isGradingMatch(l.title));
+    const binMatch  = binPool.find(l  => isExact(l.title) && isGradingMatch(l.title) && !!l.itemUrl);
+
+    // Only include this set if eBay has at least one matching listing
+    if (!soldMatch && !binMatch) continue;
+
+    results.push({
+      set,
+      shortName,
+      year: rookieYear,
+      soldPrice: soldMatch?.price ?? null,
+      soldDate:  soldMatch?.soldDate,
+      imageUrl:  binMatch?.imageUrl ?? soldMatch?.imageUrl,
+      itemUrl:   binMatch?.itemUrl  ?? soldMatch?.itemUrl ?? '',
+    });
+  }
+
+  return results;
+}
+
+// ── Card image search (BaseballCardImage component) ───────────────────────────
+
 export async function searchCardImage(
   playerName: string,
   cardYear: string,
@@ -204,36 +265,20 @@ export async function searchCardImage(
   if (gradingCompany) {
     const gPat = gradingPattern(gradingCompany);
     const gradePat = gradeValue ? new RegExp(`\\b${gradeValue.replace('.', '\\.')}\\b`) : null;
-    // Prefer: company + grade + no excluded brands
     raw = listings.filter(l => l.imageUrl && gPat.test(l.title)
       && (!gradePat || gradePat.test(l.title))
       && !EXCLUDED_CARD_BRANDS.test(l.title));
-    // Fallback 1: company + grade (any brand)
     if (raw.length === 0 && gradePat)
       raw = listings.filter(l => l.imageUrl && gPat.test(l.title) && gradePat.test(l.title));
-    // Fallback 2: company only
     if (raw.length === 0) raw = listings.filter(l => l.imageUrl && gPat.test(l.title));
   } else {
-    // Raw card: only allowed Topps RC sets, no slabs, must have an image
     raw = listings.filter(l => l.imageUrl && isAllowedToppsRC(l.title));
-
-    // Fallback 1: any Topps listing without excluded brands
-    if (raw.length === 0) {
-      raw = listings.filter(l =>
-        l.imageUrl &&
-        /\btopps\b/i.test(l.title) &&
-        !EXCLUDED_BRANDS.test(l.title)
-      );
-    }
-
-    // Fallback 2: any listing with an image from the specific query
-    if (raw.length === 0) {
-      raw = listings.filter(l => l.imageUrl);
-    }
+    if (raw.length === 0)
+      raw = listings.filter(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title));
+    if (raw.length === 0) raw = listings.filter(l => l.imageUrl);
   }
 
-  // Fallback 3: item-detail lookup — the search summary often omits image fields;
-  // the full item endpoint always returns them. Try the best-scoring listing.
+  // Fallback: fetch full item detail for the best candidate (search summary often omits images)
   if (raw.length === 0 && listings.length > 0) {
     const bestId = listings.find(l => isAllowedToppsRC(l.title))?.itemId
       ?? listings.find(l => /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title))?.itemId
@@ -256,7 +301,6 @@ export async function searchCardImage(
     }
   }
 
-  // Score by title relevance
   const playerTokens = playerName.toLowerCase().split(/\s+/);
   const setTokens = cardSet.toLowerCase().split(/\s+/).filter(t => t.length > 2);
 
@@ -270,7 +314,6 @@ export async function searchCardImage(
     return s;
   }
 
-  // Sort: prefer eBay CDN images (actual card photos), then by title score
   const sorted = raw
     .map(l => ({ l, s: titleScore(l.title), isEbay: !!l.imageUrl?.includes('ebayimg.com') }))
     .sort((a, b) => {
@@ -280,6 +323,8 @@ export async function searchCardImage(
 
   return sorted[0]?.l.imageUrl ?? null;
 }
+
+// ── Pricing summary (TrendingPlayerCard / game feed) ─────────────────────────
 
 export async function getPlayerCardPricing(
   playerId: number,
@@ -294,20 +339,11 @@ export async function getPlayerCardPricing(
   let activeListing: EbayListing | undefined;
 
   if (token) {
-    const knownPlayer = hasKnownRC(playerId);
-    let flagship = getFlagshipRC(playerId, rookieYear);
     const companyLabel = gradingCompany?.toUpperCase() ?? '';
-    const gradeLabel = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
-
-    // Known players: target their exact set for precision.
-    // Unknown players: broad "Topps RC" probe — we detect S1/S2/Update from the titles.
-    const query = knownPlayer
-      ? (gradingCompany
-          ? `${playerName} ${flagship.year} ${flagship.set} ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
-          : `${playerName} ${flagship.year} ${flagship.set} RC`)
-      : (gradingCompany
-          ? `${playerName} ${flagship.year} Topps ${companyLabel}${gradeLabel} RC`.replace(/\s+/g, ' ').trim()
-          : `${playerName} ${flagship.year} Topps RC`);
+    const gradeLabel   = gradingCompany && gradeValue ? ` ${gradeValue}` : '';
+    const gradingStr   = gradingCompany ? ` ${companyLabel}${gradeLabel}` : '';
+    const yearStr      = rookieYear ? ` ${rookieYear}` : '';
+    const query        = `${playerName}${yearStr} Topps${gradingStr} RC`;
 
     const [sold, active] = await Promise.all([
       searchEbayListings(query, token, true),
@@ -315,24 +351,15 @@ export async function getPlayerCardPricing(
     ]);
     recentSales = sold;
 
-    // Detect and cache the correct set for this player from the live eBay results
-    if (!knownPlayer && active.length > 0) {
-      const detected = detectSetFromListings(active, flagship.year);
-      cacheDiscoveredRC(playerId, detected);
-      flagship = detected;
-    }
-
     if (gradingCompany) {
       const gPat = gradingPattern(gradingCompany);
       const gradePat = gradeValue ? new RegExp(`\\b${gradeValue.replace('.', '\\.')}\\b`) : null;
-      // Prefer: company + grade + image + clean brand
       activeListing =
         active.find(l => l.imageUrl && gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
         active.find(l => gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
         active.find(l => l.imageUrl && gPat.test(l.title)) ??
         active.find(l => gPat.test(l.title));
     } else {
-      // Prefer a listing that matches the allowed Topps sets and has an image
       activeListing =
         active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
         active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
@@ -340,8 +367,7 @@ export async function getPlayerCardPricing(
         active[0];
     }
 
-    // If the chosen listing has no imageUrl, fetch the full item detail — the
-    // item_summary search often omits image fields even when the item has photos.
+    // Fetch full item detail if the chosen listing has no image
     if (activeListing && !activeListing.imageUrl) {
       try {
         const detailRes = await fetch(`${EBAY_API_BASE}/buy/browse/v1/item/${activeListing.itemId}`, {
@@ -357,23 +383,22 @@ export async function getPlayerCardPricing(
       } catch { /* leave imageUrl undefined */ }
     }
   } else {
-    // Use mock data when no eBay credentials are configured
-    recentSales = generateMockListings(playerName).slice(0, 2);
+    recentSales   = generateMockListings(playerName).slice(0, 2);
     activeListing = generateMockListings(playerName)[0];
   }
 
   const allPrices = [...recentSales.map(s => s.price), activeListing?.price ?? 0].filter(p => p > 0);
-  const avgPrice = allPrices.length > 0 ? allPrices.reduce((a, b) => a + b, 0) / allPrices.length : 9.99;
+  const avgPrice  = allPrices.length > 0 ? allPrices.reduce((a, b) => a + b, 0) / allPrices.length : 9.99;
   const basePrice = avgPrice || 9.99;
 
   return {
     playerId,
     playerName,
-    averagePrice: parseFloat(avgPrice.toFixed(2)),
-    lowestPrice: parseFloat(Math.min(...allPrices, basePrice).toFixed(2)),
-    highestPrice: parseFloat(Math.max(...allPrices, basePrice).toFixed(2)),
+    averagePrice:  parseFloat(avgPrice.toFixed(2)),
+    lowestPrice:   parseFloat(Math.min(...allPrices, basePrice).toFixed(2)),
+    highestPrice:  parseFloat(Math.max(...allPrices, basePrice).toFixed(2)),
     recentSales,
     activeListing,
-    priceHistory: generateMockPriceHistory(basePrice),
+    priceHistory:  generateMockPriceHistory(basePrice),
   };
 }

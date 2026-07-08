@@ -19,6 +19,7 @@ interface Props {
   defaultChartView?: 'season' | 'game';
   isLive?: boolean;
   defaultExpanded?: boolean;
+  hideCardImage?: boolean;
 }
 
 // Micro-volatility ticker — simulates live market movement
@@ -63,7 +64,7 @@ function useLivePriceTicker(
   return { livePrice, flash };
 }
 
-export default function TrendingPlayerCard({ prediction, rank, defaultChartView, isLive, defaultExpanded }: Props) {
+export default function TrendingPlayerCard({ prediction, rank, defaultChartView, isLive, defaultExpanded, hideCardImage }: Props) {
   const { theme } = useTeam();
   const { isWatched, toggleWatch } = useWatchList();
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
@@ -202,7 +203,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
 
           {/* ── Card valuation — full-width stack ── */}
-          <div>
+          {!hideCardImage && <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
               Highest Rising Card
             </p>
@@ -332,7 +333,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               </div>
             )}
 
-          </div>
+          </div>}
 
           {/* ── Value Projection Engine ── */}
           {prediction.projection && (

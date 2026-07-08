@@ -66,6 +66,16 @@ export interface RookieCardOption {
   shortName: string; // e.g. "Topps S1"
 }
 
+export interface SetCardResult {
+  set: string;       // "Topps Series 1"
+  shortName: string; // "S1"
+  year: number;
+  soldPrice: number | null;
+  soldDate?: string;
+  imageUrl?: string;
+  itemUrl: string;   // Buy It Now eBay listing URL
+}
+
 export interface LivePlayerStat {
   playerId: number;
   playerName: string;

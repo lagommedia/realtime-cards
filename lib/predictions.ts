@@ -1,6 +1,5 @@
 import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption } from '@/types';
 import { generateCardValueProjection } from '@/lib/card-value-model';
-import { getFlagshipRC } from '@/lib/flagship-rc';
 
 // Price premium of each set relative to Series 1 base price
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
@@ -10,9 +9,14 @@ export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
   'Topps Chrome': 2.8,
 };
 
-export function getRookieCardOptions(playerId: number, debutYear: number | undefined): RookieCardOption[] {
-  const flagship = getFlagshipRC(playerId, debutYear);
-  return [flagship];
+export function getRookieCardOptions(_playerId: number, debutYear: number | undefined): RookieCardOption[] {
+  const year = debutYear ?? new Date().getFullYear() - 1;
+  return [
+    { year, set: 'Topps Series 1', shortName: 'S1' },
+    { year, set: 'Topps Series 2', shortName: 'S2' },
+    { year, set: 'Topps Update',   shortName: 'Update' },
+    { year, set: 'Topps Chrome',   shortName: 'Chrome' },
+  ];
 }
 
 interface ScoringFactors {
