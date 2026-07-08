@@ -231,29 +231,42 @@ export async function getPlayerCardSets(
   const token = await getEbayToken();
   if (!token) return [];
 
-  // 4 parallel targeted BIN searches — limit 4 per set = up to 16 candidates
+  // 4 parallel targeted BIN searches — limit 8 per set = up to 32 candidates
   const setResults = await Promise.all(
-    TOPPS_SET_QUERIES.map(({ set, shortName, q }) => {
+    TOPPS_SET_QUERIES.map(({ q }) => {
       const query = `${playerName} ${q} RC PSA ${grade}`;
-      return searchEbayListings(query, token, false, 4)
-        .then(listings => ({ set, shortName, listings }));
+      return searchEbayListings(query, token, false, 8).then(listings => listings);
     })
   );
 
+  // Deduplicate by eBay item ID (the numeric segment in /itm/XXXXXXXXXX)
+  // and determine the set from the listing TITLE — not from which query found it.
+  const seenIds = new Set<string>();
   const results: SetCardResult[] = [];
 
-  for (const { set, shortName, listings } of setResults) {
+  for (const listings of setResults) {
     for (const listing of listings) {
       if (!listing.itemUrl) continue;
+
+      // Extract item ID for deduplication
+      const itemId = listing.itemUrl.match(/\/itm\/(\d+)/)?.[1];
+      if (!itemId || seenIds.has(itemId)) continue;
+      seenIds.add(itemId);
+
       const title = listing.title;
-      // Confirm the listing is actually Topps (not Bowman/Prizm slipping through)
+      // Must be Topps RC with PSA — skip non-Topps brands
       if (NON_TOPPS_BRANDS.test(title)) continue;
       if (!/\btopps\b/i.test(title)) continue;
       if (!/\brc\b|\brookie\b/i.test(title)) continue;
       if (!/\bpsa\b/i.test(title)) continue;
 
+      // Determine the set from the actual title, not the query that found it
+      const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title))
+        ?? { set: 'Topps', shortName: 'Topps' };
+
       results.push({
-        set, shortName,
+        set: setInfo.set,
+        shortName: setInfo.shortName,
         year: rookieYear,
         binPrice:  listing.price,
         soldPrice: null,
@@ -264,15 +277,7 @@ export async function getPlayerCardSets(
     }
   }
 
-  // Deduplicate and cap at 10
-  const seen = new Set<string>();
-  const deduped = results
-    .filter(r => {
-      if (!r.itemUrl || seen.has(r.itemUrl)) return false;
-      seen.add(r.itemUrl);
-      return true;
-    })
-    .slice(0, 10);
+  const deduped = results.slice(0, 10);
 
   _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
   return deduped;
