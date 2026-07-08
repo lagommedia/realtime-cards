@@ -79,9 +79,13 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     if (forceExpanded) setExpanded(true);
   }, [forceExpanded]);
 
-  // Fetch eBay listings when expanded; retry if a previous attempt returned empty
+  // Fetch eBay listings when the panel is open.
+  // Depend on both expanded and forceExpanded so that forceExpanded=true
+  // triggers the fetch immediately — without waiting for the two-effect
+  // hop of forceExpanded → setExpanded → expanded effect.
   useEffect(() => {
-    if (!expanded) return;
+    const isOpen = expanded || !!forceExpanded;
+    if (!isOpen) return;
     if (cardsFetchStatus === 'loading' || (cardsFetchStatus === 'done' && setCards.length > 0)) return;
     setCardsFetchStatus('loading');
     const year = prediction.rookieCardOptions?.[0]?.year;
@@ -99,7 +103,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       })
       .catch(() => setCardsFetchStatus('done'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded]);
+  }, [expanded, forceExpanded]);
 
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
 
@@ -221,7 +225,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       </div>
 
       {/* Expanded panel */}
-      {expanded && (
+      {(expanded || !!forceExpanded) && (
         <div className="border-t border-white/10 p-4 space-y-4">
 
 

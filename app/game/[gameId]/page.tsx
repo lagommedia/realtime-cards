@@ -15,7 +15,6 @@ import { LiveMatchup } from '@/lib/dummy-game-chc-stl';
 import StrikeZone from '@/components/StrikeZone';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import BaseballCardImage from '@/components/BaseballCardImage';
-import CardPeekCarousel from '@/components/CardPeekCarousel';
 
 interface TeamInfo {
   id: number;
@@ -478,8 +477,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     setBatterSetCards([]);
     let cancelled = false;
     const pred = predictions.find(p => p.playerId === id);
+    // Fall back to live matchup batter name when the player isn't in predictions
+    const playerName = pred?.playerName || liveSnap?.liveMatchup?.batter?.name || '';
     const params = new URLSearchParams();
-    if (pred?.playerName) params.set('name', pred.playerName);
+    if (playerName) params.set('name', playerName);
     const year = pred?.rookieCardOptions?.[0]?.year;
     if (year) params.set('year', String(year));
     if (gradingCompanyId) {
@@ -686,9 +687,6 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               const pitcherArrow = pitcherIsUp ? '↑' : adjPitcherPct < 0 ? '↓' : '·';
               const pitcherSignedPct = `${pitcherIsUp ? '+' : ''}${adjPitcherPct.toFixed(1)}%`;
 
-              // Only real eBay listings — no forced placeholder cards per set
-              const displayCards = batterSetCards;
-
               return (
                 <div className="mt-3 pt-3 border-t border-white/8 relative overflow-hidden rounded-xl">
                   <div className="flex gap-2 items-stretch">
@@ -710,17 +708,14 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         lastDelta={batterLast}
                         noBorder={true}
                       />
-                      {/* Live card price strip — base price from actual eBay listings */}
-                      {(() => {
+                      {/* Live card price + image — always rendered once we have a batter */}
+                      {batterPred !== undefined && (() => {
                         const ebayBase = batterSetCards.length > 0
                           ? Math.min(...batterSetCards.map(c => c.binPrice ?? 0).filter(p => p > 0))
                           : 0;
                         const basePrice = ebayBase > 0
                           ? ebayBase
-                          : batterPred
-                            ? (batterPred.currentPrice > 0 ? batterPred.currentPrice : (batterPred.priceSummary?.averagePrice ?? 0))
-                            : 0;
-                        if (basePrice <= 0) return null;
+                          : (batterPred.currentPrice > 0 ? batterPred.currentPrice : (batterPred.priceSummary?.averagePrice ?? 0));
                         const adjPct = (batterPred?.percentageChange ?? 0) + batterDelta;
                         const livePrice = basePrice * (1 + adjPct / 100);
                         const priceDelta = livePrice - basePrice;
@@ -731,33 +726,45 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         const cardImg = batterSetCards.find(c => c.imageUrl);
                         return (
                           <>
-                            <div className="px-2 py-1.5 border-t border-white/8 text-center">
-                              <p className="text-[6px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
-                              <p className="text-[11px] font-black leading-none" style={{ color: priceColor }}>
-                                ${livePrice.toFixed(2)}
-                              </p>
-                              {(up || dn) && (
-                                <p className="text-[7px] font-semibold mt-0.5 leading-none" style={{ color: priceColor }}>
-                                  {priceArrow} ${Math.abs(priceDelta).toFixed(2)} live
+                            {basePrice > 0 && (
+                              <div className="px-2 py-1.5 border-t border-white/8 text-center">
+                                <p className="text-[6px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
+                                <p className="text-[11px] font-black leading-none" style={{ color: priceColor }}>
+                                  ${livePrice.toFixed(2)}
                                 </p>
-                              )}
-                            </div>
-                            {/* Card image — first eBay listing with an image */}
-                            {cardImg && (
-                              <div className="px-2 pb-2 border-t border-white/8 pt-1.5">
-                                <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '2.5/3.5' }}>
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={cardImg.imageUrl}
-                                    alt={cardImg.set}
-                                    className="absolute inset-0 w-full h-full object-cover"
-                                  />
-                                </div>
-                                <p className="text-[7px] text-gray-500 text-center mt-1 font-medium truncate">
-                                  {cardImg.shortName} · PSA {gradingGradeValue ?? '10'}
-                                </p>
+                                {(up || dn) && (
+                                  <p className="text-[7px] font-semibold mt-0.5 leading-none" style={{ color: priceColor }}>
+                                    {priceArrow} ${Math.abs(priceDelta).toFixed(2)} live
+                                  </p>
+                                )}
                               </div>
                             )}
+                            {/* Card image — always rendered; skeleton while eBay data loads */}
+                            <div className="px-2 pb-2 border-t border-white/8 pt-1.5">
+                              {cardImg ? (
+                                <button
+                                  className="w-full active:opacity-70 transition-opacity"
+                                  onClick={() => expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? (selectedSide === 'away' ? awayTeam.id : homeTeam.id))}
+                                >
+                                  <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '2.5/3.5' }}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={cardImg.imageUrl}
+                                      alt={cardImg.set}
+                                      className="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <p className="text-[7px] text-gray-500 text-center mt-1 font-medium truncate">
+                                    {cardImg.shortName} · PSA {gradingGradeValue ?? '10'}
+                                  </p>
+                                </button>
+                              ) : (
+                                <div
+                                  className="w-full rounded-lg"
+                                  style={{ aspectRatio: '2.5/3.5', backgroundColor: 'rgba(255,255,255,0.04)' }}
+                                />
+                              )}
+                            </div>
                           </>
                         );
                       })()}
@@ -810,28 +817,6 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       </div>
                     </div>
                   </div>
-                  {/* Jukebox carousel — full-width below the 3-column layout */}
-                  {displayCards.length > 0 && (
-                    <div className="mt-2">
-                      <CardPeekCarousel
-                        cards={displayCards}
-                        resetKey={liveMatchup.batterId}
-                        renderFallback={(card) => (
-                          <BaseballCardImage
-                            playerId={batterPred?.playerId ?? 0}
-                            playerName={batterPred?.playerName ?? liveMatchup.batter.name}
-                            teamId={batterPred?.teamId ?? 0}
-                            position={batterPred?.position ?? 'OF'}
-                            cardType="Rookie Card"
-                            cardYear={card.year}
-                            cardSet={card.set}
-                            ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
-                            fill
-                          />
-                        )}
-                      />
-                    </div>
-                  )}
                   {/* Pitch type legend */}
                   {(() => {
                     const seen = [...new Set(liveMatchup.pitches.map(p => p.pitchType).filter(Boolean))] as string[];
