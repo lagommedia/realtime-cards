@@ -147,17 +147,6 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
             ) : (
               renderFallback(card, i)
             )}
-            {/* Set badge */}
-            <div style={{
-              position: 'absolute', bottom: 6, left: 6,
-              background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
-              color: '#e5e7eb', fontSize: 9, fontWeight: 800,
-              padding: '2px 6px', borderRadius: 5,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              pointerEvents: 'none',
-            }}>
-              {card.shortName}
-            </div>
           </div>
         ))}
       </div>

@@ -684,11 +684,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               const pitcherArrow = pitcherIsUp ? '↑' : adjPitcherPct < 0 ? '↓' : '·';
               const pitcherSignedPct = `${pitcherIsUp ? '+' : ''}${adjPitcherPct.toFixed(1)}%`;
 
-              // Use fetched eBay listings when available; fall back to static set options
-              const displayCards: Array<{ set: string; shortName: string; year: number; imageUrl?: string; itemUrl?: string }> =
-                batterSetCards.length > 0
-                  ? batterSetCards
-                  : (batterPred?.rookieCardOptions ?? []);
+              // Only real eBay listings — no forced placeholder cards per set
+              const displayCards = batterSetCards;
 
               return (
                 <div className="mt-3 pt-3 border-t border-white/8 relative overflow-hidden rounded-xl">

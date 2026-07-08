@@ -104,11 +104,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const isPitcher = ['P', 'SP', 'RP', 'CP'].includes(prediction.position);
   const stats = prediction.liveStats;
 
-  const rookieOptions: RookieCardOption[] = prediction.rookieCardOptions ?? [];
-  // Use live eBay listings when fetched; fall back to static set options while loading
-  const displayCards: Array<{ set: string; shortName: string; year: number; imageUrl?: string; itemUrl?: string }> =
-    setCards.length > 0 ? setCards : rookieOptions;
-  const selectedCard = displayCards[selectedCardIdx] ?? null;
+  const selectedCard = setCards[selectedCardIdx] ?? null;
 
   const totalMultiplier = selectedCard ? (SET_PRICE_MULTIPLIERS[selectedCard.set] ?? 1.0) : 1.0;
 
@@ -285,10 +281,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               )}
             </div>
 
-            {/* Jukebox carousel */}
-            {displayCards.length > 0 && (
+            {/* Jukebox carousel — only shown once real eBay listings are loaded */}
+            {setCards.length > 0 ? (
               <CardPeekCarousel
-                cards={displayCards}
+                cards={setCards}
                 onActiveChange={setSelectedCardIdx}
                 renderFallback={(card, idx) => (
                   <BaseballCardImage
@@ -305,6 +301,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                   />
                 )}
               />
+            ) : (
+              <div className="flex items-center justify-center rounded-xl" style={{ aspectRatio: '2.5/3.5', backgroundColor: '#ffffff08' }}>
+                <p className="text-gray-600 text-xs">Loading listings…</p>
+              </div>
             )}
 
           </div>}
