@@ -202,9 +202,20 @@ const TOPPS_SET_MAP: Array<{ pattern: RegExp; set: string; shortName: string }> 
 
 const NON_TOPPS_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy|allen|archives|gallery|inception|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
 
+// Four targeted set searches run in parallel — one per Topps flagship set.
+// Using the set name directly in the query avoids Bowman/Prizm noise from
+// broad searches and doesn't require a year (eBay relevance finds the RC year).
+const TOPPS_SET_QUERIES = [
+  { set: 'Topps Series 1', shortName: 'S1',     q: 'Topps Series 1' },
+  { set: 'Topps Series 2', shortName: 'S2',     q: 'Topps Series 2' },
+  { set: 'Topps Update',   shortName: 'Update', q: 'Topps Update'   },
+  { set: 'Topps Chrome',   shortName: 'Chrome', q: 'Topps Chrome'   },
+] as const;
+
 /**
- * Single eBay BIN search for a player's Topps RC PSA listings.
- * Returns up to 10 active Buy-It-Now listings.
+ * Fetches up to 10 active BIN PSA Topps RC listings for a player across
+ * all four flagship sets. Runs 4 targeted parallel searches so eBay's
+ * relevance stays set-specific and doesn't drown results in Bowman noise.
  */
 export async function getPlayerCardSets(
   playerName: string,
@@ -220,43 +231,51 @@ export async function getPlayerCardSets(
   const token = await getEbayToken();
   if (!token) return [];
 
-  const yearStr = rookieYear > 0 ? ` ${rookieYear}` : '';
-  const query   = `${playerName}${yearStr} Topps RC PSA ${grade}`;
-
-  const listings = await searchEbayListings(query, token, false, 10);
+  // 4 parallel targeted BIN searches — limit 4 per set = up to 16 candidates
+  const setResults = await Promise.all(
+    TOPPS_SET_QUERIES.map(({ set, shortName, q }) => {
+      const query = `${playerName} ${q} RC PSA ${grade}`;
+      return searchEbayListings(query, token, false, 4)
+        .then(listings => ({ set, shortName, listings }));
+    })
+  );
 
   const results: SetCardResult[] = [];
 
-  for (const listing of listings) {
-    if (!listing.itemUrl) continue;
+  for (const { set, shortName, listings } of setResults) {
+    for (const listing of listings) {
+      if (!listing.itemUrl) continue;
+      const title = listing.title;
+      // Confirm the listing is actually Topps (not Bowman/Prizm slipping through)
+      if (NON_TOPPS_BRANDS.test(title)) continue;
+      if (!/\btopps\b/i.test(title)) continue;
+      if (!/\brc\b|\brookie\b/i.test(title)) continue;
+      if (!/\bpsa\b/i.test(title)) continue;
 
-    const title = listing.title;
-
-    // Must be a Topps RC with PSA — skip non-Topps brands and ungraded cards
-    if (NON_TOPPS_BRANDS.test(title)) continue;
-    if (!/\btopps\b/i.test(title)) continue;
-    if (!/\brc\b|\brookie\b/i.test(title)) continue;
-    if (!/\bpsa\b/i.test(title)) continue;
-
-    // Identify which Topps set — fall back to generic "Topps" for base-set titles
-    // that don't say "Series 1/2/Update/Chrome" explicitly (e.g. "2016 Topps #34 RC")
-    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title))
-      ?? { set: 'Topps', shortName: 'Topps' };
-
-    results.push({
-      set: setInfo.set,
-      shortName: setInfo.shortName,
-      year: rookieYear,
-      binPrice: listing.price,
-      soldPrice: null,
-      soldDate:  undefined,
-      imageUrl:  listing.imageUrl,
-      itemUrl:   listing.itemUrl,
-    });
+      results.push({
+        set, shortName,
+        year: rookieYear,
+        binPrice:  listing.price,
+        soldPrice: null,
+        soldDate:  undefined,
+        imageUrl:  listing.imageUrl,
+        itemUrl:   listing.itemUrl,
+      });
+    }
   }
 
-  _resultCache.set(cacheKey, { sets: results, expiresAt: Date.now() + 5 * 60 * 1000 });
-  return results;
+  // Deduplicate and cap at 10
+  const seen = new Set<string>();
+  const deduped = results
+    .filter(r => {
+      if (!r.itemUrl || seen.has(r.itemUrl)) return false;
+      seen.add(r.itemUrl);
+      return true;
+    })
+    .slice(0, 10);
+
+  _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
+  return deduped;
 }
 
 // ── Card image search (BaseballCardImage component) ───────────────────────────
