@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlayerCardSets } from '@/lib/ebay-api';
 
-export const revalidate = 300; // cache full route response for 5 min
+// Revalidate after 5 min, but empty results must not be CDN-cached — a transient
+// eBay failure would block all retries for 5 minutes if we cached { sets: [] }.
+export const revalidate = 300;
+
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
 
 export async function GET(
   req: NextRequest,
@@ -13,12 +17,15 @@ export async function GET(
   const grading = req.nextUrl.searchParams.get('grading') ?? undefined;
   const grade   = req.nextUrl.searchParams.get('grade')   ?? undefined;
 
-  if (!name) return NextResponse.json({ sets: [] });
+  if (!name) return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
 
   try {
     const sets = await getPlayerCardSets(name, year, grading, grade);
+    // Only let Vercel's edge cache hold non-empty results. An empty response
+    // means eBay was unavailable — the client should retry on the next request.
+    if (sets.length === 0) return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
     return NextResponse.json({ sets });
   } catch {
-    return NextResponse.json({ sets: [] });
+    return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
   }
 }

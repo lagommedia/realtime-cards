@@ -466,9 +466,13 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId, liveSnap?.outs]);
 
-  // Fetch eBay listings for the current batter so the carousel shows all available cards
+  // Fetch eBay listings for the current batter.
+  // Fire as soon as either the initial game data OR liveSnap has a batter ID —
+  // initial data arrives ~500ms after mount while liveSnap can take 1-5s more.
+  // Using both cuts the eBay fetch start time in half on cold page loads.
+  const activeBatterId = liveSnap?.liveMatchup?.batterId ?? data?.liveMatchup?.batterId;
   useEffect(() => {
-    const id = liveSnap?.liveMatchup?.batterId;
+    const id = activeBatterId;
     if (!id) return;
     // Only use cache if it has actual results — empty arrays are truthy but meaningless
     const cached = batterSetCacheRef.current[id];
@@ -480,7 +484,11 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     let cancelled = false;
     const pred = predictions.find(p => p.playerId === id);
     // Fall back to live matchup batter name when the player isn't in predictions
-    const playerName = pred?.playerName || liveSnap?.liveMatchup?.batter?.name || '';
+    const playerName =
+      pred?.playerName ||
+      liveSnap?.liveMatchup?.batter?.name ||
+      data?.liveMatchup?.batter?.name ||
+      '';
     const params = new URLSearchParams();
     if (playerName) params.set('name', playerName);
     const year = pred?.rookieCardOptions?.[0]?.year;
@@ -502,7 +510,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
       .catch(() => {});
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.batterId]);
+  }, [activeBatterId]);
 
   // Fire pitch delivery animation on each new pitch
   useEffect(() => {

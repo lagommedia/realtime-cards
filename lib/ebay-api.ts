@@ -57,7 +57,10 @@ async function searchEbayListings(
       'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
       'Content-Type': 'application/json',
     },
-    next: { revalidate: 300 },
+    // Authorization header changes per token issuance, so next: { revalidate }
+    // would never hit the Data Cache (different key each time). Use no-store and
+    // rely on module-level _resultCache + route-level CDN cache instead.
+    cache: 'no-store',
   }).catch(() => null);
 
   if (!res?.ok) return [];
