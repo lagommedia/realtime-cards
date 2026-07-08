@@ -15,6 +15,7 @@ import { LiveMatchup } from '@/lib/dummy-game-chc-stl';
 import StrikeZone from '@/components/StrikeZone';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import BaseballCardImage from '@/components/BaseballCardImage';
+import CardPeekCarousel from '@/components/CardPeekCarousel';
 
 interface TeamInfo {
   id: number;
@@ -330,20 +331,9 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayShownAtRef = useRef<number | null>(null);
   const switchingSidesActiveRef = useRef(false);
-  const [selectedCardIdx, setSelectedCardIdx] = useState(0);
-  const cardTouchStartRef = useRef<number | null>(null);
-  const topCardInnerRef = useRef<HTMLDivElement>(null);
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
   const [batterSetCards, setBatterSetCards] = useState<SetCardResult[]>([]);
   const batterSetCacheRef = useRef<Record<number, SetCardResult[]>>({});
-
-  useLayoutEffect(() => {
-    const el = topCardInnerRef.current;
-    if (!el) return;
-    el.style.transition = '';
-    el.style.transform = '';
-    el.style.opacity = '';
-  }, [selectedCardIdx]);
 
   const [pitchDelivery, setPitchDelivery] = useState<{ x: number; y: number; result: string; pitchType?: string; animKey: string } | null>(null);
   const prevPitchKeyRef = useRef('');
@@ -476,12 +466,6 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     prevOutsRef.current = currentOuts;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId, liveSnap?.outs]);
-
-  // Reset card carousel when batter changes (kept separate — no overlay logic here)
-  useEffect(() => {
-    setSelectedCardIdx(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.batterId]);
 
   // Fetch eBay listings for the current batter so the carousel shows all available cards
   useEffect(() => {
@@ -727,108 +711,24 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         lastDelta={batterLast}
                         noBorder={true}
                       />
-                      {/* Card stack — cards sit on top of each other; swipe top card away */}
-                      {(() => {
-                        const stackCount = Math.min(displayCards.length - selectedCardIdx, 3);
-                        if (stackCount === 0) return null;
-                        return (
-                          <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
-                            {Array.from({ length: stackCount }, (_, depth) => {
-                              const cardIdx = selectedCardIdx + depth;
-                              const card = displayCards[cardIdx];
-                              const isTop = depth === 0;
-                              return (
-                                <div
-                                  key={`${card.set}-${cardIdx}`}
-                                  className="absolute inset-0 overflow-hidden"
-                                  style={{
-                                    borderRadius: 8,
-                                    zIndex: stackCount - depth,
-                                    transform: `translateY(${depth * 7}px) scale(${1 - depth * 0.04})`,
-                                    transformOrigin: 'top center',
-                                    transition: 'transform 0.25s ease',
-                                    boxShadow: isTop ? '0 6px 28px rgba(0,0,0,0.65)' : '0 2px 10px rgba(0,0,0,0.35)',
-                                  }}
-                                >
-                                  <div
-                                    ref={isTop ? topCardInnerRef : undefined}
-                                    style={{ width: '100%', height: '100%' }}
-                                    onTouchStart={!isTop ? undefined : e => {
-                                      cardTouchStartRef.current = e.touches[0].clientX;
-                                    }}
-                                    onTouchMove={!isTop ? undefined : e => {
-                                      if (cardTouchStartRef.current === null || !topCardInnerRef.current) return;
-                                      const dx = e.touches[0].clientX - cardTouchStartRef.current;
-                                      topCardInnerRef.current.style.transition = 'none';
-                                      topCardInnerRef.current.style.transform = `translateX(${dx}px) rotate(${dx * 0.035}deg)`;
-                                    }}
-                                    onTouchEnd={!isTop ? undefined : e => {
-                                      if (cardTouchStartRef.current === null) return;
-                                      const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
-                                      cardTouchStartRef.current = null;
-                                      const el = topCardInnerRef.current;
-                                      if (!el) return;
-                                      if (Math.abs(diff) < 8) {
-                                        el.style.transition = '';
-                                        el.style.transform = '';
-                                        if (card.itemUrl) {
-                                          window.open(card.itemUrl, '_blank');
-                                        } else {
-                                          expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? awayTeam.id);
-                                        }
-                                      } else if (diff > 50 && selectedCardIdx < displayCards.length - 1) {
-                                        el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
-                                        el.style.transform = 'translateX(-160%) rotate(-15deg)';
-                                        el.style.opacity = '0';
-                                        setTimeout(() => setSelectedCardIdx(i => i + 1), 250);
-                                      } else if (diff < -50 && selectedCardIdx > 0) {
-                                        el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
-                                        el.style.transform = 'translateX(160%) rotate(15deg)';
-                                        el.style.opacity = '0';
-                                        setTimeout(() => setSelectedCardIdx(i => i - 1), 250);
-                                      } else {
-                                        el.style.transition = 'transform 0.22s ease-out';
-                                        el.style.transform = '';
-                                      }
-                                    }}
-                                  >
-                                    {card.imageUrl ? (
-                                      <img
-                                        src={card.imageUrl}
-                                        alt={`${card.set} RC`}
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
-                                      />
-                                    ) : (
-                                      <ResponsiveCardImage
-                                        playerId={batterPred?.playerId ?? 0}
-                                        playerName={batterPred?.playerName ?? liveMatchup.batter.name}
-                                        teamId={batterPred?.teamId ?? 0}
-                                        position={batterPred?.position ?? 'OF'}
-                                        cardType="Rookie Card"
-                                        cardYear={card.year}
-                                        cardSet={card.set}
-                                        ebayImageUrl={cardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                      {/* Stack dots */}
-                      {displayCards.length > 1 && (
-                        <div className="flex justify-center gap-1 py-1.5 flex-wrap px-2">
-                          {displayCards.map((card, i) => (
-                            <div
-                              key={i}
-                              className="w-1.5 h-1.5 rounded-full transition-all flex-shrink-0"
-                              style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
-                              title={card.shortName ?? String(card.year ?? '')}
+                      {/* Jukebox carousel */}
+                      {displayCards.length > 0 && (
+                        <CardPeekCarousel
+                          cards={displayCards}
+                          resetKey={liveMatchup.batterId}
+                          renderFallback={(card) => (
+                            <ResponsiveCardImage
+                              playerId={batterPred?.playerId ?? 0}
+                              playerName={batterPred?.playerName ?? liveMatchup.batter.name}
+                              teamId={batterPred?.teamId ?? 0}
+                              position={batterPred?.position ?? 'OF'}
+                              cardType="Rookie Card"
+                              cardYear={card.year}
+                              cardSet={card.set}
+                              ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
                             />
-                          ))}
-                        </div>
+                          )}
+                        />
                       )}
                       {/* Live card price strip */}
                       {batterPred && (batterPred.currentPrice > 0 || (batterPred.priceSummary?.averagePrice ?? 0) > 0) && (() => {

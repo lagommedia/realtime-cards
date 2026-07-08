@@ -245,7 +245,13 @@ export async function getPlayerCardSets(
     }
   }
 
-  return results;
+  // Deduplicate — the same eBay listing can surface in multiple per-set queries
+  const seen = new Set<string>();
+  return results.filter(r => {
+    if (!r.itemUrl || seen.has(r.itemUrl)) return false;
+    seen.add(r.itemUrl);
+    return true;
+  });
 }
 
 // ── Card image search (BaseballCardImage component) ───────────────────────────

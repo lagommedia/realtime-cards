@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { CardPrediction, RookieCardOption, SetCardResult } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useGrading } from '@/context/GradingContext';
@@ -10,6 +10,7 @@ import TeamLogo from '@/components/TeamLogo';
 import BaseballCardImage from '@/components/BaseballCardImage';
 import RobinhoodPriceChart from '@/components/RobinhoodPriceChart';
 import CardValueProjectionPanel from '@/components/CardValueProjection';
+import CardPeekCarousel from '@/components/CardPeekCarousel';
 import { getFeaturedCard } from '@/lib/card-utils';
 import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
@@ -95,19 +96,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   }, [expanded]);
 
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
-  const cardTouchStartRef = useRef<number | null>(null);
-  const topCardInnerRef = useRef<HTMLDivElement>(null);
-
-  // Reset stale inline styles on the top card whenever the index changes.
-  // Without this, swiping back to a previously-visited card reuses the same
-  // DOM node (same key) which still has transform/opacity from its last swipe.
-  useLayoutEffect(() => {
-    const el = topCardInnerRef.current;
-    if (!el) return;
-    el.style.transition = '';
-    el.style.transform = '';
-    el.style.opacity = '';
-  }, [selectedCardIdx]);
 
   const isUp = prediction.direction === 'up';
   const directionColor = isUp ? '#22c55e' : '#ef4444';
@@ -269,106 +257,26 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               )}
             </div>
 
-            {/* Card stack */}
-            {(() => {
-              const stackCount = Math.min(displayCards.length - selectedCardIdx, 3);
-              if (stackCount === 0) return null;
-              return (
-                <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
-                  {Array.from({ length: stackCount }, (_, depth) => {
-                    const cardIdx = selectedCardIdx + depth;
-                    const card = displayCards[cardIdx];
-                    const isTop = depth === 0;
-                    return (
-                      <div
-                        key={`${card.set}-${cardIdx}`}
-                        className="absolute inset-0 overflow-hidden"
-                        style={{
-                          borderRadius: 8,
-                          zIndex: stackCount - depth,
-                          transform: `translateY(${depth * 7}px) scale(${1 - depth * 0.04})`,
-                          transformOrigin: 'top center',
-                          transition: 'transform 0.25s ease',
-                          boxShadow: isTop ? '0 6px 28px rgba(0,0,0,0.65)' : '0 2px 10px rgba(0,0,0,0.35)',
-                        }}
-                      >
-                        <div
-                          ref={isTop ? topCardInnerRef : undefined}
-                          style={{ width: '100%', height: '100%' }}
-                          onTouchStart={!isTop ? undefined : e => {
-                            cardTouchStartRef.current = e.touches[0].clientX;
-                          }}
-                          onTouchMove={!isTop ? undefined : e => {
-                            if (cardTouchStartRef.current === null || !topCardInnerRef.current) return;
-                            const dx = e.touches[0].clientX - cardTouchStartRef.current;
-                            topCardInnerRef.current.style.transition = 'none';
-                            topCardInnerRef.current.style.transform = `translateX(${dx}px) rotate(${dx * 0.035}deg)`;
-                          }}
-                          onTouchEnd={!isTop ? undefined : e => {
-                            if (cardTouchStartRef.current === null) return;
-                            const diff = cardTouchStartRef.current - e.changedTouches[0].clientX;
-                            cardTouchStartRef.current = null;
-                            const el = topCardInnerRef.current;
-                            if (!el) return;
-                            if (Math.abs(diff) < 8) {
-                              el.style.transition = '';
-                              el.style.transform = '';
-                              if (card.itemUrl) window.open(card.itemUrl, '_blank');
-                            } else if (diff > 50 && selectedCardIdx < displayCards.length - 1) {
-                              el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
-                              el.style.transform = 'translateX(-160%) rotate(-15deg)';
-                              el.style.opacity = '0';
-                              setTimeout(() => setSelectedCardIdx(i => i + 1), 250);
-                            } else if (diff < -50 && selectedCardIdx > 0) {
-                              el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
-                              el.style.transform = 'translateX(160%) rotate(15deg)';
-                              el.style.opacity = '0';
-                              setTimeout(() => setSelectedCardIdx(i => i - 1), 250);
-                            } else {
-                              el.style.transition = 'transform 0.22s ease-out';
-                              el.style.transform = '';
-                            }
-                          }}
-                        >
-                          {card.imageUrl ? (
-                            <img
-                              src={card.imageUrl}
-                              alt={`${card.set} RC`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
-                            />
-                          ) : (
-                            <BaseballCardImage
-                              playerId={prediction.playerId}
-                              playerName={prediction.playerName}
-                              teamId={prediction.teamId}
-                              position={prediction.position}
-                              cardType="Rookie Card"
-                              cardYear={card.year}
-                              cardSet={card.set}
-                              ebayImageUrl={cardIdx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
-                              width={300}
-                              height={420}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {/* Stack dots */}
-            {displayCards.length > 1 && (
-              <div className="flex justify-center gap-1 py-2 flex-wrap px-2">
-                {displayCards.map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full transition-all flex-shrink-0"
-                    style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
+            {/* Jukebox carousel */}
+            {displayCards.length > 0 && (
+              <CardPeekCarousel
+                cards={displayCards}
+                onActiveChange={setSelectedCardIdx}
+                renderFallback={(card, idx) => (
+                  <BaseballCardImage
+                    playerId={prediction.playerId}
+                    playerName={prediction.playerName}
+                    teamId={prediction.teamId}
+                    position={prediction.position}
+                    cardType="Rookie Card"
+                    cardYear={card.year}
+                    cardSet={card.set}
+                    ebayImageUrl={idx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
+                    width={300}
+                    height={420}
                   />
-                ))}
-              </div>
+                )}
+              />
             )}
 
           </div>}
