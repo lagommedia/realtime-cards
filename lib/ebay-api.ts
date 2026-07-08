@@ -238,9 +238,10 @@ export async function getPlayerCardSets(
     if (!/\brc\b|\brookie\b/i.test(title)) continue;
     if (!/\bpsa\b/i.test(title)) continue;
 
-    // Identify which Topps set — skip if it doesn't match a known flagship set
-    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title));
-    if (!setInfo) continue;
+    // Identify which Topps set — fall back to generic "Topps" for base-set titles
+    // that don't say "Series 1/2/Update/Chrome" explicitly (e.g. "2016 Topps #34 RC")
+    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title))
+      ?? { set: 'Topps', shortName: 'Topps' };
 
     results.push({
       set: setInfo.set,
