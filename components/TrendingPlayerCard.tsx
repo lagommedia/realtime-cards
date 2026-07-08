@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { CardPrediction, RookieCardOption } from '@/types';
+import { CardPrediction, RookieCardOption, SetCardResult } from '@/types';
 import { useTeam } from '@/context/TeamContext';
+import { useGrading } from '@/context/GradingContext';
 import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import TeamLogo from '@/components/TeamLogo';
@@ -68,11 +69,31 @@ function useLivePriceTicker(
 export default function TrendingPlayerCard({ prediction, rank, defaultChartView, isLive, defaultExpanded, hideCardImage, forceExpanded }: Props) {
   const { theme } = useTeam();
   const { isWatched, toggleWatch } = useWatchList();
+  const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
+  const [setCards, setSetCards] = useState<SetCardResult[]>([]);
+  const setCardsFetchedRef = useRef(false);
 
   useEffect(() => {
     if (forceExpanded) setExpanded(true);
   }, [forceExpanded]);
+
+  // Fetch all eBay listings when the card expands for the first time
+  useEffect(() => {
+    if (!expanded || setCardsFetchedRef.current) return;
+    setCardsFetchedRef.current = true;
+    const params = new URLSearchParams({ name: prediction.playerName });
+    if (gradingCompanyId) {
+      params.set('grading', gradingCompanyId);
+      if (gradingGradeValue) params.set('grade', gradingGradeValue);
+    }
+    fetch(`/api/player/${prediction.playerId}/cards?${params}`)
+      .then(r => r.json())
+      .then(({ sets }: { sets: SetCardResult[] }) => setSetCards(sets ?? []))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +117,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const stats = prediction.liveStats;
 
   const rookieOptions: RookieCardOption[] = prediction.rookieCardOptions ?? [];
-  const selectedCard = rookieOptions[selectedCardIdx] ?? null;
+  // Use live eBay listings when fetched; fall back to static set options while loading
+  const displayCards: Array<{ set: string; shortName: string; year: number; imageUrl?: string; itemUrl?: string }> =
+    setCards.length > 0 ? setCards : rookieOptions;
+  const selectedCard = displayCards[selectedCardIdx] ?? null;
 
   const totalMultiplier = selectedCard ? (SET_PRICE_MULTIPLIERS[selectedCard.set] ?? 1.0) : 1.0;
 
@@ -247,17 +271,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
             {/* Card stack */}
             {(() => {
-              const stackCount = Math.min(rookieOptions.length - selectedCardIdx, 3);
+              const stackCount = Math.min(displayCards.length - selectedCardIdx, 3);
               if (stackCount === 0) return null;
               return (
                 <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
                   {Array.from({ length: stackCount }, (_, depth) => {
                     const cardIdx = selectedCardIdx + depth;
-                    const opt = rookieOptions[cardIdx];
+                    const card = displayCards[cardIdx];
                     const isTop = depth === 0;
                     return (
                       <div
-                        key={`${opt.year}-${opt.set}`}
+                        key={`${card.set}-${cardIdx}`}
                         className="absolute inset-0 overflow-hidden"
                         style={{
                           borderRadius: 8,
@@ -289,7 +313,8 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                             if (Math.abs(diff) < 8) {
                               el.style.transition = '';
                               el.style.transform = '';
-                            } else if (diff > 50 && selectedCardIdx < rookieOptions.length - 1) {
+                              if (card.itemUrl) window.open(card.itemUrl, '_blank');
+                            } else if (diff > 50 && selectedCardIdx < displayCards.length - 1) {
                               el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
                               el.style.transform = 'translateX(-160%) rotate(-15deg)';
                               el.style.opacity = '0';
@@ -305,18 +330,26 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                             }
                           }}
                         >
-                          <BaseballCardImage
-                            playerId={prediction.playerId}
-                            playerName={prediction.playerName}
-                            teamId={prediction.teamId}
-                            position={prediction.position}
-                            cardType="Rookie Card"
-                            cardYear={opt.year}
-                            cardSet={opt.set}
-                            ebayImageUrl={cardIdx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
-                            width={300}
-                            height={420}
-                          />
+                          {card.imageUrl ? (
+                            <img
+                              src={card.imageUrl}
+                              alt={`${card.set} RC`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                            />
+                          ) : (
+                            <BaseballCardImage
+                              playerId={prediction.playerId}
+                              playerName={prediction.playerName}
+                              teamId={prediction.teamId}
+                              position={prediction.position}
+                              cardType="Rookie Card"
+                              cardYear={card.year}
+                              cardSet={card.set}
+                              ebayImageUrl={cardIdx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
+                              width={300}
+                              height={420}
+                            />
+                          )}
                         </div>
                       </div>
                     );
@@ -326,12 +359,12 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             })()}
 
             {/* Stack dots */}
-            {rookieOptions.length > 1 && (
-              <div className="flex justify-center gap-1.5 py-2">
-                {rookieOptions.map((_, i) => (
+            {displayCards.length > 1 && (
+              <div className="flex justify-center gap-1 py-2 flex-wrap px-2">
+                {displayCards.map((_, i) => (
                   <div
                     key={i}
-                    className="w-1.5 h-1.5 rounded-full transition-all"
+                    className="w-1.5 h-1.5 rounded-full transition-all flex-shrink-0"
                     style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
                   />
                 ))}
