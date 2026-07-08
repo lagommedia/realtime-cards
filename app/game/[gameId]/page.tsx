@@ -329,6 +329,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayShownAtRef = useRef<number | null>(null);
+  const switchingSidesActiveRef = useRef(false);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
@@ -440,22 +441,33 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
       // render (race condition), result takes priority and overlay is still shown.
       prevResultKeyRef.current = key;
       const switchingSides = prevOutsRef.current === 2 && currentOuts === 0;
+      switchingSidesActiveRef.current = switchingSides;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
       overlayShownAtRef.current = Date.now();
       setOutcomeOverlay({ event: lastResult!.event, batterName: lastResult!.batterName, switchingSides });
       prevBatterIdForOverlayRef.current = currentBatterId;
-      // Safety: clear after 15s if the next batter never arrives (e.g. game ends)
-      outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 15_000);
+      // For switching sides, keep the overlay until the new team's first batter
+      // appears — inning breaks can last 2-3 min, so use a long safety timeout.
+      // For normal results, clear after 15s if the next batter never arrives.
+      outcomeTimerRef.current = setTimeout(() => {
+        switchingSidesActiveRef.current = false;
+        setOutcomeOverlay(null);
+      }, switchingSides ? 300_000 : 15_000);
     } else if (batterChanged) {
-      // Next batter stepped in — only clear the overlay once it has been visible
-      // for at least MIN_OVERLAY_MS so the result card is never yanked mid-display.
       prevBatterIdForOverlayRef.current = currentBatterId;
-      const elapsed = overlayShownAtRef.current ? Date.now() - overlayShownAtRef.current : Infinity;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
-      if (elapsed >= MIN_OVERLAY_MS) {
+      if (switchingSidesActiveRef.current) {
+        // First batter of new half-inning has arrived — clear immediately
+        switchingSidesActiveRef.current = false;
         setOutcomeOverlay(null);
       } else {
-        outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), MIN_OVERLAY_MS - elapsed);
+        // Normal result — respect minimum display time so it's never yanked mid-display
+        const elapsed = overlayShownAtRef.current ? Date.now() - overlayShownAtRef.current : Infinity;
+        if (elapsed >= MIN_OVERLAY_MS) {
+          setOutcomeOverlay(null);
+        } else {
+          outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), MIN_OVERLAY_MS - elapsed);
+        }
       }
     }
 

@@ -205,9 +205,9 @@ export async function getPlayerCardSets(
 
   const [broadSold, broadBIN, chromeSold, chromeBIN] = await Promise.all([
     searchEbayListings(broadQuery,  token, true,  20),
-    searchEbayListings(broadQuery,  token, false, 20),
+    searchEbayListings(broadQuery,  token, false, 50), // more BIN listings to swipe through
     searchEbayListings(chromeQuery, token, true,  10),
-    searchEbayListings(chromeQuery, token, false, 10),
+    searchEbayListings(chromeQuery, token, false, 25),
   ]);
 
   const results: SetCardResult[] = [];
@@ -221,22 +221,36 @@ export async function getPlayerCardSets(
     const isGradingMatch = (title: string) =>
       gradingCompany ? matchesGrading(title, gradingCompany, gradeValue) : true;
 
+    // One sold-price reference for the whole set
     const soldMatch = soldPool.find(l => isExact(l.title) && isGradingMatch(l.title));
-    const binMatch  = binPool.find(l  => isExact(l.title) && isGradingMatch(l.title) && !!l.itemUrl);
+    // ALL matching BIN listings — each becomes a swipeable card
+    const binMatches = binPool.filter(l => isExact(l.title) && isGradingMatch(l.title) && !!l.itemUrl);
 
-    // Only include this set if eBay has at least one matching listing
-    if (!soldMatch && !binMatch) continue;
+    if (binMatches.length === 0 && !soldMatch) continue;
 
-    results.push({
-      set,
-      shortName,
-      year: rookieYear,
-      binPrice:  binMatch?.price    ?? null,
-      soldPrice: soldMatch?.price   ?? null,
-      soldDate:  soldMatch?.soldDate,
-      imageUrl:  binMatch?.imageUrl ?? soldMatch?.imageUrl,
-      itemUrl:   binMatch?.itemUrl  ?? soldMatch?.itemUrl ?? '',
-    });
+    if (binMatches.length === 0) {
+      // No BIN available but we have a sold reference — show one placeholder card
+      results.push({
+        set, shortName, year: rookieYear,
+        binPrice:  null,
+        soldPrice: soldMatch!.price,
+        soldDate:  soldMatch!.soldDate,
+        imageUrl:  soldMatch!.imageUrl,
+        itemUrl:   soldMatch!.itemUrl ?? '',
+      });
+    } else {
+      // One card per BIN listing; all share the same sold-price reference
+      for (const bin of binMatches) {
+        results.push({
+          set, shortName, year: rookieYear,
+          binPrice:  bin.price,
+          soldPrice: soldMatch?.price ?? null,
+          soldDate:  soldMatch?.soldDate,
+          imageUrl:  bin.imageUrl,
+          itemUrl:   bin.itemUrl,
+        });
+      }
+    }
   }
 
   return results;

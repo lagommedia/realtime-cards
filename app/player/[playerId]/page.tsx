@@ -53,7 +53,7 @@ function SetCardSwiper({
 
   return (
     <div ref={innerRef}>
-      {/* Price + set label */}
+      {/* Price + position counter */}
       <div className="rounded-xl px-3 py-2.5 mb-3" style={{ backgroundColor: '#ffffff08' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
@@ -67,6 +67,14 @@ function SetCardSwiper({
               Buy It Now
             </span>
           </div>
+          <span className="text-[10px] text-gray-500 font-medium tabular-nums">
+            {idx + 1} / {sets.length}
+          </span>
+        </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <p className="text-gray-500 text-[10px]">
+            {current.year} {current.set} RC
+          </p>
           {current.soldPrice != null && (
             <span className="text-[10px] text-gray-600">
               sold ${current.soldPrice.toFixed(2)}
@@ -74,9 +82,6 @@ function SetCardSwiper({
             </span>
           )}
         </div>
-        <p className="text-gray-500 text-[10px] mt-0.5">
-          {current.year} {current.set} RC
-        </p>
       </div>
 
       {/* Card stack */}
@@ -164,7 +169,16 @@ function SetCardSwiper({
                       <p className="text-gray-500 text-[10px]">Tap to view on eBay</p>
                     </div>
                   )}
-                  {/* eBay link overlay on tap */}
+                  {/* Set badge — top left */}
+                  <div className="absolute top-2 left-2">
+                    <span
+                      className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.65)', color: '#e5e7eb', backdropFilter: 'blur(4px)' }}
+                    >
+                      {card.shortName}
+                    </span>
+                  </div>
+                  {/* eBay link badge — bottom right */}
                   {isTop && card.itemUrl && (
                     <div className="absolute bottom-2 right-2">
                       <div
@@ -183,23 +197,38 @@ function SetCardSwiper({
         })}
       </div>
 
-      {/* Set tabs + dots */}
-      <div className="flex justify-center gap-2 pt-3 flex-wrap">
-        {sets.map((s, i) => (
-          <button
-            key={s.set}
-            onClick={() => setIdx(i)}
-            className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-            style={{
-              backgroundColor: i === idx ? `${theme.primary}33` : '#ffffff08',
-              color: i === idx ? theme.primary : '#6b7280',
-              border: `1px solid ${i === idx ? theme.primary : 'transparent'}`,
-            }}
-          >
-            {s.shortName}
-          </button>
-        ))}
-      </div>
+      {/* Set jump tabs — one per unique set, jumps to its first listing */}
+      {(() => {
+        const seen = new Set<string>();
+        const uniqueSets: { shortName: string; firstIdx: number }[] = [];
+        sets.forEach((s, i) => {
+          if (!seen.has(s.shortName)) {
+            seen.add(s.shortName);
+            uniqueSets.push({ shortName: s.shortName, firstIdx: i });
+          }
+        });
+        return (
+          <div className="flex justify-center gap-2 pt-3 flex-wrap">
+            {uniqueSets.map(({ shortName, firstIdx }) => {
+              const active = sets[idx]?.shortName === shortName;
+              return (
+                <button
+                  key={shortName}
+                  onClick={() => setIdx(firstIdx)}
+                  className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                  style={{
+                    backgroundColor: active ? `${theme.primary}33` : '#ffffff08',
+                    color: active ? theme.primary : '#6b7280',
+                    border: `1px solid ${active ? theme.primary : 'transparent'}`,
+                  }}
+                >
+                  {shortName}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
