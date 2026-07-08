@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlayerCardSets } from '@/lib/ebay-api';
 
-// Revalidate after 5 min, but empty results must not be CDN-cached — a transient
-// eBay failure would block all retries for 5 minutes if we cached { sets: [] }.
-export const revalidate = 300;
+// Cache successful results for 2 hours at the CDN edge — PSA 10 prices don't
+// move that fast, and a long TTL means each unique player URL only hits eBay
+// once per 2h across all users (not once per 5 min × many users).
+// Empty results are returned with Cache-Control: no-store so clients always retry.
+export const revalidate = 7200;
 
 const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
 

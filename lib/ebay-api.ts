@@ -275,7 +275,7 @@ export async function getPlayerCardSets(
   // Only cache non-empty results — a rate-limit 429 returning [] would otherwise
   // block all retries for 5 minutes.
   if (deduped.length > 0) {
-    _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
+    _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 2 * 60 * 60 * 1000 });
   }
   return deduped;
 }
