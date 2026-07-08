@@ -37,14 +37,20 @@ async function searchEbayListings(
     ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}`
     : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}${filterParam}`;
 
-  const res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-      'Content-Type': 'application/json',
-    },
-    next: { revalidate: 300 },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(4000),
+      next: { revalidate: 300 },
+    });
+  } catch {
+    return [];
+  }
 
   if (!res.ok) return [];
 
@@ -202,15 +208,19 @@ export async function getPlayerCardSets(
   // 4 total calls run in parallel — sold prices from Insights, images from BIN Browse.
   // One targeted search per set — eBay relevance does the set matching so we
   // don't need strict title patterns. 8 calls run in parallel and are cached.
-  const setSearches = await Promise.all(
+  type SetSearch = { set: string; type: 'sold' | 'bin'; listings: EbayListing[] };
+  const settled = await Promise.allSettled<SetSearch>(
     TOPPS_SET_DEFS.flatMap(({ set }) => {
       const q = `${playerName}${yearStr} ${set}${gradingStr} RC`;
       return [
-        searchEbayListings(q, token, true,  10).then(l => ({ set, type: 'sold' as const, listings: l })),
-        searchEbayListings(q, token, false, 25).then(l => ({ set, type: 'bin'  as const, listings: l })),
+        searchEbayListings(q, token, true,  5).then((listings): SetSearch => ({ set, type: 'sold', listings })),
+        searchEbayListings(q, token, false, 10).then((listings): SetSearch => ({ set, type: 'bin',  listings })),
       ];
     })
   );
+  const setSearches = settled
+    .filter((r): r is PromiseFulfilledResult<SetSearch> => r.status === 'fulfilled')
+    .map(r => r.value);
 
   const isRCListing = (title: string) =>
     RC_PATTERN.test(title) &&

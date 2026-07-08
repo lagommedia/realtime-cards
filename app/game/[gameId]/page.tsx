@@ -710,26 +710,6 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         lastDelta={batterLast}
                         noBorder={true}
                       />
-                      {/* Jukebox carousel */}
-                      {displayCards.length > 0 && (
-                        <CardPeekCarousel
-                          cards={displayCards}
-                          resetKey={liveMatchup.batterId}
-                          renderFallback={(card) => (
-                            <BaseballCardImage
-                              playerId={batterPred?.playerId ?? 0}
-                              playerName={batterPred?.playerName ?? liveMatchup.batter.name}
-                              teamId={batterPred?.teamId ?? 0}
-                              position={batterPred?.position ?? 'OF'}
-                              cardType="Rookie Card"
-                              cardYear={card.year}
-                              cardSet={card.set}
-                              ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
-                              fill
-                            />
-                          )}
-                        />
-                      )}
                       {/* Live card price strip */}
                       {batterPred && (batterPred.currentPrice > 0 || (batterPred.priceSummary?.averagePrice ?? 0) > 0) && (() => {
                         const basePrice = batterPred.currentPrice > 0
@@ -805,6 +785,28 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       </div>
                     </div>
                   </div>
+                  {/* Jukebox carousel — full-width below the 3-column layout */}
+                  {displayCards.length > 0 && (
+                    <div className="mt-2">
+                      <CardPeekCarousel
+                        cards={displayCards}
+                        resetKey={liveMatchup.batterId}
+                        renderFallback={(card) => (
+                          <BaseballCardImage
+                            playerId={batterPred?.playerId ?? 0}
+                            playerName={batterPred?.playerName ?? liveMatchup.batter.name}
+                            teamId={batterPred?.teamId ?? 0}
+                            position={batterPred?.position ?? 'OF'}
+                            cardType="Rookie Card"
+                            cardYear={card.year}
+                            cardSet={card.set}
+                            ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
+                            fill
+                          />
+                        )}
+                      />
+                    </div>
+                  )}
                   {/* Pitch type legend */}
                   {(() => {
                     const seen = [...new Set(liveMatchup.pitches.map(p => p.pitchType).filter(Boolean))] as string[];
