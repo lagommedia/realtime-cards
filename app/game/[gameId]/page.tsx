@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useState, use, useRef } from 'react';
-import { CardPrediction } from '@/types';
+import { CardPrediction, SetCardResult } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useBroadcast } from '@/context/BroadcastContext';
 import { useGrading } from '@/context/GradingContext';
@@ -334,6 +334,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
+  const [batterSetCards, setBatterSetCards] = useState<SetCardResult[]>([]);
+  const batterSetCacheRef = useRef<Record<number, SetCardResult[]>>({});
 
   useLayoutEffect(() => {
     const el = topCardInnerRef.current;
@@ -478,6 +480,36 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // Reset card carousel when batter changes (kept separate — no overlay logic here)
   useEffect(() => {
     setSelectedCardIdx(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSnap?.liveMatchup?.batterId]);
+
+  // Fetch eBay listings for the current batter so the carousel shows all available cards
+  useEffect(() => {
+    const id = liveSnap?.liveMatchup?.batterId;
+    if (!id) return;
+    if (batterSetCacheRef.current[id]) {
+      setBatterSetCards(batterSetCacheRef.current[id]);
+      return;
+    }
+    setBatterSetCards([]);
+    let cancelled = false;
+    const pred = predictions.find(p => p.playerId === id);
+    const params = new URLSearchParams();
+    if (pred?.playerName) params.set('name', pred.playerName);
+    if (gradingCompanyId) {
+      params.set('grading', gradingCompanyId);
+      if (gradingGradeValue) params.set('grade', gradingGradeValue);
+    }
+    fetch(`/api/player/${id}/cards?${params}`)
+      .then(r => r.json())
+      .then((json: { sets?: SetCardResult[] }) => {
+        if (cancelled) return;
+        const sets = json.sets ?? [];
+        batterSetCacheRef.current[id] = sets;
+        setBatterSetCards(sets);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSnap?.liveMatchup?.batterId]);
 
@@ -668,6 +700,12 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               const pitcherArrow = pitcherIsUp ? '↑' : adjPitcherPct < 0 ? '↓' : '·';
               const pitcherSignedPct = `${pitcherIsUp ? '+' : ''}${adjPitcherPct.toFixed(1)}%`;
 
+              // Use fetched eBay listings when available; fall back to static set options
+              const displayCards: Array<{ set: string; shortName: string; year: number; imageUrl?: string; itemUrl?: string }> =
+                batterSetCards.length > 0
+                  ? batterSetCards
+                  : (batterPred?.rookieCardOptions ?? []);
+
               return (
                 <div className="mt-3 pt-3 border-t border-white/8 relative overflow-hidden rounded-xl">
                   <div className="flex gap-2 items-stretch">
@@ -691,18 +729,17 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       />
                       {/* Card stack — cards sit on top of each other; swipe top card away */}
                       {(() => {
-                        const opts = batterPred?.rookieCardOptions ?? [];
-                        const stackCount = Math.min(opts.length - selectedCardIdx, 3);
+                        const stackCount = Math.min(displayCards.length - selectedCardIdx, 3);
                         if (stackCount === 0) return null;
                         return (
                           <div className="relative w-full" style={{ aspectRatio: '2.5/3.5' }}>
                             {Array.from({ length: stackCount }, (_, depth) => {
                               const cardIdx = selectedCardIdx + depth;
-                              const opt = opts[cardIdx];
+                              const card = displayCards[cardIdx];
                               const isTop = depth === 0;
                               return (
                                 <div
-                                  key={`${opt.year}-${opt.set}`}
+                                  key={`${card.set}-${cardIdx}`}
                                   className="absolute inset-0 overflow-hidden"
                                   style={{
                                     borderRadius: 8,
@@ -734,8 +771,12 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                                       if (Math.abs(diff) < 8) {
                                         el.style.transition = '';
                                         el.style.transform = '';
-                                        expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? awayTeam.id);
-                                      } else if (diff > 50 && selectedCardIdx < opts.length - 1) {
+                                        if (card.itemUrl) {
+                                          window.open(card.itemUrl, '_blank');
+                                        } else {
+                                          expandPlayer(liveMatchup.batterId, batterPred?.teamId ?? awayTeam.id);
+                                        }
+                                      } else if (diff > 50 && selectedCardIdx < displayCards.length - 1) {
                                         el.style.transition = 'transform 0.28s ease-in, opacity 0.28s ease-in';
                                         el.style.transform = 'translateX(-160%) rotate(-15deg)';
                                         el.style.opacity = '0';
@@ -751,16 +792,24 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                                       }
                                     }}
                                   >
-                                    <ResponsiveCardImage
-                                      playerId={batterPred?.playerId ?? 0}
-                                      playerName={batterPred?.playerName ?? liveMatchup.batter.name}
-                                      teamId={batterPred?.teamId ?? 0}
-                                      position={batterPred?.position ?? 'OF'}
-                                      cardType="Rookie Card"
-                                      cardYear={opt.year}
-                                      cardSet={opt.set}
-                                      ebayImageUrl={cardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
-                                    />
+                                    {card.imageUrl ? (
+                                      <img
+                                        src={card.imageUrl}
+                                        alt={`${card.set} RC`}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                                      />
+                                    ) : (
+                                      <ResponsiveCardImage
+                                        playerId={batterPred?.playerId ?? 0}
+                                        playerName={batterPred?.playerName ?? liveMatchup.batter.name}
+                                        teamId={batterPred?.teamId ?? 0}
+                                        position={batterPred?.position ?? 'OF'}
+                                        cardType="Rookie Card"
+                                        cardYear={card.year}
+                                        cardSet={card.set}
+                                        ebayImageUrl={cardIdx === 0 ? batterPred?.priceSummary?.activeListing?.imageUrl : undefined}
+                                      />
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -769,14 +818,14 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         );
                       })()}
                       {/* Stack dots */}
-                      {(batterPred?.rookieCardOptions?.length ?? 0) > 1 && (
-                        <div className="flex justify-center gap-1.5 py-1.5">
-                          {batterPred!.rookieCardOptions!.map((opt, i) => (
+                      {displayCards.length > 1 && (
+                        <div className="flex justify-center gap-1 py-1.5 flex-wrap px-2">
+                          {displayCards.map((card, i) => (
                             <div
                               key={i}
-                              className="w-1.5 h-1.5 rounded-full transition-all"
+                              className="w-1.5 h-1.5 rounded-full transition-all flex-shrink-0"
                               style={{ backgroundColor: i === selectedCardIdx ? '#ffffff' : '#ffffff33' }}
-                              title={opt.shortName ?? String(opt.year ?? '')}
+                              title={card.shortName ?? String(card.year ?? '')}
                             />
                           ))}
                         </div>
