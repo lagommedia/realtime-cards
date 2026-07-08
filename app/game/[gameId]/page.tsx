@@ -710,30 +710,55 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         lastDelta={batterLast}
                         noBorder={true}
                       />
-                      {/* Live card price strip */}
-                      {batterPred && (batterPred.currentPrice > 0 || (batterPred.priceSummary?.averagePrice ?? 0) > 0) && (() => {
-                        const basePrice = batterPred.currentPrice > 0
-                          ? batterPred.currentPrice
-                          : (batterPred.priceSummary?.averagePrice ?? 0);
-                        const adjPct = (batterPred.percentageChange ?? 0) + batterDelta;
+                      {/* Live card price strip — base price from actual eBay listings */}
+                      {(() => {
+                        const ebayBase = batterSetCards.length > 0
+                          ? Math.min(...batterSetCards.map(c => c.binPrice ?? 0).filter(p => p > 0))
+                          : 0;
+                        const basePrice = ebayBase > 0
+                          ? ebayBase
+                          : batterPred
+                            ? (batterPred.currentPrice > 0 ? batterPred.currentPrice : (batterPred.priceSummary?.averagePrice ?? 0))
+                            : 0;
+                        if (basePrice <= 0) return null;
+                        const adjPct = (batterPred?.percentageChange ?? 0) + batterDelta;
                         const livePrice = basePrice * (1 + adjPct / 100);
                         const priceDelta = livePrice - basePrice;
                         const up = priceDelta > 0.005;
                         const dn = priceDelta < -0.005;
                         const priceColor = up ? '#22c55e' : dn ? '#ef4444' : '#9ca3af';
                         const priceArrow = up ? '↑' : dn ? '↓' : '·';
+                        const cardImg = batterSetCards.find(c => c.imageUrl);
                         return (
-                          <div className="px-2 py-1.5 border-t border-white/8 text-center">
-                            <p className="text-[6px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
-                            <p className="text-[11px] font-black leading-none" style={{ color: priceColor }}>
-                              ${livePrice.toFixed(2)}
-                            </p>
-                            {(up || dn) && (
-                              <p className="text-[7px] font-semibold mt-0.5 leading-none" style={{ color: priceColor }}>
-                                {priceArrow} ${Math.abs(priceDelta).toFixed(2)} live
+                          <>
+                            <div className="px-2 py-1.5 border-t border-white/8 text-center">
+                              <p className="text-[6px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
+                              <p className="text-[11px] font-black leading-none" style={{ color: priceColor }}>
+                                ${livePrice.toFixed(2)}
                               </p>
+                              {(up || dn) && (
+                                <p className="text-[7px] font-semibold mt-0.5 leading-none" style={{ color: priceColor }}>
+                                  {priceArrow} ${Math.abs(priceDelta).toFixed(2)} live
+                                </p>
+                              )}
+                            </div>
+                            {/* Card image — first eBay listing with an image */}
+                            {cardImg && (
+                              <div className="px-2 pb-2 border-t border-white/8 pt-1.5">
+                                <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '2.5/3.5' }}>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={cardImg.imageUrl}
+                                    alt={cardImg.set}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                  />
+                                </div>
+                                <p className="text-[7px] text-gray-500 text-center mt-1 font-medium truncate">
+                                  {cardImg.shortName} · PSA {gradingGradeValue ?? '10'}
+                                </p>
+                              </div>
                             )}
-                          </div>
+                          </>
                         );
                       })()}
                     </div>
