@@ -2,7 +2,13 @@ import { EbayListing, CardPriceSummary, SetCardResult } from '@/types';
 
 const EBAY_API_BASE = 'https://api.ebay.com';
 
+// Module-level token cache — avoids a fresh OAuth call (1–2s) on every request.
+// eBay client-credentials tokens last 2 hours; we refresh 5 min early.
+let _tokenCache: { token: string; expiresAt: number } | null = null;
+
 async function getEbayToken(): Promise<string | null> {
+  if (_tokenCache && Date.now() < _tokenCache.expiresAt) return _tokenCache.token;
+
   const clientId = process.env.EBAY_CLIENT_ID;
   const clientSecret = process.env.EBAY_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
@@ -15,12 +21,20 @@ async function getEbayToken(): Promise<string | null> {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope',
-    next: { revalidate: 7000 },
+    cache: 'no-store',
   });
   if (!res.ok) return null;
-  const data = await res.json() as { access_token?: string };
-  return data.access_token ?? null;
+  const data = await res.json() as { access_token?: string; expires_in?: number };
+  if (!data.access_token) return null;
+  // Cache for (expires_in - 5 min), default 2h - 5m
+  const ttlMs = ((data.expires_in ?? 7200) - 300) * 1000;
+  _tokenCache = { token: data.access_token, expiresAt: Date.now() + ttlMs };
+  return data.access_token;
 }
+
+// Module-level result cache keyed by query string — makes repeat lookups instant.
+// Entries expire after 5 minutes to keep prices fresh.
+const _resultCache = new Map<string, { sets: SetCardResult[]; expiresAt: number }>();
 
 async function searchEbayListings(
   query: string,
@@ -37,22 +51,16 @@ async function searchEbayListings(
     ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}`
     : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}${filterParam}`;
 
-  let res: Response;
-  try {
-    res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(4000),
-      next: { revalidate: 300 },
-    });
-  } catch {
-    return [];
-  }
+  const res = await fetch(`${EBAY_API_BASE}${endpoint}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+      'Content-Type': 'application/json',
+    },
+    next: { revalidate: 300 },
+  }).catch(() => null);
 
-  if (!res.ok) return [];
+  if (!res?.ok) return [];
 
   const data = await res.json() as {
     itemSummaries?: Array<{
@@ -196,6 +204,11 @@ export async function getPlayerCardSets(
   gradingCompany?: string,
   gradeValue?: string,
 ): Promise<SetCardResult[]> {
+  // Check module-level result cache first
+  const cacheKey = `${playerName}|${rookieYear}|${gradingCompany ?? ''}|${gradeValue ?? ''}`;
+  const cached = _resultCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) return cached.sets;
+
   const token = await getEbayToken();
   if (!token) return [];
 
@@ -204,23 +217,14 @@ export async function getPlayerCardSets(
   const gradingStr   = gradingCompany ? ` ${companyLabel}${gradeLabel}` : '';
   const yearStr      = rookieYear > 0 ? ` ${rookieYear}` : '';
 
-  // Two broad searches cover S1/S2/Update; one Chrome-specific search for precision.
-  // 4 total calls run in parallel — sold prices from Insights, images from BIN Browse.
-  // One targeted search per set — eBay relevance does the set matching so we
-  // don't need strict title patterns. 8 calls run in parallel and are cached.
-  type SetSearch = { set: string; type: 'sold' | 'bin'; listings: EbayListing[] };
-  const settled = await Promise.allSettled<SetSearch>(
-    TOPPS_SET_DEFS.flatMap(({ set }) => {
+  // 4 parallel BIN-only calls (one per set). Sold-price calls are omitted to
+  // halve the number of eBay round-trips — BIN price is the primary signal.
+  const binResults = await Promise.all(
+    TOPPS_SET_DEFS.map(({ set }) => {
       const q = `${playerName}${yearStr} ${set}${gradingStr} RC`;
-      return [
-        searchEbayListings(q, token, true,  5).then((listings): SetSearch => ({ set, type: 'sold', listings })),
-        searchEbayListings(q, token, false, 10).then((listings): SetSearch => ({ set, type: 'bin',  listings })),
-      ];
+      return searchEbayListings(q, token, false, 10).then(listings => ({ set, listings }));
     })
   );
-  const setSearches = settled
-    .filter((r): r is PromiseFulfilledResult<SetSearch> => r.status === 'fulfilled')
-    .map(r => r.value);
 
   const isRCListing = (title: string) =>
     RC_PATTERN.test(title) &&
@@ -230,38 +234,28 @@ export async function getPlayerCardSets(
   const results: SetCardResult[] = [];
 
   for (const { set, shortName } of TOPPS_SET_DEFS) {
-    const soldListings = setSearches.find(s => s.set === set && s.type === 'sold')?.listings ?? [];
-    const binListings  = setSearches.find(s => s.set === set && s.type === 'bin')?.listings  ?? [];
-
-    const soldRef   = soldListings.find(l  => isRCListing(l.title));
-    const binMatches = binListings.filter(l => isRCListing(l.title) && !!l.itemUrl);
-
-    if (binMatches.length === 0 && !soldRef) continue;
-
-    if (binMatches.length === 0) {
+    const binListings = binResults.find(r => r.set === set)?.listings ?? [];
+    const binMatches  = binListings.filter(l => isRCListing(l.title) && !!l.itemUrl);
+    for (const bin of binMatches) {
       results.push({
         set, shortName, year: rookieYear,
-        binPrice: null, soldPrice: soldRef!.price, soldDate: soldRef!.soldDate,
-        imageUrl: soldRef!.imageUrl, itemUrl: soldRef!.itemUrl ?? '',
+        binPrice: bin.price, soldPrice: null, soldDate: undefined,
+        imageUrl: bin.imageUrl, itemUrl: bin.itemUrl,
       });
-    } else {
-      for (const bin of binMatches) {
-        results.push({
-          set, shortName, year: rookieYear,
-          binPrice: bin.price, soldPrice: soldRef?.price ?? null, soldDate: soldRef?.soldDate,
-          imageUrl: bin.imageUrl, itemUrl: bin.itemUrl,
-        });
-      }
     }
   }
 
   // Deduplicate — the same eBay listing can surface in multiple per-set queries
   const seen = new Set<string>();
-  return results.filter(r => {
+  const deduped = results.filter(r => {
     if (!r.itemUrl || seen.has(r.itemUrl)) return false;
     seen.add(r.itemUrl);
     return true;
   });
+
+  // Store in module-level cache (5 min TTL)
+  _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 5 * 60 * 1000 });
+  return deduped;
 }
 
 // ── Card image search (BaseballCardImage component) ───────────────────────────

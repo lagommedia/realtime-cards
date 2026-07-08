@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlayerCardSets } from '@/lib/ebay-api';
 
+export const revalidate = 300; // cache full route response for 5 min
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ playerId: string }> },
