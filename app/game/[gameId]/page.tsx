@@ -8,6 +8,7 @@ import { useGrading } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { ArrowLeft, RefreshCw, Radio, CheckCircle, Flame } from 'lucide-react';
+import { getSnapQueue, queueIsSynced, pruneQueue } from '@/lib/game-snap-cache';
 import { useRouter } from 'next/navigation';
 import TeamLogo from '@/components/TeamLogo';
 import { LiveMatchup } from '@/lib/dummy-game-chc-stl';
@@ -292,11 +293,13 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const delaySecRef = useRef(delaySec);
   useEffect(() => { delaySecRef.current = delaySec; }, [delaySec]);
-  const snapQueueRef = useRef<Array<{ snap: unknown; ts: number }>>([]);
-  // True once the initial delay window has elapsed — suppresses the real-time
-  // data?.liveMatchup fallback so the matchup only appears after the queue syncs
-  const [syncDone, setSyncDone] = useState(delaySec === 0);
+  // Persistent queue — survives navigation so re-entering a game skips re-calibration
+  const snapQueueRef = useRef<Array<{ snap: unknown; ts: number }>>(getSnapQueue(gameId));
+  // Synced immediately if the cache already has a snapshot old enough for the delay
+  const [syncDone, setSyncDone] = useState(() => queueIsSynced(gameId, delaySec));
   useEffect(() => {
+    pruneQueue(gameId); // clear entries > 5 min old on mount
+    if (queueIsSynced(gameId, delaySec)) { setSyncDone(true); return; }
     if (delaySec === 0) { setSyncDone(true); return; }
     setSyncDone(false);
     const timer = setTimeout(() => setSyncDone(true), delaySec * 1000);
@@ -394,8 +397,12 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
       const ready = snapQueueRef.current.filter(s => now - s.ts >= delayMs);
       if (ready.length === 0) return;
       setLiveSnap(ready[ready.length - 1].snap as Parameters<typeof setLiveSnap>[0]);
-      // Prune entries that are no longer needed
-      snapQueueRef.current = snapQueueRef.current.filter(s => now - s.ts < delayMs + 120_000);
+      // Prune entries older than delay + 2 min. Splice in-place to keep the
+      // persistent array reference valid (reassigning .current would break the cache).
+      const arr = snapQueueRef.current;
+      let trimIdx = 0;
+      while (trimIdx < arr.length && now - arr[trimIdx].ts >= delayMs + 120_000) trimIdx++;
+      if (trimIdx > 0) arr.splice(0, trimIdx);
     }, 1_000);
     return () => clearInterval(ticker);
   // eslint-disable-next-line react-hooks/exhaustive-deps
