@@ -73,25 +73,31 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [setCards, setSetCards] = useState<SetCardResult[]>([]);
-  const setCardsFetchedRef = useRef(false);
+  const [cardsFetchStatus, setCardsFetchStatus] = useState<'idle' | 'loading' | 'done'>('idle');
 
   useEffect(() => {
     if (forceExpanded) setExpanded(true);
   }, [forceExpanded]);
 
-  // Fetch all eBay listings when the card expands for the first time
+  // Fetch eBay listings when expanded; retry if a previous attempt returned empty
   useEffect(() => {
-    if (!expanded || setCardsFetchedRef.current) return;
-    setCardsFetchedRef.current = true;
+    if (!expanded) return;
+    if (cardsFetchStatus === 'loading' || (cardsFetchStatus === 'done' && setCards.length > 0)) return;
+    setCardsFetchStatus('loading');
+    const year = prediction.rookieCardOptions?.[0]?.year;
     const params = new URLSearchParams({ name: prediction.playerName });
+    if (year) params.set('year', String(year));
     if (gradingCompanyId) {
       params.set('grading', gradingCompanyId);
       if (gradingGradeValue) params.set('grade', gradingGradeValue);
     }
     fetch(`/api/player/${prediction.playerId}/cards?${params}`)
       .then(r => r.json())
-      .then(({ sets }: { sets: SetCardResult[] }) => setSetCards(sets ?? []))
-      .catch(() => {});
+      .then(({ sets }: { sets: SetCardResult[] }) => {
+        setSetCards(sets ?? []);
+        setCardsFetchStatus('done');
+      })
+      .catch(() => setCardsFetchStatus('done'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
 
@@ -296,14 +302,15 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                     cardYear={card.year}
                     cardSet={card.set}
                     ebayImageUrl={idx === 0 ? prediction.priceSummary?.activeListing?.imageUrl : undefined}
-                    width={300}
-                    height={420}
+                    fill
                   />
                 )}
               />
             ) : (
               <div className="flex items-center justify-center rounded-xl" style={{ aspectRatio: '2.5/3.5', backgroundColor: '#ffffff08' }}>
-                <p className="text-gray-600 text-xs">Loading listings…</p>
+                <p className="text-gray-600 text-xs">
+                  {cardsFetchStatus === 'done' ? 'No listings found' : 'Loading listings…'}
+                </p>
               </div>
             )}
 

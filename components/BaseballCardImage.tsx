@@ -18,11 +18,13 @@ interface Props {
   ebayImageUrl?: string;
   width?: number;
   height?: number;
+  /** Fills the nearest positioned ancestor instead of using fixed pixel dimensions */
+  fill?: boolean;
 }
 
 export default function BaseballCardImage({
   playerId, playerName, teamId, position, cardType, cardYear, cardSet,
-  ebayImageUrl, width = 90, height = 126,
+  ebayImageUrl, width = 90, height = 126, fill = false,
 }: Props) {
   const { companyId: gradingCompanyId, gradeValue: gradingGradeValue } = useGrading();
   const [ebayErrored, setEbayErrored] = useState(false);
@@ -63,18 +65,22 @@ export default function BaseballCardImage({
     return `/api/proxy-image?url=${encodeURIComponent(url)}`;
   }
 
+  const fillStyle: React.CSSProperties = fill
+    ? { position: 'absolute', inset: 0, width: '100%', height: '100%' }
+    : { width, height };
+
   // ── Real card image ───────────────────────────────────────────────────────
   if (activeUrl) {
     return (
       <div
         className="relative flex-shrink-0 rounded-lg overflow-hidden shadow-lg"
-        style={{ width, height, border: '1px solid #ffffff30' }}
+        style={{ ...fillStyle, border: '1px solid #ffffff30' }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={proxied(activeUrl)}
           alt={`${playerName} card`}
-          style={{ width, height, objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={() => {
             if (searchedUrl && !searchedErrored) setSearchedErrored(true);
             else if (ebayImageUrl && !ebayErrored) setEbayErrored(true);
@@ -91,8 +97,7 @@ export default function BaseballCardImage({
     <div
       className="relative flex-shrink-0 rounded-lg overflow-hidden shadow-xl"
       style={{
-        width,
-        height,
+        ...fillStyle,
         background: `linear-gradient(160deg, ${theme.primary}dd 0%, #0a0f1e 100%)`,
         border: `1.5px solid ${theme.primary}88`,
       }}

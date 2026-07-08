@@ -480,6 +480,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     const pred = predictions.find(p => p.playerId === id);
     const params = new URLSearchParams();
     if (pred?.playerName) params.set('name', pred.playerName);
+    const year = pred?.rookieCardOptions?.[0]?.year;
+    if (year) params.set('year', String(year));
     if (gradingCompanyId) {
       params.set('grading', gradingCompanyId);
       if (gradingGradeValue) params.set('grade', gradingGradeValue);
@@ -714,7 +716,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           cards={displayCards}
                           resetKey={liveMatchup.batterId}
                           renderFallback={(card) => (
-                            <ResponsiveCardImage
+                            <BaseballCardImage
                               playerId={batterPred?.playerId ?? 0}
                               playerName={batterPred?.playerName ?? liveMatchup.batter.name}
                               teamId={batterPred?.teamId ?? 0}
@@ -723,6 +725,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                               cardYear={card.year}
                               cardSet={card.set}
                               ebayImageUrl={batterPred?.priceSummary?.activeListing?.imageUrl}
+                              fill
                             />
                           )}
                         />
