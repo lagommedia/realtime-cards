@@ -2,18 +2,17 @@
 
 import { useState } from 'react';
 import { useTeam } from '@/context/TeamContext';
-import { useBroadcast, BROADCAST_PLATFORMS } from '@/context/BroadcastContext';
+import { useBroadcast } from '@/context/BroadcastContext';
 import { useGrading, GRADING_COMPANIES, GRADING_GRADES } from '@/context/GradingContext';
 import { ALL_TEAMS } from '@/lib/team-themes';
 import { Check, X } from 'lucide-react';
 import TeamLogo from '@/components/TeamLogo';
-import { PlatformIcon } from '@/components/PlatformIcon';
 
 const DIVISIONS = ['AL East', 'AL Central', 'AL West', 'NL East', 'NL Central', 'NL West'];
 
 export default function SettingsPage() {
   const { theme, selectedTeamId, setSelectedTeamId } = useTeam();
-  const { platformId, setPlatformId } = useBroadcast();
+  const { delaySec, setDelaySec } = useBroadcast();
   const { companyId, setCompanyId, gradeValue, setGradeValue } = useGrading();
   const [search, setSearch] = useState('');
 
@@ -105,35 +104,52 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Broadcast platform */}
+        {/* Broadcast delay */}
         <div>
-          <p className="text-sm font-semibold text-white mb-1">How do you watch your games?</p>
-          <p className="text-xs text-gray-500 mb-3">Calibrates live data to match your broadcast delay</p>
-          <div className="grid grid-cols-2 gap-2">
-            {BROADCAST_PLATFORMS.map(platform => {
-              const selected = platformId === platform.id;
-              return (
-                <button
-                  key={platform.id}
-                  onClick={() => setPlatformId(selected ? null : platform.id)}
-                  className="flex flex-col items-start px-3 py-3 rounded-xl transition-all text-left"
-                  style={{
-                    backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
-                    border: `1px solid ${selected ? theme.primary : 'transparent'}`,
-                  }}
-                >
-                  <div className="flex items-start justify-between w-full mb-2">
-                    <PlatformIcon id={platform.id} />
-                    {selected && <Check size={13} style={{ color: theme.primary, flexShrink: 0, marginTop: 2 }} />}
-                  </div>
-                  <span className="text-white text-sm font-medium leading-tight">{platform.label}</span>
-                  <span className="text-xs mt-0.5" style={{ color: selected ? theme.primary : '#6b7280' }}>
-                    {platform.sublabel}
-                  </span>
-                </button>
-              );
-            })}
+          <p className="text-sm font-semibold text-white mb-1">Broadcast Delay</p>
+          <p className="text-xs text-gray-500 mb-4">Calibrate to match your TV or streaming delay</p>
+
+          {/* Value display */}
+          <div className="flex items-baseline justify-center gap-1.5 mb-5">
+            <span className="text-5xl font-black tabular-nums" style={{ color: theme.primary }}>
+              {delaySec}
+            </span>
+            <span className="text-xl text-gray-400 font-semibold">sec</span>
           </div>
+
+          {/* Slider */}
+          <input
+            type="range"
+            min={0}
+            max={120}
+            step={1}
+            value={delaySec}
+            onChange={e => setDelaySec(Number(e.target.value))}
+            className="w-full h-2 rounded-full appearance-none cursor-pointer"
+            style={{ accentColor: theme.primary }}
+          />
+
+          {/* Scale labels */}
+          <div className="flex justify-between mt-2 text-[10px] text-gray-600 font-medium">
+            <span>0s</span>
+            <span>30s</span>
+            <span>60s</span>
+            <span>90s</span>
+            <span>120s</span>
+          </div>
+
+          {/* Context hint */}
+          <p className="text-xs text-center mt-4 font-medium" style={{ color: `${theme.primary}bb` }}>
+            {delaySec === 0
+              ? 'No delay · At the ballpark or watching live'
+              : delaySec <= 5
+              ? 'Cable / Satellite TV'
+              : delaySec <= 50
+              ? 'Streaming (YouTube TV, Hulu, fuboTV)'
+              : delaySec <= 65
+              ? 'Apple TV+ / Peacock'
+              : 'MLB.tv / High-latency streaming'}
+          </p>
         </div>
 
         {/* Current team */}

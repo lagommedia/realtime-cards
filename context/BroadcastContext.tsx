@@ -2,48 +2,32 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export const BROADCAST_PLATFORMS = [
-  { id: 'ballpark', label: 'At the Ballpark',  sublabel: 'No delay',   delaySec: 0  },
-  { id: 'cable',    label: 'Cable / Satellite', sublabel: '~2 sec',     delaySec: 2  },
-  { id: 'youtube',  label: 'YouTube TV',        sublabel: '~40 sec',    delaySec: 40 },
-  { id: 'hulu',     label: 'Hulu + Live TV',    sublabel: '~40 sec',    delaySec: 40 },
-  { id: 'fubotv',   label: 'fuboTV',            sublabel: '~40 sec',    delaySec: 40 },
-  { id: 'apple',    label: 'Apple TV+',         sublabel: '~55 sec',    delaySec: 55 },
-  { id: 'peacock',  label: 'Peacock',           sublabel: '~55 sec',    delaySec: 55 },
-  { id: 'mlbtv',    label: 'MLB.tv',            sublabel: '~85 sec',    delaySec: 85 },
-] as const;
-
-export type BroadcastPlatformId = typeof BROADCAST_PLATFORMS[number]['id'];
-
 interface BroadcastContextValue {
-  platformId: BroadcastPlatformId | null;
-  setPlatformId: (id: BroadcastPlatformId | null) => void;
   delaySec: number;
+  setDelaySec: (sec: number) => void;
 }
 
 const BroadcastContext = createContext<BroadcastContextValue | null>(null);
 
 export function BroadcastProvider({ children }: { children: React.ReactNode }) {
-  const [platformId, setPlatformIdState] = useState<BroadcastPlatformId | null>(null);
+  const [delaySec, setDelaySecState] = useState(0);
 
   useEffect(() => {
-    const stored = localStorage.getItem('broadcastPlatform') as BroadcastPlatformId | null;
-    if (stored && BROADCAST_PLATFORMS.some(p => p.id === stored)) {
-      setPlatformIdState(stored);
+    const stored = localStorage.getItem('broadcastDelaySec');
+    if (stored !== null) {
+      const n = parseInt(stored, 10);
+      if (!isNaN(n) && n >= 0 && n <= 120) setDelaySecState(n);
     }
   }, []);
 
-  const setPlatformId = (id: BroadcastPlatformId | null) => {
-    setPlatformIdState(id);
-    if (id === null) localStorage.removeItem('broadcastPlatform');
-    else localStorage.setItem('broadcastPlatform', id);
+  const setDelaySec = (sec: number) => {
+    const clamped = Math.max(0, Math.min(120, Math.round(sec)));
+    setDelaySecState(clamped);
+    localStorage.setItem('broadcastDelaySec', String(clamped));
   };
 
-  const platform = BROADCAST_PLATFORMS.find(p => p.id === platformId);
-  const delaySec = platform?.delaySec ?? 0;
-
   return (
-    <BroadcastContext.Provider value={{ platformId, setPlatformId, delaySec }}>
+    <BroadcastContext.Provider value={{ delaySec, setDelaySec }}>
       {children}
     </BroadcastContext.Provider>
   );

@@ -325,6 +325,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const prevOutsRef = useRef<number>(0);
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overlayShownAtRef = useRef<number | null>(null);
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const cardTouchStartRef = useRef<number | null>(null);
   const topCardInnerRef = useRef<HTMLDivElement>(null);
@@ -424,21 +425,30 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     const resultChanged = key !== '' && key !== prevResultKeyRef.current;
     const batterChanged = currentBatterId !== null && currentBatterId !== prevBatterIdForOverlayRef.current;
 
+    const MIN_OVERLAY_MS = 8_000;
+
     if (resultChanged) {
       // New at-bat completed — show overlay. If batterId also changed in the same
       // render (race condition), result takes priority and overlay is still shown.
       prevResultKeyRef.current = key;
       const switchingSides = prevOutsRef.current === 2 && currentOuts === 0;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
+      overlayShownAtRef.current = Date.now();
       setOutcomeOverlay({ event: lastResult!.event, batterName: lastResult!.batterName, switchingSides });
       prevBatterIdForOverlayRef.current = currentBatterId;
       // Safety: clear after 15s if the next batter never arrives (e.g. game ends)
       outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), 15_000);
     } else if (batterChanged) {
-      // Batter changed without a new result → next batter stepped in, clear overlay
+      // Next batter stepped in — only clear the overlay once it has been visible
+      // for at least MIN_OVERLAY_MS so the result card is never yanked mid-display.
       prevBatterIdForOverlayRef.current = currentBatterId;
+      const elapsed = overlayShownAtRef.current ? Date.now() - overlayShownAtRef.current : Infinity;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
-      setOutcomeOverlay(null);
+      if (elapsed >= MIN_OVERLAY_MS) {
+        setOutcomeOverlay(null);
+      } else {
+        outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), MIN_OVERLAY_MS - elapsed);
+      }
     }
 
     prevOutsRef.current = currentOuts;
