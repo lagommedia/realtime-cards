@@ -36,6 +36,10 @@ async function getEbayToken(): Promise<string | null> {
 // Entries expire after 5 minutes to keep prices fresh.
 const _resultCache = new Map<string, { sets: SetCardResult[]; expiresAt: number }>();
 
+// Module-level pricing cache — prevents re-fetching eBay sold/active listings for the
+// same player on every game-route poll (which fires every 30s for ~32 players).
+const _pricingCache = new Map<string, { summary: CardPriceSummary; expiresAt: number }>();
+
 async function searchEbayListings(
   query: string,
   token: string,
@@ -368,6 +372,10 @@ export async function getPlayerCardPricing(
   gradingCompany?: string,
   gradeValue?: string,
 ): Promise<CardPriceSummary> {
+  const pricingKey = `${playerId}|${rookieYear ?? 0}|${gradingCompany ?? ''}|${gradeValue ?? ''}`;
+  const cachedPricing = _pricingCache.get(pricingKey);
+  if (cachedPricing && Date.now() < cachedPricing.expiresAt) return cachedPricing.summary;
+
   const token = await getEbayToken();
 
   let recentSales: EbayListing[] = [];
@@ -428,7 +436,7 @@ export async function getPlayerCardPricing(
   const avgPrice  = allPrices.length > 0 ? allPrices.reduce((a, b) => a + b, 0) / allPrices.length : 9.99;
   const basePrice = avgPrice || 9.99;
 
-  return {
+  const summary: CardPriceSummary = {
     playerId,
     playerName,
     averagePrice:  parseFloat(avgPrice.toFixed(2)),
@@ -438,4 +446,6 @@ export async function getPlayerCardPricing(
     activeListing,
     priceHistory:  generateMockPriceHistory(basePrice),
   };
+  _pricingCache.set(pricingKey, { summary, expiresAt: Date.now() + 2 * 60 * 60 * 1000 });
+  return summary;
 }
