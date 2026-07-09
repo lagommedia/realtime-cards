@@ -41,7 +41,7 @@ async function searchEbayListings(
   token: string,
   sold = false,
   limit = 10,
-): Promise<EbayListing[]> {
+): Promise<EbayListing[] | 'rate_limited'> {
   const category = '212'; // Sports Trading Cards
 
   // Active listings: Buy It Now only. Sold listings use the Marketplace Insights API.
@@ -57,21 +57,12 @@ async function searchEbayListings(
       'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
       'Content-Type': 'application/json',
     },
-    // Authorization header changes per token issuance, so next: { revalidate }
-    // would never hit the Data Cache (different key each time). Use no-store and
-    // rely on module-level _resultCache + route-level CDN cache instead.
     cache: 'no-store' as const,
   };
 
-  let res = await fetch(`${EBAY_API_BASE}${endpoint}`, fetchOpts).catch(() => null);
+  const res = await fetch(`${EBAY_API_BASE}${endpoint}`, fetchOpts).catch(() => null);
 
-  // Retry once on 429 (rate limit) — production hits burst limits when multiple
-  // batters are fetched in parallel. A short wait usually clears the slot.
-  if (res?.status === 429) {
-    await new Promise(r => setTimeout(r, 1500));
-    res = await fetch(`${EBAY_API_BASE}${endpoint}`, fetchOpts).catch(() => null);
-  }
-
+  if (res?.status === 429) return 'rate_limited';
   if (!res?.ok) return [];
 
   const data = await res.json() as {
@@ -219,30 +210,35 @@ const NON_TOPPS_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf
  * Uses a single broad "Topps RC PSA" query — 4 parallel set-specific queries
  * burned through eBay's production burst rate limit (429s). One call per
  * batter is well within limits. Set labels are derived from listing titles.
+ *
+ * Returns { sets, rateLimited } so callers can distinguish "no results"
+ * from "eBay quota exhausted" and show a better message to the user.
  */
 export async function getPlayerCardSets(
   playerName: string,
   rookieYear: number,
   _gradingCompany?: string,  // reserved — PSA is always used
   gradeValue?: string,
-): Promise<SetCardResult[]> {
+): Promise<{ sets: SetCardResult[]; rateLimited: boolean }> {
   const grade = gradeValue ?? '10';
   const cacheKey = `${playerName}|${rookieYear}|psa|${grade}`;
   const cached = _resultCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt) return cached.sets;
+  if (cached && Date.now() < cached.expiresAt) return { sets: cached.sets, rateLimited: false };
 
   const token = await getEbayToken();
-  if (!token) return [];
+  if (!token) return { sets: [], rateLimited: false };
 
   // Single BIN search — "Topps RC PSA 10" keeps Bowman/Prizm noise low while
   // hitting all four flagship sets in one call (1/4 the rate-limit cost).
   const query = `${playerName} Topps RC PSA ${grade}`;
-  const listings = await searchEbayListings(query, token, false, 10);
+  const raw = await searchEbayListings(query, token, false, 10);
+
+  if (raw === 'rate_limited') return { sets: [], rateLimited: true };
 
   const seenIds = new Set<string>();
   const results: SetCardResult[] = [];
 
-  for (const listing of listings) {
+  for (const listing of raw) {
     if (!listing.itemUrl) continue;
 
     const itemId = listing.itemUrl.match(/\/itm\/(\d+)/)?.[1];
@@ -270,14 +266,13 @@ export async function getPlayerCardSets(
     });
   }
 
-  const deduped = results.slice(0, 10);
+  const sets = results.slice(0, 10);
 
-  // Only cache non-empty results — a rate-limit 429 returning [] would otherwise
-  // block all retries for 5 minutes.
-  if (deduped.length > 0) {
-    _resultCache.set(cacheKey, { sets: deduped, expiresAt: Date.now() + 2 * 60 * 60 * 1000 });
+  // Only cache non-empty results — an empty response shouldn't block retries.
+  if (sets.length > 0) {
+    _resultCache.set(cacheKey, { sets, expiresAt: Date.now() + 2 * 60 * 60 * 1000 });
   }
-  return deduped;
+  return { sets, rateLimited: false };
 }
 
 // ── Card image search (BaseballCardImage component) ───────────────────────────
@@ -297,7 +292,8 @@ export async function searchCardImage(
   const query = gradingCompany
     ? `${playerName} ${cardYear} ${companyLabel}${gradeLabel} ${cardSet} rookie card RC`
     : `${playerName} ${cardYear} ${cardSet} rookie card RC`;
-  const listings = await searchEbayListings(query, token, false);
+  const searchResult = await searchEbayListings(query, token, false);
+  const listings: EbayListing[] = searchResult === 'rate_limited' ? [] : searchResult;
 
   let raw: EbayListing[];
 
@@ -384,10 +380,12 @@ export async function getPlayerCardPricing(
     const yearStr      = rookieYear ? ` ${rookieYear}` : '';
     const query        = `${playerName}${yearStr} Topps${gradingStr} RC`;
 
-    const [sold, active] = await Promise.all([
+    const [soldRaw, activeRaw] = await Promise.all([
       searchEbayListings(query, token, true),
       searchEbayListings(query, token, false),
     ]);
+    const sold:   EbayListing[] = soldRaw   === 'rate_limited' ? [] : soldRaw;
+    const active: EbayListing[] = activeRaw === 'rate_limited' ? [] : activeRaw;
     recentSales = sold;
 
     if (gradingCompany) {

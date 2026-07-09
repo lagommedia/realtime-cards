@@ -22,12 +22,11 @@ export async function GET(
   if (!name) return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
 
   try {
-    const sets = await getPlayerCardSets(name, year, grading, grade);
-    // Only let Vercel's edge cache hold non-empty results. An empty response
-    // means eBay was unavailable — the client should retry on the next request.
-    if (sets.length === 0) return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
-    return NextResponse.json({ sets });
+    const { sets, rateLimited } = await getPlayerCardSets(name, year, grading, grade);
+    // Don't cache empty/rate-limited results at the CDN — the client must retry.
+    if (sets.length === 0) return NextResponse.json({ sets: [], rateLimited }, { headers: NO_CACHE });
+    return NextResponse.json({ sets, rateLimited: false });
   } catch {
-    return NextResponse.json({ sets: [] }, { headers: NO_CACHE });
+    return NextResponse.json({ sets: [], rateLimited: false }, { headers: NO_CACHE });
   }
 }

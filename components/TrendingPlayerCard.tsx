@@ -74,6 +74,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [setCards, setSetCards] = useState<SetCardResult[]>([]);
   const [cardsFetchStatus, setCardsFetchStatus] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [ebayRateLimited, setEbayRateLimited] = useState(false);
 
   useEffect(() => {
     if (forceExpanded) setExpanded(true);
@@ -97,8 +98,9 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     }
     fetch(`/api/player/${prediction.playerId}/cards?${params}`)
       .then(r => r.json())
-      .then(({ sets }: { sets: SetCardResult[] }) => {
+      .then(({ sets, rateLimited }: { sets: SetCardResult[]; rateLimited?: boolean }) => {
         setSetCards(sets ?? []);
+        setEbayRateLimited(!!rateLimited);
         setCardsFetchStatus('done');
       })
       .catch(() => setCardsFetchStatus('done'));
@@ -311,10 +313,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 )}
               />
             ) : (
-              <div className="flex items-center justify-center rounded-xl" style={{ aspectRatio: '2.5/3.5', backgroundColor: '#ffffff08' }}>
-                <p className="text-gray-600 text-xs">
-                  {cardsFetchStatus === 'done' ? 'No listings found' : 'Loading listings…'}
+              <div className="flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '2.5/3.5', backgroundColor: '#ffffff08' }}>
+                <p className="text-gray-600 text-xs text-center px-4">
+                  {cardsFetchStatus !== 'done'
+                    ? 'Loading listings…'
+                    : ebayRateLimited
+                    ? 'eBay temporarily unavailable'
+                    : 'No listings found'}
                 </p>
+                {ebayRateLimited && (
+                  <p className="text-gray-700 text-[10px] text-center px-4">Check back in a few minutes</p>
+                )}
               </div>
             )}
 
