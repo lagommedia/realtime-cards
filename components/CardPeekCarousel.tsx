@@ -124,7 +124,7 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
           <div
             key={`${card.set}-${i}`}
             style={{
-              width: cardW > 0 ? cardW : undefined,
+              width: cardW > 0 ? cardW : `${CARD_RATIO * 100}%`,
               flexShrink: 0,
               aspectRatio: '9/12',
               borderRadius: 12,
@@ -141,7 +141,7 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
               <img
                 src={card.imageUrl}
                 alt={`${card.set} RC`}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             ) : (
               renderFallback(card, i)
