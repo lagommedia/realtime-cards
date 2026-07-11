@@ -245,10 +245,10 @@ export async function getPlayerCardSets(
   const token = await getEbayToken();
   if (!token) return { sets: [], rateLimited: false };
 
-  // Single BIN search — "Topps RC PSA 10" keeps Bowman/Prizm noise low while
-  // hitting all four flagship sets in one call (1/4 the rate-limit cost).
-  const query = `${playerName} Topps RC PSA ${grade}`;
-  const raw = await searchEbayListings(query, token, false, 10);
+  // Single BIN search — three criteria (Topps, Rookie Card, PSA 10) plus the
+  // rookie year keeps noise low while hitting all sets in one call.
+  const query = `${playerName} ${rookieYear} Topps Rookie Card PSA ${grade}`;
+  const raw = await searchEbayListings(query, token, false, 20);
 
   if (raw === 'rate_limited') return { sets: [], rateLimited: true };
 
