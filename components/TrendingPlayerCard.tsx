@@ -279,17 +279,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       {(expanded || !!forceExpanded) && (
         <div className="border-t border-white/10 p-4 space-y-4">
 
-
-          {/* ── Value Projection Engine ── */}
-          {prediction.projection && (
-            <CardValueProjectionPanel
-              projection={prediction.projection}
-              priceMultiplier={totalMultiplier}
-              actualBinPrice={actualBinPrice}
-            />
-          )}
-
-          {/* ── Card valuation — full-width stack ── */}
+          {/* ── Card carousel — top of panel ── */}
           {!hideCardImage && <div>
 
             {/* Jukebox carousel with price overlay — only shown once real eBay listings are loaded */}
@@ -381,7 +371,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
           </div>}
 
-          {/* ── Price history + forecast chart — BELOW card ── */}
+          {/* ── Factor breakdown — always visible, no header ── */}
+          {prediction.projection && (
+            <CardValueProjectionPanel
+              projection={prediction.projection}
+              priceMultiplier={totalMultiplier}
+              actualBinPrice={actualBinPrice}
+              factorsOnly
+            />
+          )}
+
+          {/* ── Price history + forecast chart ── */}
           <RobinhoodPriceChart
             prediction={prediction}
             defaultView={defaultChartView}

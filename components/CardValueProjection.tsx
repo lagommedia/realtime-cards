@@ -9,6 +9,7 @@ interface Props {
   projection: CardValueProjection;
   priceMultiplier?: number;
   actualBinPrice?: number | null;
+  factorsOnly?: boolean;
 }
 
 function categoryIcon(cat: ProjectionCategory) {
@@ -199,9 +200,36 @@ function FactorRow({ factor }: { factor: ProjectionFactor }) {
   );
 }
 
-export default function CardValueProjectionPanel({ projection, priceMultiplier = 1, actualBinPrice }: Props) {
+function FactorsPanel({ projection }: { projection: CardValueProjection }) {
+  const hasFactors = projection.factors.length > 0;
+  if (!hasFactors) return null;
+
+  return (
+    <div className="space-y-3">
+      {(['live_event', 'game_performance', 'season_arc', 'milestone', 'market', 'negative'] as ProjectionCategory[])
+        .map(cat => {
+          const catFactors = projection.factors.filter(f => f.category === cat);
+          if (catFactors.length === 0) return null;
+          return (
+            <div key={cat} className="space-y-2">
+              {catFactors.map((f, i) => <FactorRow key={i} factor={f} />)}
+            </div>
+          );
+        })}
+      <p className="text-[9px] text-gray-700 pt-1 leading-relaxed">
+        Projections calibrated from historical collector-market data (PWCC auction results, eBay sold prices, 130point, PSA price guide). Tap 📖 on any factor to see the historical basis.
+      </p>
+    </div>
+  );
+}
+
+export default function CardValueProjectionPanel({ projection, priceMultiplier = 1, actualBinPrice, factorsOnly }: Props) {
   const { theme } = useTeam();
   const [showFactors, setShowFactors] = useState(false);
+
+  if (factorsOnly) {
+    return <FactorsPanel projection={projection} />;
+  }
 
   // Only show the 24h horizon
   const horizon24h = projection.horizons[1];
@@ -294,21 +322,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
 
           {showFactors && (
             <div className="px-3 pb-3 space-y-3 border-t border-white/5 pt-3">
-              {/* Group by category */}
-              {(['live_event', 'game_performance', 'season_arc', 'milestone', 'market', 'negative'] as ProjectionCategory[])
-                .map(cat => {
-                  const catFactors = projection.factors.filter(f => f.category === cat);
-                  if (catFactors.length === 0) return null;
-                  return (
-                    <div key={cat} className="space-y-2">
-                      {catFactors.map((f, i) => <FactorRow key={i} factor={f} />)}
-                    </div>
-                  );
-                })}
-
-              <p className="text-[9px] text-gray-700 pt-1 leading-relaxed">
-                Projections calibrated from historical collector-market data (PWCC auction results, eBay sold prices, 130point, PSA price guide). Tap 📖 on any factor to see the historical basis.
-              </p>
+              <FactorsPanel projection={projection} />
             </div>
           )}
         </>
