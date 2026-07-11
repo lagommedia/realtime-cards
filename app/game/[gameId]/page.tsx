@@ -335,6 +335,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const prevBatterIdForOverlayRef = useRef<number | null>(null);
   const prevResultKeyRef = useRef<string | null>(null);
   const prevOutsRef = useRef<number>(0);
+  const prevInningRef = useRef<string | null>(null);
   const wasLiveRef = useRef(false);
   const outcomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayShownAtRef = useRef<number | null>(null);
@@ -410,16 +411,19 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Single effect handles both showing the overlay on at-bat completion and clearing it
-  // when the next batter steps in. Keeping this as one effect avoids a race where a
-  // result and a batterId change arrive in the same poll response: if both fire as
-  // separate effects in the same render, the clearing effect would win. Here, a
-  // simultaneous result + batterId change always shows the overlay (result takes priority);
-  // a batterId change with no new result means the next batter is up → clear.
+  // Single effect handles showing the overlay on at-bat completion and clearing it
+  // when the next batter steps in.
+  //
+  // Switching-sides detection has two paths because the MLB API often delivers the
+  // 3rd-out play result and the inning-half reset in separate polls:
+  //   Path A (same poll): result arrives with outs already reset to 0 or showing 3
+  //   Path B (next poll): result arrived with outs still at 2; the following poll
+  //                       carries the inning string change — upgrade the overlay then.
   useEffect(() => {
     const lastResult = liveSnap?.liveMatchup?.lastResult;
     const currentOuts = liveSnap?.outs ?? 0;
     const currentBatterId = liveSnap?.liveMatchup?.batterId ?? null;
+    const currentInning = liveSnap?.inning ?? null;
     const key = lastResult ? `${lastResult.batterName}::${lastResult.event}` : '';
     prevBatterIdRef.current = currentBatterId;
 
@@ -427,28 +431,29 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
       // First data load — record baseline without showing overlay
       prevResultKeyRef.current = key;
       prevOutsRef.current = currentOuts;
+      prevInningRef.current = currentInning;
       prevBatterIdForOverlayRef.current = currentBatterId;
       return;
     }
 
     const resultChanged = key !== '' && key !== prevResultKeyRef.current;
     const batterChanged = currentBatterId !== null && currentBatterId !== prevBatterIdForOverlayRef.current;
+    // inningChanged: the half-inning string flipped (▲↔▼ or inning number advanced)
+    const inningChanged = currentInning !== null && prevInningRef.current !== null
+      && currentInning !== prevInningRef.current;
 
     const MIN_OVERLAY_MS = 8_000;
 
     if (resultChanged) {
-      // New at-bat completed — show overlay. If batterId also changed in the same
-      // render (race condition), result takes priority and overlay is still shown.
       prevResultKeyRef.current = key;
-      const switchingSides = prevOutsRef.current === 2 && currentOuts === 0;
+      // Path A: outs already reset (0) or API briefly showing 3 before reset — we
+      // know this result was the 3rd out, so mark switching sides immediately.
+      const switchingSides = prevOutsRef.current === 2 && (currentOuts === 0 || currentOuts >= 3);
       switchingSidesActiveRef.current = switchingSides;
       if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
       overlayShownAtRef.current = Date.now();
       setOutcomeOverlay({ event: lastResult!.event, batterName: lastResult!.batterName, switchingSides });
       prevBatterIdForOverlayRef.current = currentBatterId;
-      // For switching sides, keep the overlay until the new team's first batter
-      // appears — inning breaks can last 2-3 min, so use a long safety timeout.
-      // For normal results, clear after 15s if the next batter never arrives.
       outcomeTimerRef.current = setTimeout(() => {
         switchingSidesActiveRef.current = false;
         setOutcomeOverlay(null);
@@ -461,7 +466,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         switchingSidesActiveRef.current = false;
         setOutcomeOverlay(null);
       } else {
-        // Normal result — respect minimum display time so it's never yanked mid-display
+        // Normal result — respect minimum display time
         const elapsed = overlayShownAtRef.current ? Date.now() - overlayShownAtRef.current : Infinity;
         if (elapsed >= MIN_OVERLAY_MS) {
           setOutcomeOverlay(null);
@@ -469,11 +474,23 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
           outcomeTimerRef.current = setTimeout(() => setOutcomeOverlay(null), MIN_OVERLAY_MS - elapsed);
         }
       }
+    } else if (inningChanged && !switchingSidesActiveRef.current) {
+      // Path B: the inning half flipped in a later poll — the previous result was the
+      // 3rd out but outs was still 2 when it arrived. Upgrade the existing overlay to
+      // switching-sides and extend its life until the new batter appears.
+      switchingSidesActiveRef.current = true;
+      setOutcomeOverlay(prev => prev ? { ...prev, switchingSides: true } : prev);
+      if (outcomeTimerRef.current) clearTimeout(outcomeTimerRef.current);
+      outcomeTimerRef.current = setTimeout(() => {
+        switchingSidesActiveRef.current = false;
+        setOutcomeOverlay(null);
+      }, 300_000);
     }
 
     prevOutsRef.current = currentOuts;
+    prevInningRef.current = currentInning;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId, liveSnap?.outs]);
+  }, [liveSnap?.liveMatchup?.lastResult?.event, liveSnap?.liveMatchup?.lastResult?.batterName, liveSnap?.liveMatchup?.batterId, liveSnap?.outs, liveSnap?.inning]);
 
   // Fetch eBay listings for the current batter.
   // Fire as soon as either the initial game data OR liveSnap has a batter ID —
