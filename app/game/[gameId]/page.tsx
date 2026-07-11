@@ -15,6 +15,7 @@ import { LiveMatchup } from '@/lib/dummy-game-chc-stl';
 import StrikeZone from '@/components/StrikeZone';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import BaseballCardImage from '@/components/BaseballCardImage';
+import LivePercentage from '@/components/LivePercentage';
 
 interface TeamInfo {
   id: number;
@@ -139,6 +140,7 @@ function PlayerMatchupCard({
   outcome,
   forBatter = true,
   noBorder = false,
+  isLive = false,
 }: {
   pred: CardPrediction | undefined;
   label: string;
@@ -153,6 +155,7 @@ function PlayerMatchupCard({
   outcome?: string;
   forBatter?: boolean;
   noBorder?: boolean;
+  isLive?: boolean;
 }) {
   const name = pred?.playerName ?? fallbackName;
   const adjustedPct = (pred?.percentageChange ?? 0) + pitchDelta;
@@ -182,8 +185,13 @@ function PlayerMatchupCard({
         className="w-full px-1 py-1 rounded-lg"
         style={{ backgroundColor: `${pctColor}15` }}
       >
-        <p className="font-black text-xs leading-none" style={{ color: pctColor }}>
-          {arrow} {signedPct}
+        <p className="font-black text-xs leading-none">
+          {arrow} <LivePercentage
+            value={adjustedPct}
+            direction={isUp ? 'up' : isDown ? 'down' : 'neutral'}
+            isLive={isLive}
+            style={{ fontWeight: 900 }}
+          />
         </p>
         {lastDeltaStr && (
           <p className="text-[7px] mt-0.5 leading-none font-semibold" style={{ color: lastDeltaColor }}>
@@ -725,6 +733,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         pitchDelta={batterDelta}
                         lastDelta={batterLast}
                         noBorder={true}
+                        isLive={isLive}
                       />
                       {/* Live card price + image — always rendered once we have a batter */}
                       {batterPred !== undefined && (() => {
@@ -807,8 +816,13 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           className="px-1.5 py-1 rounded-lg flex-shrink-0"
                           style={{ backgroundColor: `${pitcherColor}18` }}
                         >
-                          <p className="font-black text-[11px] leading-none" style={{ color: pitcherColor }}>
-                            {pitcherArrow} {pitcherSignedPct}
+                          <p className="font-black text-[11px] leading-none">
+                            {pitcherArrow} <LivePercentage
+                              value={adjPitcherPct}
+                              direction={pitcherIsUp ? 'up' : adjPitcherPct < 0 ? 'down' : 'neutral'}
+                              isLive={isLive}
+                              style={{ fontWeight: 900 }}
+                            />
                           </p>
                         </div>
                       </div>
@@ -1000,8 +1014,13 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       <p className="text-gray-500 text-[8px] mt-0.5">{p.position}</p>
                     </div>
                     <div className="w-full px-1 py-1 rounded-lg" style={{ backgroundColor: '#22c55e12' }}>
-                      <p className="text-[10px] font-black text-center" style={{ color: '#22c55e' }}>
-                        ↑ +{p.percentageChange.toFixed(1)}%
+                      <p className="text-[10px] font-black text-center">
+                        ↑ <LivePercentage
+                          value={p.percentageChange}
+                          direction={p.direction}
+                          isLive={isLive}
+                          style={{ fontWeight: 900 }}
+                        />
                       </p>
                     </div>
                   </button>

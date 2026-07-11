@@ -4,6 +4,7 @@ import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { TrendingUp, TrendingDown, Minus, ExternalLink, ShoppingCart } from 'lucide-react';
 import { getEbaySearchUrl } from '@/lib/ebay-utils';
+import LivePercentage from '@/components/LivePercentage';
 
 interface Props {
   prediction: CardPrediction;
@@ -40,9 +41,11 @@ export default function PredictionCard({ prediction }: Props) {
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-1" style={{ color: directionColor }}>
             <DirectionIcon size={16} strokeWidth={2.5} />
-            <span className="text-sm font-bold">
-              {prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%
-            </span>
+            <LivePercentage
+              value={prediction.percentageChange}
+              direction={prediction.direction}
+              className="text-sm font-bold tabular-nums"
+            />
           </div>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CONFIDENCE_COLORS[prediction.confidence]}`}>
             {prediction.confidence} conf.
