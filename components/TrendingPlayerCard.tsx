@@ -231,6 +231,14 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         <div className="border-t border-white/10 p-4 space-y-4">
 
 
+          {/* ── Value Projection Engine ── */}
+          {prediction.projection && (
+            <CardValueProjectionPanel
+              projection={prediction.projection}
+              priceMultiplier={totalMultiplier}
+            />
+          )}
+
           {/* ── Card valuation — full-width stack ── */}
           {!hideCardImage && <div>
 
@@ -313,7 +321,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 )}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '2.5/3.5', backgroundColor: '#ffffff08' }}>
+              <div className="flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '9/12', backgroundColor: '#ffffff08' }}>
                 <p className="text-gray-600 text-xs text-center px-4">
                   {cardsFetchStatus !== 'done'
                     ? 'Loading listings…'
@@ -328,14 +336,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             )}
 
           </div>}
-
-          {/* ── Value Projection Engine ── */}
-          {prediction.projection && (
-            <CardValueProjectionPanel
-              projection={prediction.projection}
-              priceMultiplier={totalMultiplier}
-            />
-          )}
 
           {/* ── Price history + forecast chart — BELOW card ── */}
           <RobinhoodPriceChart

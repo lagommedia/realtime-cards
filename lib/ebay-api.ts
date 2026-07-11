@@ -251,11 +251,8 @@ export async function getPlayerCardSets(
   const results: SetCardResult[] = [];
 
   for (const listing of raw) {
-    if (!listing.itemUrl) continue;
-
-    const itemId = listing.itemUrl.match(/\/itm\/(\d+)/)?.[1];
-    if (!itemId || seenIds.has(itemId)) continue;
-    seenIds.add(itemId);
+    if (!listing.itemId || seenIds.has(listing.itemId)) continue;
+    seenIds.add(listing.itemId);
 
     const title = listing.title;
     if (NON_TOPPS_BRANDS.test(title)) continue;

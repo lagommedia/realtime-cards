@@ -17,7 +17,7 @@ interface Props {
   resetKey?: string | number | null;
 }
 
-const CARD_RATIO = 0.82;
+const CARD_RATIO = 0.68;
 const GAP = 10;
 
 export default function CardPeekCarousel({ cards, renderFallback, onActiveChange, resetKey }: Props) {
@@ -128,10 +128,11 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
             style={{
               width: cardW > 0 ? cardW : undefined,
               flexShrink: 0,
-              aspectRatio: '2.5/3.5',
+              aspectRatio: '9/12',
               borderRadius: 12,
               overflow: 'hidden',
               position: 'relative',
+              backgroundColor: '#0a0f1e',
               opacity: i === activeIdx ? 1 : 0.45,
               transform: i === activeIdx ? 'scale(1)' : 'scale(0.93)',
               transition: 'opacity 0.28s ease, transform 0.28s ease',
@@ -142,7 +143,7 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
               <img
                 src={card.imageUrl}
                 alt={`${card.set} RC`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
               />
             ) : (
               renderFallback(card, i)
