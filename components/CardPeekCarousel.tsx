@@ -127,10 +127,8 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
             style={{
               width: cardW > 0 ? cardW : `${CARD_RATIO * 100}%`,
               flexShrink: 0,
-              aspectRatio: '9/12',
               borderRadius: 12,
               overflow: 'hidden',
-              position: 'relative',
               backgroundColor: '#0a0f1e',
               opacity: i === activeIdx ? 1 : 0.45,
               transform: i === activeIdx ? 'scale(1)' : 'scale(0.93)',
@@ -138,20 +136,20 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
               boxShadow: i === activeIdx ? '0 8px 32px rgba(0,0,0,0.6)' : '0 2px 8px rgba(0,0,0,0.3)',
             }}
           >
-            {card.imageUrl ? (
-              <img
-                src={card.imageUrl}
-                alt={`${card.set} RC`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              renderFallback(card, i)
-            )}
-            {overlayRenderer && (
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, pointerEvents: 'none' }}>
-                {overlayRenderer(card, i, i === activeIdx)}
-              </div>
-            )}
+            {/* Image — fixed aspect ratio */}
+            <div style={{ aspectRatio: '9/12', position: 'relative', overflow: 'hidden' }}>
+              {card.imageUrl ? (
+                <img
+                  src={card.imageUrl}
+                  alt={`${card.set} RC`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                renderFallback(card, i)
+              )}
+            </div>
+            {/* Footer panel — rendered below the image */}
+            {overlayRenderer && overlayRenderer(card, i, i === activeIdx)}
           </div>
         ))}
       </div>

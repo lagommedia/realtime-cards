@@ -319,23 +319,22 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
                   return (
                     <div style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 55%, transparent 100%)',
-                      padding: '40px 12px 10px',
-                      borderRadius: '0 0 12px 12px',
+                      background: '#0d1220',
+                      padding: '10px 12px 12px',
                     }}>
-                      {/* Price row */}
-                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 3 }}>
-                        <span style={{ fontWeight: 900, fontSize: 22, color: priceColor, transition: 'color 0.3s', lineHeight: 1 }}>
+                      {/* Price + forecast row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 900, fontSize: 20, color: priceColor, transition: 'color 0.3s', lineHeight: 1 }}>
                           ${priceNum.toFixed(2)}
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Forecast</span>
-                          <span style={{ color: forecastColor, fontWeight: 700, fontSize: 13, lineHeight: 1 }}>
-                            ${forecastPrice.toFixed(2)} {forecastPct >= 0 ? '↑' : '↓'}{forecastPct >= 0 ? '+' : ''}{forecastPct.toFixed(1)}%
+                          <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Forecast</span>
+                          <span style={{ color: forecastColor, fontWeight: 700, fontSize: 12, lineHeight: 1 }}>
+                            ${forecastPrice.toFixed(2)} {forecastPct >= 0 ? '↑+' : '↓'}{forecastPct.toFixed(1)}%
                           </span>
                         </div>
                       </div>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, marginBottom: 8 }}>{label}</p>
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9, marginBottom: 9 }}>{label}</p>
                       <a
                         href={card.itemUrl}
                         target="_blank"
@@ -349,7 +348,6 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                           fontSize: 12,
                           padding: '7px 12px',
                           borderRadius: 7,
-                          pointerEvents: 'auto',
                           textDecoration: 'none',
                         }}
                         onClick={e => e.stopPropagation()}
