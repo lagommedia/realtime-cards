@@ -147,7 +147,7 @@ function generateMockListings(playerName: string): EbayListing[] {
       price: parseFloat(basePrice.toFixed(2)),
       currency: 'USD',
       condition: 'Near Mint',
-      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps series 1 RC')}`,
+      itemUrl: `https://rover.ebay.com/rover/1/711-53200-19255-0/1?mpre=${encodeURIComponent('https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(playerName + ' topps series 1 RC'))}&campid=5339164547`,
     },
     {
       itemId: `mock-${Date.now()}-2`,
@@ -155,7 +155,7 @@ function generateMockListings(playerName: string): EbayListing[] {
       price: parseFloat((basePrice * 2.8).toFixed(2)),
       currency: 'USD',
       condition: 'Mint',
-      itemUrl: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(playerName + ' topps chrome RC')}`,
+      itemUrl: `https://rover.ebay.com/rover/1/711-53200-19255-0/1?mpre=${encodeURIComponent('https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(playerName + ' topps chrome RC'))}&campid=5339164547`,
     },
   ];
 }
