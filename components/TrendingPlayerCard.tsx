@@ -14,7 +14,6 @@ import CardPeekCarousel from '@/components/CardPeekCarousel';
 import { getFeaturedCard } from '@/lib/card-utils';
 import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
-import { SetCardResult } from '@/types';
 
 interface Props {
   prediction: CardPrediction;
