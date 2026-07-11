@@ -13,6 +13,7 @@ export interface PeekCard {
 interface Props {
   cards: PeekCard[];
   renderFallback: (card: PeekCard, index: number) => React.ReactNode;
+  overlayRenderer?: (card: PeekCard, index: number, isActive: boolean) => React.ReactNode;
   onActiveChange?: (index: number) => void;
   resetKey?: string | number | null;
 }
@@ -20,7 +21,7 @@ interface Props {
 const CARD_RATIO = 0.68;
 const GAP = 10;
 
-export default function CardPeekCarousel({ cards, renderFallback, onActiveChange, resetKey }: Props) {
+export default function CardPeekCarousel({ cards, renderFallback, overlayRenderer, onActiveChange, resetKey }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [containerW, setContainerW] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,16 +147,21 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
             ) : (
               renderFallback(card, i)
             )}
+            {overlayRenderer && (
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, pointerEvents: 'none' }}>
+                {overlayRenderer(card, i, i === activeIdx)}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Position counter */}
+      {/* Position counter — top-right so it doesn't overlap the overlay CTA */}
       {cards.length > 1 && (
         <div style={{
-          position: 'absolute', bottom: 8,
-          right: `calc(${((1 - CARD_RATIO) / 2) * 100}% + 8px)`,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+          position: 'absolute', top: 10,
+          right: `calc(${((1 - CARD_RATIO) / 2) * 100}% + 10px)`,
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
           color: '#fff', fontSize: 10, fontWeight: 700,
           padding: '2px 8px', borderRadius: 99,
           pointerEvents: 'none',

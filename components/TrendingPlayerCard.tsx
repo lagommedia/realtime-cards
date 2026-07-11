@@ -14,6 +14,7 @@ import CardPeekCarousel from '@/components/CardPeekCarousel';
 import { getFeaturedCard } from '@/lib/card-utils';
 import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
+import { SetCardResult } from '@/types';
 
 interface Props {
   prediction: CardPrediction;
@@ -165,10 +166,8 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   // Real eBay listing prices — used instead of the simulated ticker when available
   const selectedSetCard = setCards.length > 0 ? (setCards[selectedCardIdx] ?? null) : null;
   const actualBinPrice: number | null = selectedSetCard?.binPrice ?? null;
-  const actualSoldPrice: number | null = selectedSetCard?.soldPrice ?? null;
 
   const baseCurrentPrice = prediction.currentPrice * totalMultiplier;
-  const displayProjectedPrice = prediction.projectedPrice * totalMultiplier;
 
   // Live ticker: runs as fallback when no real BIN price is available
   const { livePrice, flash } = useLivePriceTicker(
@@ -184,16 +183,11 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     !!isLive
   );
 
-  const priceDelta = livePrice - baseCurrentPrice;
-  const livePricePct = baseCurrentPrice > 0 ? (priceDelta / baseCurrentPrice) * 100 : 0;
-
   const allListings = [
     ...(prediction.priceSummary?.recentSales ?? []),
     ...(prediction.priceSummary?.activeListing ? [prediction.priceSummary.activeListing] : []),
   ];
   const featuredCard = getFeaturedCard(allListings);
-
-  const flashBg = flash === 'up' ? '#22c55e18' : flash === 'down' ? '#ef444418' : 'transparent';
 
   return (
     <div
@@ -298,80 +292,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
           {/* ── Card valuation — full-width stack ── */}
           {!hideCardImage && <div>
 
-            {/* Price info — above the card, updates on swipe */}
-            <div
-              className="rounded-xl px-3 py-2.5 mb-3 flex flex-col gap-1"
-              style={{
-                backgroundColor: actualBinPrice === null && flash ? flashBg : '#ffffff08',
-                transition: 'background-color 0.6s ease-out',
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-baseline gap-2">
-                  {actualBinPrice !== null ? (
-                    <>
-                      <span className="font-black text-xl tabular-nums" style={{ color: '#fff' }}>
-                        ${actualBinPrice.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: '#22c55e18', color: '#22c55e' }}>
-                        BIN
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
-                        ${livePrice.toFixed(2)}
-                      </span>
-                      <span className="text-xs" style={{ color: livePricePct >= 0 ? '#22c55e' : '#ef4444' }}>
-                        {livePricePct >= 0 ? '+' : ''}{livePricePct.toFixed(2)}%
-                      </span>
-                    </>
-                  )}
-                </div>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ffffff10', color: '#9ca3af' }}>
-                  {prediction.confidence} confidence
-                </span>
-              </div>
-
-              {actualBinPrice !== null ? (
-                actualSoldPrice !== null && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-gray-500 text-[10px]">last sold</span>
-                    <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${actualSoldPrice.toFixed(2)}</span>
-                  </div>
-                )
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-gray-500 text-[10px]">proj.</span>
-                  <span className="text-gray-300 text-[10px] font-semibold tabular-nums">${displayProjectedPrice.toFixed(2)}</span>
-                  <span className="text-[10px]" style={{ color: directionColor }}>
-                    ({prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%)
-                  </span>
-                </div>
-              )}
-
-              {selectedCard && (
-                <p className="text-gray-500 text-[10px] mt-0.5">
-                  {prediction.playerName} {selectedCard.year} {selectedCard.set} RC
-                </p>
-              )}
-            </div>
-
-            {/* Buy Now CTA */}
-            {selectedCard?.itemUrl && (
-              <a
-                href={selectedCard.itemUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm mb-3"
-                style={{ backgroundColor: '#22c55e', color: '#fff' }}
-                onClick={e => e.stopPropagation()}
-              >
-                Buy Now on eBay
-              </a>
-            )}
-
-            {/* Jukebox carousel — only shown once real eBay listings are loaded */}
+            {/* Jukebox carousel with price overlay — only shown once real eBay listings are loaded */}
             {setCards.length > 0 ? (
               <CardPeekCarousel
                 cards={setCards}
@@ -389,6 +310,59 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                     fill
                   />
                 )}
+                overlayRenderer={(rawCard, _idx, isActive) => {
+                  const card = rawCard as SetCardResult;
+                  const cardMultiplier = SET_PRICE_MULTIPLIERS[card.set] ?? 1.0;
+                  const cardBinPrice = card.binPrice;
+                  const priceNum = cardBinPrice !== null
+                    ? cardBinPrice
+                    : isActive
+                      ? livePrice
+                      : prediction.currentPrice * cardMultiplier;
+                  const priceColor = isActive && cardBinPrice === null
+                    ? (flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff')
+                    : '#fff';
+                  const soldInfo = card.soldPrice !== null ? `Last sold $${card.soldPrice.toFixed(2)}` : null;
+                  const label = `${prediction.playerName} ${card.year} ${card.set} RC`;
+
+                  return (
+                    <div style={{
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 55%, transparent 100%)',
+                      padding: '40px 12px 12px',
+                      borderRadius: '0 0 12px 12px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontWeight: 900, fontSize: 22, color: priceColor, transition: 'color 0.3s', lineHeight: 1 }}>
+                          ${priceNum.toFixed(2)}
+                        </span>
+                      </div>
+                      <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, marginBottom: soldInfo ? 2 : 8 }}>{label}</p>
+                      {soldInfo && (
+                        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, marginBottom: 8 }}>{soldInfo}</p>
+                      )}
+                      <a
+                        href={card.itemUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'block',
+                          textAlign: 'center',
+                          background: '#22c55e',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          padding: '9px 12px',
+                          borderRadius: 8,
+                          pointerEvents: 'auto',
+                          textDecoration: 'none',
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        Buy It Now on eBay
+                      </a>
+                    </div>
+                  );
+                }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '9/12', backgroundColor: '#ffffff08' }}>
