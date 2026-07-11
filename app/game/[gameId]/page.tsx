@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { ArrowLeft, RefreshCw, Radio, CheckCircle, Flame } from 'lucide-react';
 import { getSnapQueue, queueIsSynced, pruneQueue } from '@/lib/game-snap-cache';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import TeamLogo from '@/components/TeamLogo';
 import { LiveMatchup } from '@/lib/dummy-game-chc-stl';
 import StrikeZone from '@/components/StrikeZone';
@@ -799,9 +800,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                     {/* Strike zone column — 2/3: pitcher placard → zone */}
                     <div className="flex-[2] flex flex-col gap-1.5">
                       {/* Pitcher placard */}
-                      <div
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl"
-                        style={{ backgroundColor: '#07111f', border: '1px solid rgba(255,255,255,0.08)' }}
+                      <Link
+                        href={`/player/${liveMatchup.pitcherId}`}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl active:opacity-70"
+                        style={{ backgroundColor: '#07111f', border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none' }}
                       >
                         <PlayerHeadshot
                           playerId={liveMatchup.pitcherId}
@@ -825,7 +827,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                             />
                           </p>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex-1 min-h-0 w-full">
                         <StrikeZone pitches={liveMatchup.pitches} compact />
                       </div>
