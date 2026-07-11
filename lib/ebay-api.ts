@@ -55,11 +55,17 @@ async function searchEbayListings(
     ? `/buy/marketplace_insights/v1_beta/item_sales/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}`
     : `/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=${category}&limit=${limit}${filterParam}`;
 
+  const affiliateCampaignId = process.env.EBAY_AFFILIATE_CAMPAIGN_ID;
+  const affiliateCtx = affiliateCampaignId
+    ? `affiliateCampaignId=${affiliateCampaignId}`
+    : null;
+
   const fetchOpts = {
     headers: {
       'Authorization': `Bearer ${token}`,
       'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
       'Content-Type': 'application/json',
+      ...(affiliateCtx ? { 'X-EBAY-C-ENDUSERCTX': affiliateCtx } : {}),
     },
     cache: 'no-store' as const,
   };
@@ -78,6 +84,7 @@ async function searchEbayListings(
       image?: { imageUrl: string };
       thumbnailImages?: Array<{ imageUrl: string }>;
       itemWebUrl?: string;
+      itemAffiliateWebUrl?: string;
     }>;
     itemSales?: Array<{
       itemId: string;
@@ -88,6 +95,7 @@ async function searchEbayListings(
       image?: { imageUrl: string };
       thumbnailImages?: Array<{ imageUrl: string }>;
       itemWebUrl?: string;
+      itemAffiliateWebUrl?: string;
     }>;
   };
 
@@ -99,7 +107,7 @@ async function searchEbayListings(
       currency: item.lastSoldPrice?.currency ?? 'USD',
       condition: item.condition ?? 'Unknown',
       imageUrl: upgradeEbayImageUrl(item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl),
-      itemUrl: item.itemWebUrl ?? '',
+      itemUrl: item.itemAffiliateWebUrl ?? item.itemWebUrl ?? '',
       soldDate: item.lastSoldDate,
     }));
   }
@@ -111,7 +119,7 @@ async function searchEbayListings(
     currency: item.price?.currency ?? 'USD',
     condition: item.condition ?? 'Unknown',
     imageUrl: upgradeEbayImageUrl(item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl),
-    itemUrl: item.itemWebUrl ?? '',
+    itemUrl: item.itemAffiliateWebUrl ?? item.itemWebUrl ?? '',
   }));
 }
 
