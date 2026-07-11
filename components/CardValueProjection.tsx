@@ -8,6 +8,7 @@ import { useState } from 'react';
 interface Props {
   projection: CardValueProjection;
   priceMultiplier?: number;
+  actualBinPrice?: number | null;
 }
 
 function categoryIcon(cat: ProjectionCategory) {
@@ -94,12 +95,12 @@ function FactorRow({ factor }: { factor: ProjectionFactor }) {
   );
 }
 
-export default function CardValueProjectionPanel({ projection, priceMultiplier = 1 }: Props) {
+export default function CardValueProjectionPanel({ projection, priceMultiplier = 1, actualBinPrice }: Props) {
   const { theme } = useTeam();
   const [showFactors, setShowFactors] = useState(false);
 
-  // The horizons to display: skip 1h and season-end in collapsed view, show 24h/7d/30d prominently
-  const mainHorizons = projection.horizons.slice(1, 4); // 24h, 7d, 30d
+  // Only show the 24h horizon
+  const horizon24h = projection.horizons[1];
 
   const trendColor =
     projection.overallTrend === 'bullish' ? '#22c55e' :
@@ -137,49 +138,34 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
         </div>
       )}
 
-      {/* Time-horizon grid */}
-      <div className="grid grid-cols-3 divide-x divide-white/5 border-t border-white/5">
-        {mainHorizons.map((h, i) => {
-          const isPos = h.pctChange >= 0;
-          const color = isPos ? '#22c55e' : '#ef4444';
-          const displayPrice = parseFloat((h.projectedPrice * priceMultiplier).toFixed(2));
-          const confidenceDot =
-            h.confidence === 'high' ? '#22c55e' :
-            h.confidence === 'medium' ? '#f59e0b' : '#6b7280';
-
-          return (
-            <div key={i} className="flex flex-col items-center py-3 px-1 gap-0.5">
-              <span className="text-[9px] text-gray-600 uppercase tracking-wider font-medium">{h.label}</span>
-              <div className="flex items-center gap-0.5" style={{ color }}>
-                {isPos ? <TrendingUp size={10} strokeWidth={2.5} /> : <TrendingDown size={10} strokeWidth={2.5} />}
-                <span className="text-sm font-black tabular-nums">
-                  {isPos ? '+' : ''}{h.pctChange}%
-                </span>
+      {/* 24-hour projection — full width */}
+      {horizon24h && (() => {
+        const isPos = horizon24h.pctChange >= 0;
+        const color = isPos ? '#22c55e' : '#ef4444';
+        const basePrice = actualBinPrice ?? (horizon24h.projectedPrice / (1 + horizon24h.pctChange / 100)) * priceMultiplier;
+        const displayPrice = parseFloat((basePrice * (1 + horizon24h.pctChange / 100)).toFixed(2));
+        const confidenceDot =
+          horizon24h.confidence === 'high' ? '#22c55e' :
+          horizon24h.confidence === 'medium' ? '#f59e0b' : '#6b7280';
+        return (
+          <div className="border-t border-white/5 px-3 py-3 flex items-center justify-between">
+            <div>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wider font-medium">24 Hours</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex items-center gap-0.5" style={{ color }}>
+                  {isPos ? <TrendingUp size={13} strokeWidth={2.5} /> : <TrendingDown size={13} strokeWidth={2.5} />}
+                  <span className="text-lg font-black tabular-nums">{isPos ? '+' : ''}{horizon24h.pctChange}%</span>
+                </div>
+                <span className="text-gray-400 text-sm font-semibold tabular-nums">${displayPrice}</span>
               </div>
-              <span className="text-[10px] text-gray-500 tabular-nums">${displayPrice}</span>
-              <div
-                className="w-1 h-1 rounded-full mt-0.5"
-                style={{ backgroundColor: confidenceDot }}
-                title={`${h.confidence} confidence`}
-              />
             </div>
-          );
-        })}
-      </div>
-
-      {/* Confidence legend */}
-      <div className="px-3 pb-2 pt-1 flex items-center gap-3 border-t border-white/5">
-        <span className="text-[9px] text-gray-600 uppercase tracking-wider">Confidence:</span>
-        {(['high', 'medium', 'low'] as const).map(c => (
-          <div key={c} className="flex items-center gap-1">
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: c === 'high' ? '#22c55e' : c === 'medium' ? '#f59e0b' : '#6b7280' }}
-            />
-            <span className="text-[9px] text-gray-600 capitalize">{c}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: confidenceDot }} />
+              <span className="text-[9px] text-gray-600 capitalize">{horizon24h.confidence} confidence</span>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Factor breakdown toggle */}
       {hasFactors && (

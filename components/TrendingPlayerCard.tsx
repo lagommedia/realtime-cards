@@ -236,6 +236,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             <CardValueProjectionPanel
               projection={prediction.projection}
               priceMultiplier={totalMultiplier}
+              actualBinPrice={actualBinPrice}
             />
           )}
 
@@ -300,6 +301,20 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 </p>
               )}
             </div>
+
+            {/* Buy Now CTA */}
+            {selectedCard?.itemUrl && (
+              <a
+                href={selectedCard.itemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm mb-3"
+                style={{ backgroundColor: '#22c55e', color: '#fff' }}
+                onClick={e => e.stopPropagation()}
+              >
+                Buy Now on eBay
+              </a>
+            )}
 
             {/* Jukebox carousel — only shown once real eBay listings are loaded */}
             {setCards.length > 0 ? (

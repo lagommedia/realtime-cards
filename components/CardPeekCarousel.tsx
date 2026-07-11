@@ -109,8 +109,6 @@ export default function CardPeekCarousel({ cards, renderFallback, onActiveChange
         const W = containerWRef.current;
         if (Math.abs(dx) < 8) {
           snapTrack(idx, W, true);
-          const card = cards[idx];
-          if (card?.itemUrl) window.location.href = card.itemUrl;
         } else if (dx > 40 && idx < cards.length - 1) {
           setActiveIdx(idx + 1);
         } else if (dx < -40 && idx > 0) {

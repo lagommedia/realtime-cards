@@ -310,15 +310,11 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
   useEffect(() => {
     const rookieYear = prediction?.rookieCardOptions?.[0]?.year ?? 0;
     const name       = prediction?.playerName ?? fallbackName;
-    if (!name || !rookieYear) return;
+    if (!name) return;
 
     setLoadingCards(true);
-    const qs = new URLSearchParams({
-      name,
-      year: String(rookieYear),
-      grading: localCompanyId,
-      grade: localGradeValue,
-    });
+    const qs = new URLSearchParams({ name, grading: localCompanyId, grade: localGradeValue });
+    if (rookieYear) qs.set('year', String(rookieYear));
     fetch(`/api/player/${playerId}/cards?${qs}`)
       .then(r => r.json())
       .then((data: SetCardsResponse) => setSetCards(data.sets ?? []))
