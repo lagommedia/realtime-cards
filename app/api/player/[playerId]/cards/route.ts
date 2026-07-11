@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlayerCardSets } from '@/lib/ebay-api';
 
-// Cache successful results for 2 hours at the CDN edge — PSA 10 prices don't
-// move that fast, and a long TTL means each unique player URL only hits eBay
-// once per 2h across all users (not once per 5 min × many users).
-// Empty results are returned with Cache-Control: no-store so clients always retry.
-export const revalidate = 7200;
+// Do NOT cache at the CDN edge — the module-level _resultCache in ebay-api.ts
+// handles per-instance deduplication. CDN caching survives deployments and would
+// serve stale sorted results even after code changes.
+export const dynamic = 'force-dynamic';
 
 const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
 
