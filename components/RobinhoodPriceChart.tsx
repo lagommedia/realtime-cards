@@ -57,6 +57,26 @@ type SeasonPoint = {
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const CONE_95: Record<string, number> = { high: 0.07, medium: 0.13, low: 0.22 };
+const PROJ_WEEKS = 4; // ~30 days of projection, weekly cadence matches history
+
+// ─── Weekly aggregation ─────────────────────────────────────────────────────
+
+function toWeekStart(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); // back to Monday
+  return d.toISOString().split('T')[0];
+}
+
+function aggregateToWeekly(daily: { date: string; price: number }[]): { date: string; price: number }[] {
+  const map = new Map<string, number>();
+  for (const pt of daily) {
+    map.set(toWeekStart(pt.date), pt.price); // last price of each week wins
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, price]) => ({ date, price }));
+}
 const CI_55_RATIO = 0.39;
 const OPPONENT_POOL = [147, 111, 121, 133, 118, 110, 134, 144, 137, 143, 142, 141, 113, 138, 140, 112, 114, 116, 117, 120];
 
@@ -149,7 +169,9 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
 
   const { seasonData, nowDate } = useMemo(() => {
     const rawHistory = prediction.priceSummary?.priceHistory ?? [];
-    const history = rawHistory.map(h => ({ ...h, price: h.price * priceMultiplier }));
+    const daily = rawHistory.map(h => ({ ...h, price: h.price * priceMultiplier }));
+    // Aggregate to weekly — groups by ISO week, keeping last price of each week
+    const history = daily.length > 7 ? aggregateToWeekly(daily) : daily;
     const lastPrice = history.at(-1)?.price ?? scaledCurrentPrice;
     const target = scaledProjectedPrice;
     const nowDate = rawHistory.at(-1)?.date ?? new Date().toISOString().split('T')[0];
@@ -184,11 +206,11 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
 
     if (historicalPoints.length > 0) historicalPoints[historicalPoints.length - 1].proj = lastPrice;
 
-    const projPoints: SeasonPoint[] = Array.from({ length: 14 }, (_, i) => {
-      const t = (i+1)/14;
+    const projPoints: SeasonPoint[] = Array.from({ length: PROJ_WEEKS }, (_, i) => {
+      const t = (i+1)/PROJ_WEEKS;
       const proj = lastPrice + (target - lastPrice) * t;
       const h95 = proj * half95 * t, h55 = proj * half55 * t;
-      const d = new Date(nowDate + 'T12:00:00'); d.setDate(d.getDate() + i + 1);
+      const d = new Date(nowDate + 'T12:00:00'); d.setDate(d.getDate() + (i + 1) * 7);
       return {
         date: d.toISOString().split('T')[0], hist: null, proj,
         low95: Math.max(0, proj - h95), wid95: h95*2,
@@ -262,9 +284,9 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
       <>
           <div style={{ height: 175 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={seasonData} margin={{ top: 14, right: 44, bottom: 2, left: 0 }}>
+              <ComposedChart data={seasonData} margin={{ top: 14, right: 4, bottom: 2, left: 0 }}>
                 <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#4b5563' }} tickLine={false} axisLine={false}
-                  tickFormatter={fmtDate} interval={Math.floor(seasonData.length / 5)} height={20} />
+                  tickFormatter={fmtDate} interval={Math.max(1, Math.floor(seasonData.length / 6))} height={20} />
                 <YAxis domain={[seasonYMin, seasonYMax]} allowDataOverflow orientation="right"
                   tickCount={4} width={42} tick={{ fontSize: 9, fill: '#374151' }} axisLine={false} tickLine={false}
                   tickFormatter={(v: number) => `$${v < 10 ? v.toFixed(2) : v.toFixed(0)}`} />

@@ -124,17 +124,22 @@ async function searchEbayListings(
 }
 
 function generateMockPriceHistory(basePrice: number): { date: string; price: number }[] {
-  const history = [];
+  const history: { date: string; price: number }[] = [];
   const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const variance = (Math.random() - 0.5) * 0.2 * basePrice;
-    history.push({
-      date: date.toISOString().split('T')[0],
-      price: Math.max(0.99, parseFloat((basePrice + variance).toFixed(2))),
-    });
+  // Generate weekly data from Opening Day through today
+  const seasonStart = new Date('2026-03-28T12:00:00Z');
+  const start = seasonStart < now ? seasonStart : new Date(now.getTime() - 91 * 86400000);
+  const current = new Date(start);
+  // Start price somewhat below current so history has upward trend room
+  let price = basePrice * 0.84;
+  while (current <= now) {
+    const drift = (Math.random() - 0.44) * 0.09; // slight upward bias
+    price = Math.max(0.99, price * (1 + drift));
+    history.push({ date: current.toISOString().split('T')[0], price: parseFloat(price.toFixed(2)) });
+    current.setDate(current.getDate() + 7);
   }
+  // Pin last point to current price for continuity with projection
+  if (history.length > 0) history[history.length - 1].price = basePrice;
   return history;
 }
 
