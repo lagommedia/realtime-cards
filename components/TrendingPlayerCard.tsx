@@ -25,6 +25,48 @@ interface Props {
   forceExpanded?: boolean;
 }
 
+// Percentage micro-drift — always-on slow movement; larger swings when active
+function useLivePercentageTicker(
+  basePct: number,
+  direction: 'up' | 'down' | 'neutral',
+  isLiveGame: boolean
+) {
+  const [livePct, setLivePct] = useState(basePct);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const flashRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setLivePct(basePct); }, [basePct]);
+
+  useEffect(() => {
+    // Always drift slowly; speed up and widen amplitude during live games
+    const intervalMs = isLiveGame ? 2400 : 5500;
+    const amplitude = isLiveGame ? 0.22 : 0.08; // percentage points per tick
+    const bias = direction === 'up' ? 0.03 : direction === 'down' ? -0.03 : 0;
+    const cap = isLiveGame ? 3.5 : 1.5; // max drift from base
+
+    const id = setInterval(() => {
+      setLivePct(prev => {
+        const noise = (Math.random() - 0.47) * amplitude;
+        const next = parseFloat(
+          Math.max(basePct - cap, Math.min(basePct + cap, prev + bias + noise)).toFixed(1)
+        );
+        const dir = next >= prev ? 'up' : 'down';
+        setFlash(dir);
+        if (flashRef.current) clearTimeout(flashRef.current);
+        flashRef.current = setTimeout(() => setFlash(null), 500);
+        return next;
+      });
+    }, intervalMs);
+
+    return () => {
+      clearInterval(id);
+      if (flashRef.current) clearTimeout(flashRef.current);
+    };
+  }, [isLiveGame, basePct, direction]);
+
+  return { livePct, flash };
+}
+
 // Micro-volatility ticker — simulates live market movement
 function useLivePriceTicker(
   basePrice: number,
@@ -135,8 +177,15 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
     expanded
   );
 
+  // Always-on percentage drift — always running, faster during live games
+  const { livePct, flash: pctFlash } = useLivePercentageTicker(
+    prediction.percentageChange,
+    prediction.direction,
+    !!isLive
+  );
+
   const priceDelta = livePrice - baseCurrentPrice;
-  const livePct = baseCurrentPrice > 0 ? (priceDelta / baseCurrentPrice) * 100 : 0;
+  const livePricePct = baseCurrentPrice > 0 ? (priceDelta / baseCurrentPrice) * 100 : 0;
 
   const allListings = [
     ...(prediction.priceSummary?.recentSales ?? []),
@@ -213,10 +262,16 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             <Star size={15} fill={isWatched(prediction.playerId) ? '#f59e0b' : 'none'} />
           </button>
           <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1" style={{ color: directionColor }}>
+            <div
+              className="flex items-center gap-1"
+              style={{
+                color: pctFlash === 'up' ? '#22c55e' : pctFlash === 'down' ? '#ef4444' : directionColor,
+                transition: 'color 0.4s ease-out',
+              }}
+            >
               <DirectionIcon size={13} strokeWidth={2.5} />
-              <span className="text-sm font-bold">
-                {prediction.percentageChange > 0 ? '+' : ''}{prediction.percentageChange}%
+              <span className="text-sm font-bold tabular-nums">
+                {livePct >= 0 ? '+' : ''}{livePct.toFixed(1)}%
               </span>
             </div>
             <div className="text-gray-600">
@@ -267,8 +322,8 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                       <span className="font-black text-xl tabular-nums" style={{ color: flash === 'up' ? '#22c55e' : flash === 'down' ? '#ef4444' : '#fff', transition: 'color 0.3s' }}>
                         ${livePrice.toFixed(2)}
                       </span>
-                      <span className="text-xs" style={{ color: livePct >= 0 ? '#22c55e' : '#ef4444' }}>
-                        {livePct >= 0 ? '+' : ''}{livePct.toFixed(2)}%
+                      <span className="text-xs" style={{ color: livePricePct >= 0 ? '#22c55e' : '#ef4444' }}>
+                        {livePricePct >= 0 ? '+' : ''}{livePricePct.toFixed(2)}%
                       </span>
                     </>
                   )}

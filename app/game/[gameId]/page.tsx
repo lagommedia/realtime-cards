@@ -563,9 +563,15 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
   const sidePredictions = predictions.filter(p => p.teamId === selectedTeamId);
 
   // Split into lineup (position players) and pitchers
+  // Sort by actual batting order when available; fall back to prediction score
   const lineup  = sidePredictions
     .filter(p => !PITCHER_POSITIONS.has(p.position))
-    .sort((a, b) => Math.abs(b.predictionScore) - Math.abs(a.predictionScore));
+    .sort((a, b) => {
+      if (a.battingOrder != null && b.battingOrder != null) return a.battingOrder - b.battingOrder;
+      if (a.battingOrder != null) return -1;
+      if (b.battingOrder != null) return 1;
+      return Math.abs(b.predictionScore) - Math.abs(a.predictionScore);
+    });
   const pitchers = sidePredictions
     .filter(p => PITCHER_POSITIONS.has(p.position))
     .sort((a, b) => Math.abs(b.predictionScore) - Math.abs(a.predictionScore));

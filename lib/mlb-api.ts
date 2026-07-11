@@ -97,6 +97,7 @@ export function extractLivePlayerStats(liveData: Record<string, unknown>): LiveP
         players?: Record<string, {
           person?: { id: number; fullName: string };
           position?: { abbreviation: string };
+          battingOrder?: string; // e.g. "100", "200"…"900"; first digit = lineup slot
           stats?: {
             batting?: {
               atBats?: number; hits?: number; homeRuns?: number;
@@ -118,12 +119,18 @@ export function extractLivePlayerStats(liveData: Record<string, unknown>): LiveP
         const debutStr = gamePlayers[`ID${player.person.id}`]?.mlbDebutDate;
         const debutYear = debutStr ? parseInt(debutStr.split('-')[0], 10) : undefined;
 
+        // battingOrder is "100"–"900"; first digit is the actual slot (1–9)
+        const battingOrder = player.battingOrder
+          ? Math.floor(parseInt(player.battingOrder, 10) / 100)
+          : undefined;
+
         players.push({
           playerId: player.person.id,
           playerName: player.person.fullName,
           teamId,
           position: player.position?.abbreviation ?? 'N/A',
           debutYear,
+          battingOrder: battingOrder && battingOrder > 0 ? battingOrder : undefined,
           todayStats: {
             atBats: batting?.atBats,
             hits: batting?.hits,

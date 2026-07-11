@@ -150,6 +150,7 @@ export function generateCardPrediction(
     playerName: player.playerName,
     teamId: player.teamId,
     position: player.position,
+    battingOrder: player.battingOrder,
     predictionScore: totalScore,
     direction: finalDirection,
     percentageChange: finalPct,

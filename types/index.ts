@@ -83,6 +83,7 @@ export interface LivePlayerStat {
   teamId: number;
   position: string;
   debutYear?: number;
+  battingOrder?: number; // 1–9 from MLB boxscore; undefined for pitchers/bench
   todayStats: {
     atBats?: number;
     hits?: number;
@@ -124,6 +125,7 @@ export interface CardPrediction {
   playerName: string;
   teamId: number;
   position: string;
+  battingOrder?: number;
   predictionScore: number; // -100 to +100
   direction: 'up' | 'down' | 'neutral';
   percentageChange: number;
