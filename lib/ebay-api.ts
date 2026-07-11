@@ -222,6 +222,13 @@ const TOPPS_SET_MAP: Array<{ pattern: RegExp; set: string; shortName: string }> 
 
 const NON_TOPPS_BRANDS = /\b(bowman|prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy|allen|archives|gallery|inception|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
 
+// Parallel, auto, and numbered-card markers — anything that isn't the base card
+const PARALLEL_MARKERS = /\b(auto(?:graph)?|refractor|xfractor|superfractor|gold|silver|blue|red|orange|purple|pink|green|yellow|black|rainbow|foil|short\s*print|wave|1st\s*ed(?:ition)?)\b|\/\d+\b|\bsp\b/i;
+
+function isBaseCard(title: string): boolean {
+  return !PARALLEL_MARKERS.test(title);
+}
+
 /**
  * Fetches up to 10 active BIN PSA Topps RC listings for a player.
  * Uses a single broad "Topps RC PSA" query — 4 parallel set-specific queries
@@ -251,6 +258,9 @@ export async function getPlayerCardSets(
   const raw = await searchEbayListings(query, token, false, 20);
 
   if (raw === 'rate_limited') return { sets: [], rateLimited: true };
+
+  // Surface base cards first so they aren't crowded out by higher-priced autos/parallels
+  raw.sort((a, b) => (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1));
 
   const seenIds = new Set<string>();
   const results: SetCardResult[] = [];
