@@ -39,7 +39,13 @@ export default function TrendingPage() {
       if (data.error && !data.predictions?.length) {
         setError(data.error);
       } else {
-        setPredictions(data.predictions ?? []);
+        const seen = new Set<number>();
+        const deduped = (data.predictions ?? []).filter(p => {
+          if (seen.has(p.playerId)) return false;
+          seen.add(p.playerId);
+          return true;
+        });
+        setPredictions(deduped);
         setGameCount(data.gameCount ?? 0);
         setUsedDummy(data.usedDummy ?? false);
       }

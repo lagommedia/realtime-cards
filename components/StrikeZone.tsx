@@ -75,20 +75,20 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             </feMerge>
           </filter>
           <radialGradient id={gradId} cx="50%" cy="50%" r="60%">
-            <stop offset="0%" stopColor="#0f1929" />
-            <stop offset="100%" stopColor="#07111e" />
+            <stop offset="0%" stopColor="#f8fafc" />
+            <stop offset="100%" stopColor="#f1f5f9" />
           </radialGradient>
         </defs>
 
         {/* Outer frame */}
         <rect x={F.x} y={F.y} width={F.w} height={F.h}
-          fill={`url(#${gradId})`} stroke="#1e293b"
+          fill={`url(#${gradId})`} stroke="#cbd5e1"
           strokeWidth={sw * 0.6} strokeDasharray={compact ? '4 3' : '6 4'} rx={compact ? 4 : 8}
         />
 
         {/* Strike zone fill */}
         <rect x={Z.x} y={Z.y} width={Z.w} height={Z.h}
-          fill="#0b1424" stroke="#334155" strokeWidth={sw}
+          fill="rgba(100,116,139,0.08)" stroke="#94a3b8" strokeWidth={sw}
         />
 
         {/* 3×3 grid */}
@@ -96,22 +96,22 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
           <line key={`zv-${i}`}
             x1={Z.x + Z.w * (i / 3)} y1={Z.y}
             x2={Z.x + Z.w * (i / 3)} y2={Z.y + Z.h}
-            stroke="#1e293b" strokeWidth={compact ? 0.5 : 1}
+            stroke="#e2e8f0" strokeWidth={compact ? 0.5 : 1}
           />
         ))}
         {[1, 2].map(i => (
           <line key={`zh-${i}`}
             x1={Z.x} y1={Z.y + Z.h * (i / 3)}
             x2={Z.x + Z.w} y2={Z.y + Z.h * (i / 3)}
-            stroke="#1e293b" strokeWidth={compact ? 0.5 : 1}
+            stroke="#e2e8f0" strokeWidth={compact ? 0.5 : 1}
           />
         ))}
 
         {/* HI / LO zone labels (full mode only) */}
         {!compact && (
           <>
-            <text x={Z.x + 4} y={Z.y + 11} fontSize={7.5} fill="#374151" fontFamily="monospace">HI</text>
-            <text x={Z.x + 4} y={Z.y + Z.h - 4} fontSize={7.5} fill="#374151" fontFamily="monospace">LO</text>
+            <text x={Z.x + 4} y={Z.y + 11} fontSize={7.5} fill="#94a3b8" fontFamily="monospace">HI</text>
+            <text x={Z.x + 4} y={Z.y + Z.h - 4} fontSize={7.5} fill="#94a3b8" fontFamily="monospace">LO</text>
           </>
         )}
 
@@ -173,7 +173,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             dominantBaseline="auto"
             fontSize={compact ? 7 : 9}
             fontWeight="900"
-            fill="#fbbf24"
+            fill="#1e40af"
             fontFamily="monospace"
             className="pitch-flash"
           >
@@ -196,18 +196,18 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             {seen.map(type => (
               <div key={type} className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `${pitchColor(type)}44`, border: `1.5px solid ${pitchColor(type)}` }} />
-                <span className="text-[10px] text-gray-400">{LABEL_MAP[type] ?? type}</span>
+                <span className="text-[10px] text-slate-500">{LABEL_MAP[type] ?? type}</span>
               </div>
             ))}
             {seen.length === 0 && (
               <>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef444422', border: '1.5px solid #ef4444' }} />
-                  <span className="text-[10px] text-gray-400">Strike</span>
+                  <span className="text-[10px] text-slate-500">Strike</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e22', border: '1.5px solid #22c55e' }} />
-                  <span className="text-[10px] text-gray-400">Ball</span>
+                  <span className="text-[10px] text-slate-500">Ball</span>
                 </div>
               </>
             )}

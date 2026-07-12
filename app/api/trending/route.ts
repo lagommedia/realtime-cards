@@ -31,7 +31,12 @@ export async function GET(req: NextRequest) {
         })
       );
 
-      const flatPlayers = allPlayers.flat();
+      const seen = new Set<number>();
+      const flatPlayers = allPlayers.flat().filter(p => {
+        if (seen.has(p.playerId)) return false;
+        seen.add(p.playerId);
+        return true;
+      });
       gameCount = liveOrFinalGames.length;
 
       const topTrending = generateTrendingPredictions(flatPlayers).slice(0, 12);

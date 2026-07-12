@@ -49,7 +49,7 @@ function OutsDots({ outs }: { outs: number }) {
         <div
           key={i}
           className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: i < outs ? '#fbbf24' : '#374151' }}
+          style={{ backgroundColor: i < outs ? '#fbbf24' : '#cbd5e1' }}
         />
       ))}
     </div>
@@ -207,8 +207,8 @@ function PlayerMatchupCard({
 
 function BasesDiamond({ bases }: { bases: LiveMatchup['bases'] }) {
   const lit = '#f59e0b';
-  const dim = '#1f2937';
-  const stroke = '#374151';
+  const dim = '#e2e8f0';
+  const stroke = '#cbd5e1';
   // Diamond layout: 2B top, 1B right, 3B left, home bottom (display only 1B/2B/3B)
   return (
     <svg viewBox="0 0 64 56" width={64} height={56} aria-label="bases">
@@ -248,7 +248,7 @@ function CountDots({ count, max, activeColor }: { count: number; max: number; ac
           className="w-3 h-3 rounded-full border"
           style={{
             backgroundColor: i < count ? activeColor : 'transparent',
-            borderColor: i < count ? activeColor : '#374151',
+            borderColor: i < count ? activeColor : '#cbd5e1',
           }}
         />
       ))}
@@ -260,34 +260,34 @@ function MatchupStrip({ matchup }: { matchup: LiveMatchup }) {
   const { batter, pitcher } = matchup;
   return (
     <div
-      className="mt-3 pt-3 border-t border-white/8 flex items-center gap-3"
+      className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3"
     >
       {/* Batter */}
       <div className="flex-1 min-w-0">
-        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">At Bat</p>
-        <p className="text-white text-xs font-black leading-tight truncate">
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">At Bat</p>
+        <p className="text-slate-900 text-xs font-black leading-tight truncate">
           #{batter.number} {batter.name}
         </p>
-        <p className="text-gray-400 text-[10px] leading-snug">
+        <p className="text-slate-500 text-[10px] leading-snug">
           {batter.hitsToday}-{batter.atBatsToday} · AVG {batter.seasonAvg}
         </p>
       </div>
 
       {/* Count */}
       <div className="flex flex-col items-center gap-1.5 flex-shrink-0 px-1">
-        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Count</p>
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Count</p>
         <CountDots count={pitcher.balls} max={4} activeColor="#22c55e" />
         <CountDots count={pitcher.strikes} max={3} activeColor="#ef4444" />
-        <p className="text-[8px] text-gray-600 mt-0.5">B · S</p>
+        <p className="text-[8px] text-slate-400 mt-0.5">B · S</p>
       </div>
 
       {/* Pitcher */}
       <div className="flex-1 min-w-0 text-right">
-        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Pitching</p>
-        <p className="text-white text-xs font-black leading-tight truncate">
+        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Pitching</p>
+        <p className="text-slate-900 text-xs font-black leading-tight truncate">
           #{pitcher.number} {pitcher.name}
         </p>
-        <p className="text-gray-400 text-[10px] leading-snug">
+        <p className="text-slate-500 text-[10px] leading-snug">
           ERA {pitcher.seasonEra} · {pitcher.pitchCount}p
         </p>
       </div>
@@ -606,7 +606,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     .sort((a, b) => Math.abs(b.predictionScore) - Math.abs(a.predictionScore));
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0f1e' }}>
+    <div className="min-h-screen">
       {/* Header */}
       <div
         className="px-4 pt-12 pb-4"
@@ -616,7 +616,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.back()}
-            className="p-2 rounded-xl border border-white/10 text-gray-400"
+            className="p-2 rounded-xl border border-slate-200 text-slate-500"
             style={{ backgroundColor: theme.cardBackground }}
           >
             <ArrowLeft size={18} />
@@ -627,7 +627,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                 <Radio size={11} className="text-green-400 animate-pulse" />
                 <span className="text-green-400 text-[11px] font-bold tracking-wider">LIVE</span>
                 {data?.inning && (
-                  <span className="text-gray-400 text-[11px] ml-1">{data.inning}</span>
+                  <span className="text-slate-500 text-[11px] ml-1">{data.inning}</span>
                 )}
                 {isLive && typeof outs === 'number' && (
                   <span className="ml-2">
@@ -638,16 +638,16 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
             ) : (
               <div className="flex items-center gap-1.5 mb-0.5">
                 <CheckCircle size={11} className="text-gray-500" />
-                <span className="text-gray-500 text-[11px] font-bold tracking-wider">FINAL</span>
+                <span className="text-slate-500 text-[11px] font-bold tracking-wider">FINAL</span>
               </div>
             )}
-            <h1 className="text-base font-bold text-white leading-tight truncate">
+            <h1 className="text-base font-bold text-slate-900 leading-tight truncate">
               {awayTeam.abbreviation} vs {homeTeam.abbreviation}
             </h1>
           </div>
           <button
             onClick={() => { setLoading(true); fetchGame(); }}
-            className="p-2 rounded-xl border border-white/10 text-gray-400"
+            className="p-2 rounded-xl border border-slate-200 text-slate-500"
             style={{ backgroundColor: theme.cardBackground }}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -657,7 +657,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         {/* Scoreboard */}
         {!loading && (
           <div
-            className="rounded-2xl p-4 border border-white/10"
+            className="rounded-2xl p-4 border border-slate-200"
             style={{ backgroundColor: theme.cardBackground }}
           >
             <div className="flex items-center justify-between">
@@ -665,9 +665,9 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               <div className="flex items-center gap-3">
                 <TeamLogo teamId={awayTeam.id} abbreviation={awayTeam.abbreviation} size={46} />
                 <div>
-                  <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wide">Away</p>
-                  <p className="text-white text-sm font-bold leading-tight">{awayTeam.abbreviation}</p>
-                  <p className="text-white text-2xl font-black tabular-nums leading-none mt-0.5">
+                  <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-wide">Away</p>
+                  <p className="text-slate-900 text-sm font-bold leading-tight">{awayTeam.abbreviation}</p>
+                  <p className="text-slate-900 text-2xl font-black tabular-nums leading-none mt-0.5">
                     {awayTeam.score}
                   </p>
                 </div>
@@ -678,11 +678,11 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                 {isLive && data?.inning ? (
                   <>
                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-white text-xs font-black tabular-nums">{data.inning}</span>
+                    <span className="text-slate-900 text-xs font-black tabular-nums">{data.inning}</span>
                     {liveMatchup && <BasesDiamond bases={liveMatchup.bases} />}
                   </>
                 ) : (
-                  <span className="text-gray-600 text-sm font-bold">—</span>
+                  <span className="text-slate-400 text-sm font-bold">—</span>
                 )}
               </div>
 
@@ -690,9 +690,9 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               <div className="flex items-center gap-3 flex-row-reverse">
                 <TeamLogo teamId={homeTeam.id} abbreviation={homeTeam.abbreviation} size={46} />
                 <div className="text-right">
-                  <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-wide">Home</p>
-                  <p className="text-white text-sm font-bold leading-tight">{homeTeam.abbreviation}</p>
-                  <p className="text-white text-2xl font-black tabular-nums leading-none mt-0.5">
+                  <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-wide">Home</p>
+                  <p className="text-slate-900 text-sm font-bold leading-tight">{homeTeam.abbreviation}</p>
+                  <p className="text-slate-900 text-2xl font-black tabular-nums leading-none mt-0.5">
                     {homeTeam.score}
                   </p>
                 </div>
@@ -701,7 +701,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
 
             {/* Syncing indicator — shown during the broadcast delay window */}
             {isLive && !syncDone && delaySec > 0 && (
-              <div className="mt-3 pt-3 border-t border-white/8 flex items-center justify-center gap-2 py-3">
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-center gap-2 py-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                 <span className="text-amber-400 text-xs font-semibold">Syncing with your broadcast ({delaySec}s)…</span>
               </div>
@@ -735,12 +735,12 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               const pitcherSignedPct = `${pitcherIsUp ? '+' : ''}${adjPitcherPct.toFixed(1)}%`;
 
               return (
-                <div className="mt-3 pt-3 border-t border-white/8 relative overflow-hidden rounded-xl">
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '10px', marginTop: '12px' }}>
                   <div className="flex gap-2 items-stretch">
                     {/* Batter column — 1/3: unified placard */}
                     <div
-                      className="flex-[1] flex flex-col rounded-xl overflow-hidden border border-white/8"
-                      style={{ backgroundColor: '#07111f' }}
+                      className="flex-[1] flex flex-col rounded-xl overflow-hidden border border-slate-200"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.85)' }}
                     >
                       <PlayerMatchupCard
                         pred={batterPred}
@@ -775,8 +775,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                         return (
                           <>
                             {basePrice > 0 && (
-                              <div className="px-2 py-1.5 border-t border-white/8 text-center">
-                                <p className="text-[6px] text-gray-500 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
+                              <div className="px-2 py-1.5 border-t border-slate-200 text-center">
+                                <p className="text-[6px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Card Value</p>
                                 <p className="text-[11px] font-black leading-none" style={{ color: priceColor }}>
                                   ${livePrice.toFixed(2)}
                                 </p>
@@ -788,7 +788,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                               </div>
                             )}
                             {/* Card image — always rendered; skeleton while eBay data loads */}
-                            <div className="px-2 pb-2 border-t border-white/8 pt-1.5">
+                            <div className="px-2 pb-2 border-t border-slate-200 pt-1.5">
                               {cardImg ? (
                                 <button
                                   className="w-full active:opacity-70 transition-opacity"
@@ -809,7 +809,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                               ) : (
                                 <div
                                   className="w-full rounded-lg animate-pulse"
-                                  style={{ aspectRatio: '2.5/3.5', backgroundColor: 'rgba(255,255,255,0.08)' }}
+                                  style={{ aspectRatio: '2.5/3.5', backgroundColor: 'rgba(0,0,0,0.06)' }}
                                 />
                               )}
                             </div>
@@ -823,7 +823,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                       <Link
                         href={`/player/${liveMatchup.pitcherId}`}
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl active:opacity-70"
-                        style={{ backgroundColor: '#07111f', border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none' }}
+                        style={{ backgroundColor: 'rgba(255,255,255,0.85)', border: '1px solid #e2e8f0', textDecoration: 'none' }}
                       >
                         <PlayerHeadshot
                           playerId={liveMatchup.pitcherId}
@@ -831,8 +831,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           size={32}
                         />
                         <div className="flex-1 min-w-0 text-left">
-                          <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-none mb-0.5">Pitching</p>
-                          <p className="text-white text-[9px] font-black leading-tight truncate">{liveMatchup.pitcher.name}</p>
+                          <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-0.5">Pitching</p>
+                          <p className="text-slate-900 text-[9px] font-black leading-tight truncate">{liveMatchup.pitcher.name}</p>
                         </div>
                         <div
                           className="px-1.5 py-1 rounded-lg flex-shrink-0"
@@ -910,7 +910,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                           ))}
                         </div>
                         {/* Divider */}
-                        <div className="w-full h-px" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+                        <div className="w-full h-px" style={{ backgroundColor: '#e2e8f0' }} />
                         {/* Row 2: result → border style */}
                         <div className="flex items-center gap-3 justify-center">
                           <div className="flex items-center gap-1">
@@ -967,7 +967,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         {/* Team toggle */}
         {!loading && !data?.error && (
           <div
-            className="flex rounded-2xl overflow-hidden border border-white/10 mb-4"
+            className="flex rounded-2xl overflow-hidden border border-slate-200 mb-4"
             style={{ backgroundColor: theme.cardBackground }}
           >
             {(['away', 'home'] as const).map(side => {
@@ -986,8 +986,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                 >
                   <TeamLogo teamId={team.id} abbreviation={team.abbreviation} size={24} />
                   <div className="text-left">
-                    <p className="text-white text-xs font-bold leading-tight">{team.name}</p>
-                    <p className="text-gray-500 text-[10px] leading-tight capitalize">
+                    <p className="text-slate-900 text-xs font-bold leading-tight">{team.name}</p>
+                    <p className="text-slate-500 text-[10px] leading-tight capitalize">
                       {side} · {count} players
                     </p>
                   </div>
@@ -1016,7 +1016,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
             <>
               <div className="flex items-center gap-1.5 mb-3">
                 <Flame size={12} style={{ color: theme.primary }} />
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Who&apos;s Hot
                 </p>
               </div>
@@ -1024,16 +1024,16 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
                 {hot.map(p => (
                   <button
                     key={p.playerId}
-                    className="flex-1 flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-white/8 active:opacity-75 transition-opacity"
+                    className="flex-1 flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-slate-200 active:opacity-75 transition-opacity glass-card"
                     style={{ backgroundColor: theme.cardBackground }}
                     onClick={() => expandPlayer(p.playerId, p.teamId)}
                   >
                     <PlayerHeadshot playerId={p.playerId} playerName={p.playerName} size={46} />
                     <div className="text-center w-full min-w-0">
-                      <p className="text-white text-[9px] font-black leading-tight truncate">
+                      <p className="text-slate-900 text-[9px] font-black leading-tight truncate">
                         {p.playerName.split(' ').slice(-1)[0]}
                       </p>
-                      <p className="text-gray-500 text-[8px] mt-0.5">{p.position}</p>
+                      <p className="text-slate-500 text-[8px] mt-0.5">{p.position}</p>
                     </div>
                     <div className="w-full px-1 py-1 rounded-lg" style={{ backgroundColor: '#22c55e12' }}>
                       <p className="text-[10px] font-black text-center">
@@ -1055,7 +1055,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         {/* Lineup */}
         {!loading && lineup.length > 0 && (
           <>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">
               Lineup · {lineup.length} players
             </p>
             <div className="space-y-3 mb-6">
@@ -1077,7 +1077,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         {/* Pitchers */}
         {!loading && pitchers.length > 0 && (
           <>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">
               Pitchers · {pitchers.length} arms
             </p>
             <div className="space-y-3 pb-8">
@@ -1099,8 +1099,8 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
         {!loading && sidePredictions.length === 0 && !data?.error && (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <p className="text-2xl">⚾</p>
-            <p className="text-white font-semibold">No player data yet</p>
-            <p className="text-gray-400 text-sm">Game may not have started or no active lineup found</p>
+            <p className="text-slate-900 font-semibold">No player data yet</p>
+            <p className="text-slate-500 text-sm">Game may not have started or no active lineup found</p>
           </div>
         )}
       </div>

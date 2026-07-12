@@ -16,7 +16,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#0a0f1e',
+  themeColor: '#eef4fb',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="orb orb-3" />
                 </div>
                 <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
-                  <main className="pb-20">{children}</main>
+                  <main className="pb-28">{children}</main>
                   <Navigation />
                 </div>
               </LiveEventsProvider>

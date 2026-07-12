@@ -136,28 +136,51 @@
     border-radius: inherit;
   }
 
-  /* ── Liquid glass nav bar — light frosted ────────────────────────────── */
+  /* ── Liquid glass nav pill ───────────────────────────────────────────── */
 
   .liquid-glass-nav {
-    background: rgba(238, 244, 251, 0.88);
-    backdrop-filter: blur(36px) saturate(180%) brightness(1.02);
-    -webkit-backdrop-filter: blur(36px) saturate(180%) brightness(1.02);
-    border-top: 1px solid rgba(0, 0, 0, 0.07);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(48px) saturate(200%) brightness(1.06);
+    -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.06);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 999px;
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.14),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
     position: relative;
     overflow: hidden;
   }
 
+  /* Specular highlight along the top rim */
   .liquid-glass-nav::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 6%;
-    right: 6%;
+    left: 8%;
+    right: 8%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 1), transparent);
     pointer-events: none;
     z-index: 2;
+    border-radius: 999px;
+  }
+
+  /* Active nav item — glass bubble that pops above the pill */
+  .nav-active-bubble {
+    position: absolute;
+    inset: -10px -10px -1px -10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px) saturate(200%);
+    -webkit-backdrop-filter: blur(16px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.13),
+      0 2px 6px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+    z-index: 0;
+    transition: opacity 0.2s ease;
   }
 }
 
