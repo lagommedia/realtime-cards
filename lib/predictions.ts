@@ -3,10 +3,15 @@ import { generateCardValueProjection } from '@/lib/card-value-model';
 
 // Price premium of each set relative to Series 1 base price
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
-  'Topps Series 1': 1.0,
-  'Topps Series 2': 0.85,
-  'Topps Update': 0.9,
-  'Topps Chrome': 2.8,
+  'Topps Series 1':  1.0,
+  'Topps Series 2':  0.85,
+  'Topps Update':    0.9,
+  'Topps Chrome':    2.8,
+  'Bowman':          1.0,
+  'Bowman Draft':    1.1,
+  'Bowman 1st':      1.5,
+  'Bowman Chrome':   2.5,
+  'Bowman Chrome 1st': 3.5,
 };
 
 export function getRookieCardOptions(_playerId: number, debutYear: number | undefined): RookieCardOption[] {
