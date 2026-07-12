@@ -281,7 +281,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       </div>
 
       {/* Expanded panel */}
-      {(expanded || !!forceExpanded) && (
+      {expanded && (
         <div className="border-t border-white/10 p-4 space-y-4">
 
           {/* ── Card carousel — top of panel ── */}

@@ -77,7 +77,7 @@ interface MLBGameLogSplit {
 }
 
 interface MLBSeasonTotals {
-  stat?: Record<string, number | string>;
+  splits?: Array<{ stat?: Record<string, number | string> }>;
   group?: { displayName?: string };
 }
 
@@ -211,7 +211,8 @@ async function fetchSeasonGameLog(
 
   if (totalsRes.status === 'fulfilled' && totalsRes.value.ok) {
     const data = await totalsRes.value.json() as { stats?: MLBSeasonTotals[] };
-    const s = (data.stats?.[0]?.stat ?? {}) as Record<string, number | string>;
+    // Totals are nested: stats[0].splits[0].stat
+    const s = (data.stats?.[0]?.splits?.[0]?.stat ?? {}) as Record<string, number | string>;
     if (isPitcher) {
       summary.era              = String(s.era ?? '');
       summary.wins             = Number(s.wins ?? 0);

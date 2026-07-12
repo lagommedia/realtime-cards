@@ -11,7 +11,7 @@ export interface PipelinePlayer {
 export const PIPELINE_TEST_PLAYERS: PipelinePlayer[] = [
   { playerId: 683002, name: 'Gunnar Henderson',  debutYear: 2023 }, // BAL SS — Topps Series 1
   { playerId: 677951, name: 'Bobby Witt Jr.',    debutYear: 2022 }, // KC SS  — Topps Update
-  { playerId: 694192, name: 'Elly De La Cruz',   debutYear: 2023 }, // CIN SS — Topps Update
+  { playerId: 694192, name: 'Jackson Chourio',   debutYear: 2024 }, // MIL OF — Topps Update (confirmed by MLB API)
   { playerId: 677594, name: 'Julio Rodriguez',   debutYear: 2022 }, // SEA OF — Topps Update
   { playerId: 682998, name: 'Corbin Carroll',    debutYear: 2023 }, // ARI OF — Topps Update
 ];
