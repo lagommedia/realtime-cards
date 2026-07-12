@@ -15,7 +15,7 @@
   }
 
   body {
-    background: #060c1c;
+    background: #18253d;
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -46,35 +46,41 @@
   .orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(100px);
+    filter: blur(80px);
     will-change: transform;
   }
 
-  .orb-blue {
-    width: 560px;
-    height: 560px;
-    top: -200px;
-    left: -140px;
-    background: radial-gradient(circle at center, rgba(29, 78, 216, 0.5), transparent 70%);
+  /* Colors driven by --color-* CSS vars set by TeamProvider on its wrapper div.
+     Orbs are position:fixed so they cover the full viewport; vars are inherited
+     from DOM ancestors regardless of visual position. */
+  .orb-1 {
+    width: 640px;
+    height: 640px;
+    top: -220px;
+    left: -160px;
+    background: radial-gradient(circle at center, var(--color-primary, #1e40af), transparent 65%);
+    opacity: 0.65;
     animation: orb-drift 14s ease-in-out infinite;
   }
 
-  .orb-purple {
-    width: 380px;
-    height: 380px;
-    top: 28%;
-    right: -110px;
-    background: radial-gradient(circle at center, rgba(109, 40, 217, 0.4), transparent 70%);
+  .orb-2 {
+    width: 480px;
+    height: 480px;
+    top: 22%;
+    right: -130px;
+    background: radial-gradient(circle at center, var(--color-accent, #60a5fa), transparent 65%);
+    opacity: 0.5;
     animation: orb-drift 19s ease-in-out infinite reverse;
     animation-delay: -3s;
   }
 
-  .orb-cyan {
-    width: 440px;
-    height: 440px;
-    bottom: 12%;
-    left: -90px;
-    background: radial-gradient(circle at center, rgba(6, 182, 212, 0.3), transparent 70%);
+  .orb-3 {
+    width: 560px;
+    height: 560px;
+    bottom: 8%;
+    left: -120px;
+    background: radial-gradient(circle at center, var(--color-secondary, #1e3a5f), transparent 65%);
+    opacity: 0.55;
     animation: orb-drift 24s ease-in-out infinite;
     animation-delay: -8s;
   }
@@ -82,11 +88,11 @@
   /* ── Glass card ──────────────────────────────────────────────────────── */
 
   .glass-card {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
 
   .glass-card-inset {
