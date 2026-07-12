@@ -20,10 +20,7 @@ export default function Navigation() {
   const selectedTeam = ALL_TEAMS.find(t => t.id === selectedTeamId);
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10"
-      style={{ backgroundColor: theme.cardBackground }}
-    >
+    <nav className="liquid-glass-nav fixed bottom-0 left-0 right-0 z-50">
       <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;

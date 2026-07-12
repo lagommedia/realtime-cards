@@ -34,8 +34,7 @@ export default function GameCard({ game }: Props) {
   return (
     <button
       onClick={() => router.push(`/game/${game.gamePk}`)}
-      className="w-full rounded-2xl p-4 border border-white/10 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
-      style={{ backgroundColor: theme.cardBackground }}
+      className="glass-card w-full rounded-2xl p-4 text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
     >
       {/* Status bar */}
       <div className="flex items-center justify-between mb-3">

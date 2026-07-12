@@ -8,25 +8,162 @@
   --color-card-bg: #111827;
 }
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: #060c1c;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+    min-height: 100dvh;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  * {
+    scrollbar-width: none;
+  }
 }
 
-body {
-  background-color: #0a0f1e;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
+@layer components {
+  /* ── Ambient background orbs ─────────────────────────────────────────── */
+
+  .orb-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    will-change: transform;
+  }
+
+  .orb-blue {
+    width: 560px;
+    height: 560px;
+    top: -200px;
+    left: -140px;
+    background: radial-gradient(circle at center, rgba(29, 78, 216, 0.5), transparent 70%);
+    animation: orb-drift 14s ease-in-out infinite;
+  }
+
+  .orb-purple {
+    width: 380px;
+    height: 380px;
+    top: 28%;
+    right: -110px;
+    background: radial-gradient(circle at center, rgba(109, 40, 217, 0.4), transparent 70%);
+    animation: orb-drift 19s ease-in-out infinite reverse;
+    animation-delay: -3s;
+  }
+
+  .orb-cyan {
+    width: 440px;
+    height: 440px;
+    bottom: 12%;
+    left: -90px;
+    background: radial-gradient(circle at center, rgba(6, 182, 212, 0.3), transparent 70%);
+    animation: orb-drift 24s ease-in-out infinite;
+    animation-delay: -8s;
+  }
+
+  /* ── Glass card ──────────────────────────────────────────────────────── */
+
+  .glass-card {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card-inset {
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.18) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* ── Liquid glass ────────────────────────────────────────────────────── */
+
+  .liquid-glass {
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 45%, rgba(255, 255, 255, 0.09) 100%);
+    backdrop-filter: blur(32px) saturate(240%) brightness(1.08);
+    -webkit-backdrop-filter: blur(32px) saturate(240%) brightness(1.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.22), inset 1px 0 rgba(255, 255, 255, 0.07);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .liquid-glass::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 1;
+    border-radius: inherit;
+  }
+
+  /* ── Liquid glass nav bar ────────────────────────────────────────────── */
+
+  .liquid-glass-nav {
+    background: linear-gradient(to top, rgba(4, 7, 18, 0.88) 0%, rgba(8, 12, 26, 0.72) 100%);
+    backdrop-filter: blur(36px) saturate(220%) brightness(1.06);
+    -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(1.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 6%;
+    right: 6%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    pointer-events: none;
+    z-index: 2;
+  }
 }
 
-::-webkit-scrollbar {
-  display: none;
-}
+/* ── Animations (outside @layer so keyframes are globally available) ───── */
 
-* {
-  scrollbar-width: none;
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(28px, -38px) scale(1.07); }
+  66%       { transform: translate(-20px, 20px) scale(0.94); }
 }
 
 @keyframes pitch-label-pop {
@@ -35,6 +172,7 @@ body {
   80%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
 .pitch-label {
   animation: pitch-label-pop 2.3s ease-out forwards;
 }

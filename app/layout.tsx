@@ -22,13 +22,19 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased" style={{ backgroundColor: '#0a0f1e', color: '#fff', minHeight: '100dvh' }}>
+      <body className="antialiased" style={{ color: '#fff', minHeight: '100dvh' }}>
+        {/* Ambient light orbs — give the glass surfaces something to refract */}
+        <div className="orb-container" aria-hidden="true">
+          <div className="orb orb-blue" />
+          <div className="orb orb-purple" />
+          <div className="orb orb-cyan" />
+        </div>
         <TeamProvider>
           <BroadcastProvider>
             <GradingProvider>
             <WatchListProvider>
               <LiveEventsProvider>
-                <div className="min-h-dvh max-w-lg mx-auto relative">
+                <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
                   <main className="pb-20">{children}</main>
                   <Navigation />
                 </div>

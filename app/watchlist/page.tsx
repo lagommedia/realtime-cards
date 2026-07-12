@@ -80,7 +80,7 @@ export default function WatchlistPage() {
   const hasAny = watchedPlayers.length > 0;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0f1e' }}>
+    <div className="min-h-screen">
       {/* Header */}
       <div
         className="px-4 pt-12 pb-4"

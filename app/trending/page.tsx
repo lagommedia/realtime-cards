@@ -70,7 +70,7 @@ export default function TrendingPage() {
   const totalFalling = predictions.filter(p => p.direction === 'down').length;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0f1e' }}>
+    <div className="min-h-screen">
       {/* Header */}
       <div className="px-4 pt-12 pb-3" style={{ background: `linear-gradient(180deg, ${theme.primary}33 0%, transparent 100%)` }}>
         <div className="flex items-center justify-between mb-3">

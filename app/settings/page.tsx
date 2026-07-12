@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const selectedTeam = ALL_TEAMS.find(t => t.id === selectedTeamId);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0f1e' }}>
+    <div className="min-h-screen">
       {/* Header */}
       <div className="px-4 pt-12 pb-4" style={{ background: `linear-gradient(180deg, ${theme.primary}33 0%, transparent 100%)` }}>
         <h1 className="text-2xl font-bold text-white">Settings</h1>

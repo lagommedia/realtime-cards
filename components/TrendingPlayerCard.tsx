@@ -195,10 +195,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const featuredCard = getFeaturedCard(allListings);
 
   return (
-    <div
-      className="rounded-2xl border border-white/10 overflow-hidden"
-      style={{ backgroundColor: theme.cardBackground }}
-    >
+    <div className="glass-card rounded-2xl overflow-hidden">
       {/* Collapsed row */}
       <div
         role="button"
@@ -324,7 +321,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
                   return (
                     <div style={{
-                      background: '#0d1220',
+                      background: 'linear-gradient(180deg, rgba(6,10,24,0.88) 0%, rgba(4,7,16,0.94) 100%)',
+                      backdropFilter: 'blur(16px) saturate(160%)',
+                      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                      borderTop: '1px solid rgba(255,255,255,0.07)',
                       padding: '10px 12px 12px',
                     }}>
                       {/* Price + forecast row */}
@@ -364,7 +364,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 }}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '9/12', backgroundColor: '#ffffff08' }}>
+              <div className="glass-card-inset flex flex-col items-center justify-center gap-1 rounded-xl" style={{ aspectRatio: '9/12' }}>
                 <p className="text-gray-600 text-xs text-center px-4">
                   {cardsFetchStatus !== 'done'
                     ? 'Loading listings…'
