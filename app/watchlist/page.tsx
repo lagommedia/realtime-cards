@@ -89,13 +89,13 @@ export default function WatchlistPage() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
             <Star size={22} style={{ color: theme.primary }} fill={theme.primary} />
-            <h1 className="text-xl font-black text-white">Watchlist</h1>
+            <h1 className="text-xl font-black text-slate-900">Watchlist</h1>
           </div>
           {pushStatus === 'unsubscribed' && hasAny && (
             <button
               onClick={() => subscribeToPush()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 text-gray-400"
-              style={{ backgroundColor: '#ffffff08' }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 text-slate-500"
+              style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
             >
               <Bell size={12} />
               Enable alerts
@@ -133,7 +133,7 @@ export default function WatchlistPage() {
               <Star size={28} style={{ color: theme.primary }} />
             </div>
             <div>
-              <p className="text-white font-semibold text-base">No players followed</p>
+              <p className="text-slate-900 font-semibold text-base">No players followed</p>
               <p className="text-gray-500 text-sm mt-1">
                 Tap the ★ next to any player to add them here
               </p>
@@ -193,7 +193,7 @@ export default function WatchlistPage() {
                   {/* Final badge */}
                   <div
                     className="absolute top-3 right-10 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                    style={{ backgroundColor: '#ffffff12', color: '#6b7280' }}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#475569' }}
                   >
                     Final
                   </div>
@@ -206,12 +206,12 @@ export default function WatchlistPage() {
                 return (
                   <div
                     key={player.playerId}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-white/10"
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
                     style={{ backgroundColor: theme.cardBackground }}
                   >
                     <PlayerHeadshot playerId={player.playerId} playerName={player.playerName} size={42} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm truncate">{player.playerName}</p>
+                      <p className="text-slate-900 font-semibold text-sm truncate">{player.playerName}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <TeamLogo teamId={player.teamId} abbreviation="" size={12} />
                         <span className="text-gray-500 text-xs">{player.position}</span>
@@ -227,7 +227,7 @@ export default function WatchlistPage() {
                     <button
                       onClick={() => toggleWatch(player)}
                       className="p-2 rounded-xl text-gray-500 hover:text-red-400 transition-colors"
-                      style={{ backgroundColor: '#ffffff08' }}
+                      style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
                       aria-label="Remove from watchlist"
                     >
                       <X size={14} />
@@ -241,7 +241,7 @@ export default function WatchlistPage() {
 
         {/* ── Simulate Events (dev panel) ─────────────────────────────────── */}
         {hasAny && (
-          <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ backgroundColor: theme.cardBackground }}>
+          <div className="rounded-2xl border border-slate-200 overflow-hidden" style={{ backgroundColor: theme.cardBackground }}>
             <button
               onClick={() => setTestOpen(o => !o)}
               className="w-full flex items-center justify-between px-4 py-3"
@@ -375,12 +375,12 @@ export default function WatchlistPage() {
               {notPlayingToday.map(player => (
                 <div
                   key={player.playerId}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-white/10"
+                  className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
                   style={{ backgroundColor: theme.cardBackground }}
                 >
                   <PlayerHeadshot playerId={player.playerId} playerName={player.playerName} size={42} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">{player.playerName}</p>
+                    <p className="text-slate-900 font-semibold text-sm truncate">{player.playerName}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <TeamLogo teamId={player.teamId} abbreviation="" size={12} />
                       <span className="text-gray-500 text-xs">{player.position}</span>
@@ -389,7 +389,7 @@ export default function WatchlistPage() {
                   <button
                     onClick={() => toggleWatch(player)}
                     className="p-2 rounded-xl text-gray-500 hover:text-red-400 transition-colors"
-                    style={{ backgroundColor: '#ffffff08' }}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
                     aria-label="Remove from watchlist"
                   >
                     <X size={14} />

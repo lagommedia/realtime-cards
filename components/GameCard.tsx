@@ -47,7 +47,7 @@ export default function GameCard({ game }: Props) {
             </span>
           )}
         </div>
-        <span className="text-xs text-gray-500">{game.venue.name}</span>
+        <span className="text-xs text-slate-500">{game.venue.name}</span>
       </div>
 
       {/* Teams and scores */}
@@ -92,12 +92,12 @@ function TeamRow({
       <div className="flex items-center gap-3 min-w-0">
         <TeamLogo teamId={teamId} abbreviation={abbreviation} size={36} />
         <div className="min-w-0">
-          <p className="text-white text-sm font-medium truncate">{name}</p>
-          <p className="text-gray-500 text-xs">{record}</p>
+          <p className="text-slate-900 text-sm font-medium truncate">{name}</p>
+          <p className="text-slate-500 text-xs">{record}</p>
         </div>
       </div>
       {showScore && score !== undefined && (
-        <span className="text-white font-bold text-lg tabular-nums">{score}</span>
+        <span className="text-slate-900 font-bold text-lg tabular-nums">{score}</span>
       )}
     </div>
   );

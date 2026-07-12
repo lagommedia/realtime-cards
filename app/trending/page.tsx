@@ -75,8 +75,8 @@ export default function TrendingPage() {
       <div className="px-4 pt-12 pb-3" style={{ background: `linear-gradient(180deg, ${theme.primary}33 0%, transparent 100%)` }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Trending</h1>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <h1 className="text-2xl font-bold text-slate-900">Trending</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
               {usedDummy
                 ? 'Featured players · tap to expand'
                 : gameCount > 0
@@ -86,7 +86,7 @@ export default function TrendingPage() {
           </div>
           <button
             onClick={() => { setLoading(true); fetchTrending(); }}
-            className="p-2 rounded-xl border border-white/10 text-gray-400"
+            className="p-2 rounded-xl border border-slate-200 text-slate-500"
             style={{ backgroundColor: theme.cardBackground }}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -142,7 +142,7 @@ export default function TrendingPage() {
         {scope === 'overall' && !selectedTeamId && !loading && (
           <Link
             href="/settings"
-            className="mt-2 flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-dashed border-white/15 text-gray-500 hover:text-gray-300 transition-colors"
+            className="mt-2 flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border border-dashed border-slate-300 text-slate-500 hover:text-slate-700 transition-colors"
           >
             <Users size={11} />
             Select your team in Settings to filter to your players →

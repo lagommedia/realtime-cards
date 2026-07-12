@@ -27,15 +27,15 @@ export default function SettingsPage() {
     <div className="min-h-screen">
       {/* Header */}
       <div className="px-4 pt-12 pb-4" style={{ background: `linear-gradient(180deg, ${theme.primary}33 0%, transparent 100%)` }}>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Personalize your experience</p>
+        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Personalize your experience</p>
       </div>
 
       <div className="px-4 space-y-6 pb-6">
         {/* Grading company */}
         <div>
-          <p className="text-sm font-semibold text-white mb-1">Default Grading Company</p>
-          <p className="text-xs text-gray-500 mb-3">Cards and prices will be filtered to your preferred grader</p>
+          <p className="text-sm font-semibold text-slate-900 mb-1">Default Grading Company</p>
+          <p className="text-xs text-slate-500 mb-3">Cards and prices will be filtered to your preferred grader</p>
           <div className="grid grid-cols-3 gap-2">
             {GRADING_COMPANIES.map(company => {
               const selected = companyId === company.id;
@@ -45,17 +45,17 @@ export default function SettingsPage() {
                   onClick={() => setCompanyId(selected ? null : company.id)}
                   className="flex flex-col items-center justify-center px-3 py-4 rounded-xl transition-all text-center"
                   style={{
-                    backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+                    backgroundColor: selected ? `${theme.primary}22` : 'rgba(0,0,0,0.04)',
                     border: `1px solid ${selected ? theme.primary : 'transparent'}`,
                   }}
                 >
                   <span
                     className="text-xl font-black tracking-tight mb-1"
-                    style={{ color: selected ? theme.primary : 'white' }}
+                    style={{ color: selected ? theme.primary : '#0f172a' }}
                   >
                     {company.label}
                   </span>
-                  <span className="text-xs leading-tight" style={{ color: selected ? theme.primary : '#6b7280' }}>
+                  <span className="text-xs leading-tight" style={{ color: selected ? theme.primary : '#475569' }}>
                     {company.description}
                   </span>
                   {selected && (
@@ -79,20 +79,20 @@ export default function SettingsPage() {
                       onClick={() => setGradeValue(grade.value)}
                       className="flex flex-col items-center flex-shrink-0 px-4 py-3 rounded-xl transition-all"
                       style={{
-                        backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+                        backgroundColor: selected ? `${theme.primary}22` : 'rgba(0,0,0,0.04)',
                         border: `1px solid ${selected ? theme.primary : 'transparent'}`,
                         minWidth: 72,
                       }}
                     >
                       <span
                         className="text-base font-black tracking-tight"
-                        style={{ color: selected ? theme.primary : 'white' }}
+                        style={{ color: selected ? theme.primary : '#0f172a' }}
                       >
                         {grade.label}
                       </span>
                       <span
                         className="text-xs mt-0.5 whitespace-nowrap"
-                        style={{ color: selected ? theme.primary : '#6b7280' }}
+                        style={{ color: selected ? theme.primary : '#475569' }}
                       >
                         {grade.description}
                       </span>
@@ -106,15 +106,15 @@ export default function SettingsPage() {
 
         {/* Broadcast delay */}
         <div>
-          <p className="text-sm font-semibold text-white mb-1">Broadcast Delay</p>
-          <p className="text-xs text-gray-500 mb-4">Calibrate to match your TV or streaming delay</p>
+          <p className="text-sm font-semibold text-slate-900 mb-1">Broadcast Delay</p>
+          <p className="text-xs text-slate-500 mb-4">Calibrate to match your TV or streaming delay</p>
 
           {/* Value display */}
           <div className="flex items-baseline justify-center gap-1.5 mb-5">
             <span className="text-5xl font-black tabular-nums" style={{ color: theme.primary }}>
               {delaySec}
             </span>
-            <span className="text-xl text-gray-400 font-semibold">sec</span>
+            <span className="text-xl text-slate-400 font-semibold">sec</span>
           </div>
 
           {/* Slider */}
@@ -153,32 +153,32 @@ export default function SettingsPage() {
         </div>
 
         {/* Current team */}
-        <div className="rounded-2xl p-4 border border-white/10" style={{ backgroundColor: theme.cardBackground }}>
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2 font-medium">Favorite Team</p>
+        <div className="rounded-2xl p-4 border border-slate-200" style={{ backgroundColor: theme.cardBackground }}>
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-medium">Favorite Team</p>
           {selectedTeam ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <TeamLogo teamId={selectedTeam.id} abbreviation={selectedTeam.abbreviation} size={44} />
                 <div>
-                  <p className="text-white font-semibold">{selectedTeam.name}</p>
-                  <p className="text-xs text-gray-400">{selectedTeam.division}</p>
+                  <p className="text-slate-900 font-semibold">{selectedTeam.name}</p>
+                  <p className="text-xs text-slate-500">{selectedTeam.division}</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedTeamId(null)}
-                className="p-2 rounded-xl border border-white/10 text-gray-400 hover:text-white"
+                className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700"
               >
                 <X size={16} />
               </button>
             </div>
           ) : (
-            <p className="text-gray-400 text-sm">No team selected · App uses default theme</p>
+            <p className="text-slate-500 text-sm">No team selected · App uses default theme</p>
           )}
         </div>
 
         {/* Team picker */}
         <div>
-          <p className="text-sm font-semibold text-white mb-3">Select Your Team</p>
+          <p className="text-sm font-semibold text-slate-900 mb-3">Select Your Team</p>
 
           {/* Search */}
           <input
@@ -186,7 +186,7 @@ export default function SettingsPage() {
             placeholder="Search teams..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl mb-4 text-white text-sm outline-none border border-white/10 focus:border-white/30 transition-colors"
+            className="w-full px-4 py-3 rounded-xl mb-4 text-slate-900 text-sm outline-none border border-slate-200 focus:border-slate-400 transition-colors"
             style={{ backgroundColor: theme.cardBackground }}
           />
 
@@ -212,7 +212,7 @@ export default function SettingsPage() {
                 const divTeams = ALL_TEAMS.filter(t => t.division === division);
                 return (
                   <div key={division}>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">{division}</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{division}</p>
                     <div className="space-y-1.5">
                       {divTeams.map(team => (
                         <TeamRow
@@ -232,7 +232,7 @@ export default function SettingsPage() {
         </div>
 
         {/* About */}
-        <div className="rounded-2xl p-4 border border-white/10 space-y-3" style={{ backgroundColor: theme.cardBackground }}>
+        <div className="rounded-2xl p-4 border border-slate-200 space-y-3" style={{ backgroundColor: theme.cardBackground }}>
           <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">About</p>
           <InfoRow label="Data Sources" value="MLB Stats API + eBay Browse API" />
           <InfoRow label="Price Refresh" value="Every 5 minutes" />
@@ -257,7 +257,7 @@ function TeamRow({
       onClick={onSelect}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
       style={{
-        backgroundColor: selected ? `${theme.primary}22` : '#ffffff08',
+        backgroundColor: selected ? `${theme.primary}22` : 'rgba(0,0,0,0.04)',
         borderWidth: 1,
         borderStyle: 'solid',
         borderColor: selected ? theme.primary : 'transparent',
@@ -265,8 +265,8 @@ function TeamRow({
     >
       <TeamLogo teamId={team.id} abbreviation={team.abbreviation} size={36} />
       <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium">{team.name}</p>
-        <p className="text-gray-500 text-xs">{team.division}</p>
+        <p className="text-slate-900 text-sm font-medium">{team.name}</p>
+        <p className="text-slate-500 text-xs">{team.division}</p>
       </div>
       {selected && <Check size={16} style={{ color: theme.primary }} />}
     </button>
@@ -276,8 +276,8 @@ function TeamRow({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <p className="text-gray-400 text-sm">{label}</p>
-      <p className="text-white text-sm font-medium">{value}</p>
+      <p className="text-slate-500 text-sm">{label}</p>
+      <p className="text-slate-900 text-sm font-medium">{value}</p>
     </div>
   );
 }

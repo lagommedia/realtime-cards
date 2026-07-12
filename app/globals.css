@@ -4,8 +4,8 @@
   --color-primary: #1e40af;
   --color-secondary: #1e3a5f;
   --color-accent: #60a5fa;
-  --color-bg: #0a0f1e;
-  --color-card-bg: #111827;
+  --color-bg: #eef4fb;
+  --color-card-bg: #ffffff;
 }
 
 @layer base {
@@ -15,8 +15,8 @@
   }
 
   body {
-    background: #18253d;
-    color: #fff;
+    background: #eef4fb;
+    color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
@@ -46,20 +46,17 @@
   .orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
+    filter: blur(90px);
     will-change: transform;
   }
 
-  /* Colors driven by --color-* CSS vars set by TeamProvider on its wrapper div.
-     Orbs are position:fixed so they cover the full viewport; vars are inherited
-     from DOM ancestors regardless of visual position. */
   .orb-1 {
     width: 640px;
     height: 640px;
     top: -220px;
     left: -160px;
     background: radial-gradient(circle at center, var(--color-primary, #1e40af), transparent 65%);
-    opacity: 0.65;
+    opacity: 0.22;
     animation: orb-drift 14s ease-in-out infinite;
   }
 
@@ -69,7 +66,7 @@
     top: 22%;
     right: -130px;
     background: radial-gradient(circle at center, var(--color-accent, #60a5fa), transparent 65%);
-    opacity: 0.5;
+    opacity: 0.18;
     animation: orb-drift 19s ease-in-out infinite reverse;
     animation-delay: -3s;
   }
@@ -80,36 +77,36 @@
     bottom: 8%;
     left: -120px;
     background: radial-gradient(circle at center, var(--color-secondary, #1e3a5f), transparent 65%);
-    opacity: 0.55;
+    opacity: 0.18;
     animation: orb-drift 24s ease-in-out infinite;
     animation-delay: -8s;
   }
 
-  /* ── Glass card ──────────────────────────────────────────────────────── */
+  /* ── Glass card — light frosted panel ────────────────────────────────── */
 
   .glass-card {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 4px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04);
   }
 
   .glass-card-inset {
-    background: linear-gradient(145deg, rgba(0, 0, 0, 0.18) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(12px) saturate(140%);
-    -webkit-backdrop-filter: blur(12px) saturate(140%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.03);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
   }
 
   /* ── Liquid glass ────────────────────────────────────────────────────── */
 
   .liquid-glass {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 45%, rgba(255, 255, 255, 0.09) 100%);
-    backdrop-filter: blur(32px) saturate(240%) brightness(1.08);
-    -webkit-backdrop-filter: blur(32px) saturate(240%) brightness(1.08);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.22), inset 1px 0 rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(32px) saturate(200%) brightness(1.02);
+    -webkit-backdrop-filter: blur(32px) saturate(200%) brightness(1.02);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
     position: relative;
     overflow: hidden;
   }
@@ -121,7 +118,7 @@
     left: 8%;
     right: 8%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
     pointer-events: none;
     z-index: 2;
   }
@@ -133,20 +130,20 @@
     left: 0;
     right: 0;
     height: 44%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
     pointer-events: none;
     z-index: 1;
     border-radius: inherit;
   }
 
-  /* ── Liquid glass nav bar ────────────────────────────────────────────── */
+  /* ── Liquid glass nav bar — light frosted ────────────────────────────── */
 
   .liquid-glass-nav {
-    background: linear-gradient(to top, rgba(4, 7, 18, 0.88) 0%, rgba(8, 12, 26, 0.72) 100%);
-    backdrop-filter: blur(36px) saturate(220%) brightness(1.06);
-    -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(1.06);
-    border-top: 1px solid rgba(255, 255, 255, 0.13);
-    box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    background: rgba(238, 244, 251, 0.88);
+    backdrop-filter: blur(36px) saturate(180%) brightness(1.02);
+    -webkit-backdrop-filter: blur(36px) saturate(180%) brightness(1.02);
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     position: relative;
     overflow: hidden;
   }
@@ -158,7 +155,7 @@
     left: 6%;
     right: 6%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
     pointer-events: none;
     z-index: 2;
   }

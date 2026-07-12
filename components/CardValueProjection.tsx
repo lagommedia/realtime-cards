@@ -168,7 +168,7 @@ function FactorRow({ factor }: { factor: ProjectionFactor }) {
         </div>
 
         {/* Factor label */}
-        <span className="text-white text-xs font-medium flex-1 truncate">{factor.label}</span>
+        <span className="text-slate-900 text-xs font-medium flex-1 truncate">{factor.label}</span>
 
         {/* Impact */}
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -190,7 +190,7 @@ function FactorRow({ factor }: { factor: ProjectionFactor }) {
 
       {showBasis && (
         <div
-          className="ml-2 pl-2 border-l text-[10px] text-gray-400 leading-relaxed"
+          className="ml-2 pl-2 border-l text-[10px] text-slate-500 leading-relaxed"
           style={{ borderColor: catColor + '40' }}
         >
           {factor.historicalBasis}
@@ -245,7 +245,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
   const hasFactors = projection.factors.length > 0;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-white/10" style={{ backgroundColor: '#ffffff05' }}>
+    <div className="rounded-xl overflow-hidden border border-slate-200" style={{ backgroundColor: 'rgba(0,0,0,0.02)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
       {hasFactors && (
         <div className="px-3 pb-2">
           <p className="text-[10px] text-gray-500">
-            <span className="text-gray-400 font-semibold">Primary driver:</span>{' '}
+            <span className="text-slate-600 font-semibold">Primary driver:</span>{' '}
             {projection.primaryDriver}
           </p>
         </div>
@@ -280,7 +280,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
           horizon24h.confidence === 'high' ? '#22c55e' :
           horizon24h.confidence === 'medium' ? '#f59e0b' : '#6b7280';
         return (
-          <div className="border-t border-white/5 px-3 pt-3 pb-2">
+          <div className="border-t border-slate-100 px-3 pt-3 pb-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
                 <span className="text-[9px] text-gray-600 uppercase tracking-wider font-medium">24 Hours</span>
@@ -311,7 +311,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
         <>
           <button
             onClick={() => setShowFactors(v => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 border-t border-white/5 text-left"
+            className="w-full flex items-center justify-between px-3 py-2 border-t border-slate-100 text-left"
             style={{ color: theme.primary }}
           >
             <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -321,7 +321,7 @@ export default function CardValueProjectionPanel({ projection, priceMultiplier =
           </button>
 
           {showFactors && (
-            <div className="px-3 pb-3 space-y-3 border-t border-white/5 pt-3">
+            <div className="px-3 pb-3 space-y-3 border-t border-slate-100 pt-3">
               <FactorsPanel projection={projection} />
             </div>
           )}

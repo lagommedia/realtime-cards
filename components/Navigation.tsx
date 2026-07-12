@@ -30,7 +30,7 @@ export default function Navigation() {
               key={href}
               href={href}
               className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all"
-              style={{ color: active ? theme.primary : '#9ca3af' }}
+              style={{ color: active ? theme.primary : '#64748b' }}
             >
               {isSettings && selectedTeam ? (
                 <div style={{ opacity: active ? 1 : 0.6 }}>

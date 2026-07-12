@@ -50,12 +50,12 @@ export default function HomePage() {
       <div className="px-4 pt-12 pb-4" style={{ background: `linear-gradient(180deg, ${theme.primary}33 0%, transparent 100%)` }}>
         <div className="flex items-center justify-between mb-1">
           <div>
-            <h1 className="text-2xl font-bold text-white">CardTracker</h1>
-            <p className="text-xs text-gray-400">{today}</p>
+            <h1 className="text-2xl font-bold text-slate-900">CardTracker</h1>
+            <p className="text-xs text-slate-500">{today}</p>
           </div>
           <button
             onClick={() => { setLoading(true); fetchGames(); }}
-            className="p-2 rounded-xl border border-white/10 text-gray-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
             style={{ backgroundColor: theme.cardBackground }}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -65,7 +65,7 @@ export default function HomePage() {
         {!selectedTeamId && (
           <Link
             href="/settings"
-            className="mt-3 flex items-center gap-2 p-3 rounded-xl border border-dashed border-white/20 text-sm text-gray-400 hover:border-white/40 transition-colors"
+            className="mt-3 flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500 hover:border-slate-400 transition-colors"
           >
             <Star size={14} style={{ color: theme.primary }} />
             Pick your favorite team to personalize the app →
@@ -85,8 +85,8 @@ export default function HomePage() {
         {!loading && !error && games.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <p className="text-2xl">⚾</p>
-            <p className="text-white font-semibold">No games today</p>
-            <p className="text-gray-400 text-sm">Check back tomorrow for the next game day</p>
+            <p className="text-slate-900 font-semibold">No games today</p>
+            <p className="text-slate-500 text-sm">Check back tomorrow for the next game day</p>
           </div>
         )}
 
@@ -94,7 +94,7 @@ export default function HomePage() {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Live Now</h2>
+              <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Live Now</h2>
             </div>
             <div className="space-y-3">
               {liveGames.map(game => <GameCard key={game.gamePk} game={game} />)}
@@ -104,7 +104,7 @@ export default function HomePage() {
 
         {finalGames.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Finished Today</h2>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Finished Today</h2>
             <div className="space-y-3">
               {finalGames.map(game => <GameCard key={game.gamePk} game={game} />)}
             </div>
@@ -113,7 +113,7 @@ export default function HomePage() {
 
         {upcomingGames.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Upcoming</h2>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Upcoming</h2>
             <div className="space-y-3">
               {upcomingGames.map(game => <GameCard key={game.gamePk} game={game} />)}
             </div>

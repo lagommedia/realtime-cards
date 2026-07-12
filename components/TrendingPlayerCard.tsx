@@ -207,8 +207,8 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         <div
           className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0"
           style={{
-            backgroundColor: rank <= 3 ? `${theme.primary}44` : '#ffffff10',
-            color: rank <= 3 ? theme.primary : '#6b7280',
+            backgroundColor: rank <= 3 ? `${theme.primary}22` : 'rgba(0,0,0,0.06)',
+            color: rank <= 3 ? theme.primary : '#64748b',
           }}
         >
           {rank}
@@ -217,19 +217,19 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         <PlayerHeadshot playerId={prediction.playerId} playerName={prediction.playerName} size={46} />
 
         <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm truncate">{prediction.playerName}</p>
+          <p className="text-slate-900 font-semibold text-sm truncate">{prediction.playerName}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <TeamLogo teamId={prediction.teamId} abbreviation="" size={13} />
-            <span className="text-gray-400 text-xs">{prediction.position}</span>
-            <span className="text-gray-600 text-xs">·</span>
+            <span className="text-slate-500 text-xs">{prediction.position}</span>
+            <span className="text-slate-400 text-xs">·</span>
             {!isPitcher ? (
-              <span className="text-gray-400 text-xs">
+              <span className="text-slate-500 text-xs">
                 {stats.hits ?? 0}-{stats.atBats ?? 0}
                 {stats.homeRuns ? ` · ${stats.homeRuns} HR` : ''}
                 {stats.rbi ? ` · ${stats.rbi} RBI` : ''}
               </span>
             ) : (
-              <span className="text-gray-400 text-xs">
+              <span className="text-slate-500 text-xs">
                 {stats.inningsPitched ?? '0'} IP
                 {stats.pitchingStrikeOuts ? ` · ${stats.pitchingStrikeOuts} K` : ''}
                 {stats.earnedRuns !== undefined ? ` · ${stats.earnedRuns} ER` : ''}
@@ -270,7 +270,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 {livePct >= 0 ? '+' : ''}{livePct.toFixed(1)}%
               </span>
             </div>
-            <div className="text-gray-600">
+            <div className="text-slate-400">
               {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             </div>
           </div>
@@ -279,7 +279,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
 
       {/* Expanded panel */}
       {expanded && (
-        <div className="border-t border-white/10 p-4 space-y-4">
+        <div className="border-t border-slate-200 p-4 space-y-4">
 
           {/* ── Card carousel — top of panel ── */}
           {!hideCardImage && <div>
