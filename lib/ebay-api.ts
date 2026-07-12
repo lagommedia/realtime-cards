@@ -288,23 +288,17 @@ export async function getPlayerCardSets(
     };
   };
 
-  // Filter and sort each brand independently — Topps listings often omit "RC"/"Rookie Card"
-  // in the title even for genuine rookie cards, so the RC check must not apply to Topps.
-  // The query already targeted "Rookie Card"; Bowman's broader query requires an explicit check.
-  const byBase = (a: { title: string }, b: { title: string }) =>
-    (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1);
-
   const toppsFiltered = toppsRaw
-    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
-    .sort(byBase);
+    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title));
 
   const bowmanFiltered = bowmanRaw
-    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title))
-    .sort(byBase);
+    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title));
 
-  // All Topps before any Bowman; within each brand, base before parallel/auto.
+  // Sort cheapest first — base RCs naturally sort before parallels, autos, and numbered cards.
+  const allFiltered = [...toppsFiltered, ...bowmanFiltered].sort((a, b) => a.price - b.price);
+
   const results: SetCardResult[] = [];
-  for (const listing of [...toppsFiltered, ...bowmanFiltered]) {
+  for (const listing of allFiltered) {
     const r = toResult(listing);
     if (r) results.push(r);
   }
