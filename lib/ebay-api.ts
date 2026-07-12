@@ -269,9 +269,11 @@ export async function getPlayerCardSets(
 
   const combined = [...toppsRaw, ...bowmanRaw];
 
-  // Priority: Topps base → Bowman base → Topps parallel/auto → Bowman parallel/auto
+  // Brand is the dominant axis — ALL Topps before ANY Bowman.
+  // Within each brand, base cards come before parallels/autos.
+  // Scores: Topps base=0, Topps parallel=1, Bowman base=10, Bowman parallel=11
   combined.sort((a, b) => {
-    const score = (t: string) => (isBaseCard(t) ? 0 : 2) + (/\btopps\b/i.test(t) ? 0 : 1);
+    const score = (t: string) => (/\btopps\b/i.test(t) ? 0 : 10) + (isBaseCard(t) ? 0 : 1);
     return score(a.title) - score(b.title);
   });
 
