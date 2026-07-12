@@ -259,7 +259,7 @@ export async function getPlayerCardSets(
 
   // Two parallel BIN searches: Topps flagship RCs + Bowman 1st/RC cards.
   // Kept to 2 queries — prior attempt with 4 parallel queries hit rate limits.
-  const toppsQuery  = `${playerName} ${rookieYear} Topps Rookie Card PSA ${grade}`;
+  const toppsQuery  = `${playerName} ${rookieYear} Topps RC`;
   const bowmanQuery = `${playerName} Bowman PSA ${grade}`;
   const [toppsRaw, bowmanRaw] = await Promise.all([
     searchEbayListings(toppsQuery,  token, false, 15),
@@ -293,7 +293,7 @@ export async function getPlayerCardSets(
     (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1);
 
   const toppsFiltered = toppsRaw
-    .filter(l => /\btopps\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
+    .filter(l => /\btopps\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && !/\bbowman\b/i.test(l.title))
     .sort(byBase);
 
   const bowmanFiltered = bowmanRaw
