@@ -428,7 +428,10 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
     prevBatterIdRef.current = currentBatterId;
 
     if (prevResultKeyRef.current === null) {
-      // First data load — record baseline without showing overlay
+      // Wait until real live data has arrived — while liveSnap is null the key is ''
+      // and setting the baseline now would cause the first real result to look like a change.
+      if (!liveSnap) return;
+      // First real data load — record baseline without showing overlay
       prevResultKeyRef.current = key;
       prevOutsRef.current = currentOuts;
       prevInningRef.current = currentInning;
