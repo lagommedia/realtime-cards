@@ -288,14 +288,18 @@ export async function getPlayerCardSets(
     };
   };
 
+  const byPrice = (a: { price: number }, b: { price: number }) => a.price - b.price;
+
   const toppsFiltered = toppsRaw
-    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title));
+    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
+    .sort(byPrice);
 
   const bowmanFiltered = bowmanRaw
-    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title));
+    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title))
+    .sort(byPrice);
 
-  // Sort cheapest first — base RCs naturally sort before parallels, autos, and numbered cards.
-  const allFiltered = [...toppsFiltered, ...bowmanFiltered].sort((a, b) => a.price - b.price);
+  // Topps (cheapest→priciest) before Bowman (cheapest→priciest).
+  const allFiltered = [...toppsFiltered, ...bowmanFiltered];
 
   const results: SetCardResult[] = [];
   for (const listing of allFiltered) {
