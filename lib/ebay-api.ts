@@ -267,35 +267,13 @@ export async function getPlayerCardSets(
 
   if (toppsRaw === 'rate_limited' || bowmanRaw === 'rate_limited') return { sets: [], rateLimited: true };
 
-  const combined = [...toppsRaw, ...bowmanRaw];
-
-  // Brand is the dominant axis — ALL Topps before ANY Bowman.
-  // Within each brand, base cards come before parallels/autos.
-  // Scores: Topps base=0, Topps parallel=1, Bowman base=10, Bowman parallel=11
-  combined.sort((a, b) => {
-    const score = (t: string) => (/\btopps\b/i.test(t) ? 0 : 10) + (isBaseCard(t) ? 0 : 1);
-    return score(a.title) - score(b.title);
-  });
-
   const seenIds = new Set<string>();
-  const results: SetCardResult[] = [];
-
-  for (const listing of combined) {
-    if (!listing.itemId || seenIds.has(listing.itemId)) continue;
+  const toResult = (listing: (typeof toppsRaw)[number]): SetCardResult | null => {
+    if (!listing.itemId || seenIds.has(listing.itemId)) return null;
     seenIds.add(listing.itemId);
-
-    const title = listing.title;
-    if (NON_TOPPS_BOWMAN_BRANDS.test(title)) continue;
-    if (!/\btopps\b|\bbowman\b/i.test(title)) continue;
-    if (!/\brc\b|\brookie\b|\b1st\b/i.test(title)) continue;
-    if (!/\bpsa\b/i.test(title)) continue;
-    // Bowman: only allow 1st Bowman or official Rookie Card — no generic Draft/base sets
-    if (/\bbowman\b/i.test(title) && !/\b1st\b|\brc\b|\brookie\b/i.test(title)) continue;
-
-    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title))
+    const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(listing.title))
       ?? { set: 'Topps', shortName: 'Topps' };
-
-    results.push({
+    return {
       set: setInfo.set,
       shortName: setInfo.shortName,
       year: rookieYear,
@@ -304,7 +282,28 @@ export async function getPlayerCardSets(
       soldDate:  undefined,
       imageUrl:  listing.imageUrl,
       itemUrl:   listing.itemUrl,
-    });
+    };
+  };
+
+  // Filter and sort each brand independently — Topps listings often omit "RC"/"Rookie Card"
+  // in the title even for genuine rookie cards, so the RC check must not apply to Topps.
+  // The query already targeted "Rookie Card"; Bowman's broader query requires an explicit check.
+  const byBase = (a: { title: string }, b: { title: string }) =>
+    (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1);
+
+  const toppsFiltered = toppsRaw
+    .filter(l => /\btopps\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
+    .sort(byBase);
+
+  const bowmanFiltered = bowmanRaw
+    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title))
+    .sort(byBase);
+
+  // All Topps before any Bowman; within each brand, base before parallel/auto.
+  const results: SetCardResult[] = [];
+  for (const listing of [...toppsFiltered, ...bowmanFiltered]) {
+    const r = toResult(listing);
+    if (r) results.push(r);
   }
 
   const sets = results.slice(0, 10);
