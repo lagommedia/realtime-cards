@@ -166,6 +166,12 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
   const selectedSetCard = setCards.length > 0 ? (setCards[selectedCardIdx] ?? null) : null;
   const actualBinPrice: number | null = selectedSetCard?.binPrice ?? null;
 
+  // When a real BIN price exists, anchor the chart to it rather than the static multiplier.
+  // This ensures the chart reflects the actual market price of the card in view.
+  const chartMultiplier = (actualBinPrice !== null && prediction.currentPrice > 0)
+    ? actualBinPrice / prediction.currentPrice
+    : totalMultiplier;
+
   const baseCurrentPrice = prediction.currentPrice * totalMultiplier;
 
   // Live ticker: runs as fallback when no real BIN price is available
@@ -388,7 +394,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
           <RobinhoodPriceChart
             prediction={prediction}
             defaultView={defaultChartView}
-            priceMultiplier={totalMultiplier}
+            priceMultiplier={chartMultiplier}
             isLive={isLive}
           />
 

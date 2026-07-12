@@ -269,8 +269,11 @@ export async function getPlayerCardSets(
 
   const combined = [...toppsRaw, ...bowmanRaw];
 
-  // Surface base cards first so they aren't crowded out by higher-priced autos/parallels
-  combined.sort((a, b) => (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1));
+  // Priority: Topps base → Bowman base → Topps parallel/auto → Bowman parallel/auto
+  combined.sort((a, b) => {
+    const score = (t: string) => (isBaseCard(t) ? 0 : 2) + (/\btopps\b/i.test(t) ? 0 : 1);
+    return score(a.title) - score(b.title);
+  });
 
   const seenIds = new Set<string>();
   const results: SetCardResult[] = [];
