@@ -220,7 +220,6 @@ const TOPPS_SET_MAP: Array<{ pattern: RegExp; set: string; shortName: string }> 
   { pattern: /\btopps\s+series\s*(?:1|one)\b|\btopps\s+s1\b/i,               set: 'Topps Series 1',    shortName: 'S1'          },
   { pattern: /\bbowman\s+chrome\b.*\b1st\b|\b1st\s+bowman\s+chrome\b/i,      set: 'Bowman Chrome 1st', shortName: 'Chrome 1st'  },
   { pattern: /\bbowman\s+chrome\b/i,                                          set: 'Bowman Chrome',     shortName: 'Bowman Chrome'},
-  { pattern: /\bbowman\s+draft\b/i,                                           set: 'Bowman Draft',      shortName: 'Bowman Draft'},
   { pattern: /\b1st\s+bowman\b|\bbowman\s+1st\b/i,                           set: 'Bowman 1st',        shortName: 'Bowman 1st'  },
   { pattern: /\bbowman\b/i,                                                   set: 'Bowman',            shortName: 'Bowman'      },
 ];
@@ -285,6 +284,8 @@ export async function getPlayerCardSets(
     if (!/\btopps\b|\bbowman\b/i.test(title)) continue;
     if (!/\brc\b|\brookie\b|\b1st\b/i.test(title)) continue;
     if (!/\bpsa\b/i.test(title)) continue;
+    // Bowman: only allow 1st Bowman or official Rookie Card — no generic Draft/base sets
+    if (/\bbowman\b/i.test(title) && !/\b1st\b|\brc\b|\brookie\b/i.test(title)) continue;
 
     const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(title))
       ?? { set: 'Topps', shortName: 'Topps' };

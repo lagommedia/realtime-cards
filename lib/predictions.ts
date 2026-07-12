@@ -8,7 +8,6 @@ export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
   'Topps Update':    0.9,
   'Topps Chrome':    2.8,
   'Bowman':          1.0,
-  'Bowman Draft':    1.1,
   'Bowman 1st':      1.5,
   'Bowman Chrome':   2.5,
   'Bowman Chrome 1st': 3.5,
