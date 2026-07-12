@@ -259,7 +259,9 @@ export async function getPlayerCardSets(
 
   // Two parallel BIN searches: Topps flagship RCs + Bowman 1st/RC cards.
   // Kept to 2 queries — prior attempt with 4 parallel queries hit rate limits.
-  const toppsQuery  = `${playerName} ${rookieYear} Topps RC`;
+  // Topps Chrome is the flagship Topps product that gets PSA-graded at scale.
+  // Series 1/2 base cards ($5-10 raw) are rarely graded; Topps Now is excluded.
+  const toppsQuery  = `${playerName} ${rookieYear} Topps Chrome PSA ${grade}`;
   const bowmanQuery = `${playerName} Bowman PSA ${grade}`;
   const [toppsRaw, bowmanRaw] = await Promise.all([
     searchEbayListings(toppsQuery,  token, false, 15),
@@ -293,7 +295,7 @@ export async function getPlayerCardSets(
     (isBaseCard(a.title) ? 0 : 1) - (isBaseCard(b.title) ? 0 : 1);
 
   const toppsFiltered = toppsRaw
-    .filter(l => /\btopps\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && !/\bbowman\b/i.test(l.title))
+    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
     .sort(byBase);
 
   const bowmanFiltered = bowmanRaw
@@ -436,7 +438,11 @@ export async function getPlayerCardPricing(
     if (gradingCompany) {
       const gPat = gradingPattern(gradingCompany);
       const gradePat = gradeValue ? new RegExp(`\\b${gradeValue.replace('.', '\\.')}\\b`) : null;
+      const isTopps = (t: string) => /\btopps\b/i.test(t) && !EXCLUDED_CARD_BRANDS.test(t) && !/\bbowman\b/i.test(t);
       activeListing =
+        // Prefer Topps (any) with correct grade + image
+        active.find(l => l.imageUrl && isTopps(l.title) && gPat.test(l.title) && (!gradePat || gradePat.test(l.title))) ??
+        // Fall back to any non-excluded brand with correct grade
         active.find(l => l.imageUrl && gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
         active.find(l => gPat.test(l.title) && (!gradePat || gradePat.test(l.title)) && !EXCLUDED_CARD_BRANDS.test(l.title)) ??
         active.find(l => l.imageUrl && gPat.test(l.title)) ??
