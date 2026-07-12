@@ -187,6 +187,7 @@ function gradingPattern(company: string): RegExp {
 
 function isAllowedToppsRC(title: string): boolean {
   if (EXCLUDED_BRANDS.test(title)) return false;
+  if (/\bbowman\b/i.test(title)) return false; // Bowman is not Topps flagship
   return TOPPS_ALLOWED_SETS.test(title);
 }
 
@@ -441,9 +442,13 @@ export async function getPlayerCardPricing(
         active.find(l => l.imageUrl && gPat.test(l.title)) ??
         active.find(l => gPat.test(l.title));
     } else {
+      // Priority: Topps flagship base RC > Topps flagship any > Topps any base > Topps any > base card > any with image
       activeListing =
+        active.find(l => l.imageUrl && isAllowedToppsRC(l.title) && isBaseCard(l.title)) ??
         active.find(l => l.imageUrl && isAllowedToppsRC(l.title)) ??
+        active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title) && isBaseCard(l.title)) ??
         active.find(l => l.imageUrl && /\btopps\b/i.test(l.title) && !EXCLUDED_BRANDS.test(l.title)) ??
+        active.find(l => l.imageUrl && isBaseCard(l.title)) ??
         active.find(l => l.imageUrl) ??
         active[0];
     }

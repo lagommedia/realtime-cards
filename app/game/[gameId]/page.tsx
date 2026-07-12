@@ -735,7 +735,7 @@ export default function GamePage({ params }: { params: Promise<{ gameId: string 
               const pitcherSignedPct = `${pitcherIsUp ? '+' : ''}${adjPitcherPct.toFixed(1)}%`;
 
               return (
-                <div className="mt-3 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '10px', marginTop: '12px' }}>
+                <div className="mt-3 rounded-xl overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '10px', marginTop: '12px' }}>
                   <div className="flex gap-2 items-stretch">
                     {/* Batter column — 1/3: unified placard */}
                     <div
