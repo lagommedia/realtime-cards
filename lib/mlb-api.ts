@@ -1,4 +1,6 @@
-import { MLBGame, MLBPlayer, MLBTeam, LivePlayerStat } from '@/types';
+import { MLBGame, MLBPlayer, MLBTeam, LivePlayerStat, GameEvent } from '@/types';
+
+export interface ScheduledGame { gamePk: number; date: string; }
 
 const MLB_BASE = 'https://statsapi.mlb.com/api/v1';
 const MLB_BASE_V1_1 = 'https://statsapi.mlb.com/api/v1.1';
@@ -81,17 +83,19 @@ export async function getAllTeams(): Promise<MLBTeam[]> {
 
 // ── Historical / multi-game helpers ──────────────────────────────────────────
 
-export async function getScheduleForDateRange(startDate: string, endDate: string): Promise<number[]> {
+export async function getScheduleForDateRange(startDate: string, endDate: string): Promise<ScheduledGame[]> {
   const data = await fetchMLB<{
-    dates: Array<{ games: Array<{ gamePk: number; status: { abstractGameState: string } }> }>
+    dates: Array<{ date: string; games: Array<{ gamePk: number; status: { abstractGameState: string } }> }>
   }>(`/schedule?sportId=1&startDate=${startDate}&endDate=${endDate}&gameType=R`, 'v1', 3600);
-  const pks: number[] = [];
-  for (const date of data.dates ?? []) {
-    for (const game of date.games) {
-      if (game.status.abstractGameState === 'Final') pks.push(game.gamePk);
+  const games: ScheduledGame[] = [];
+  for (const dateEntry of data.dates ?? []) {
+    for (const game of dateEntry.games) {
+      if (game.status.abstractGameState === 'Final') {
+        games.push({ gamePk: game.gamePk, date: dateEntry.date });
+      }
     }
   }
-  return pks;
+  return games;
 }
 
 async function getHistoricalBoxScore(gamePk: number) {
@@ -151,15 +155,58 @@ function addInnings(a: string | undefined, b: string | undefined): string {
   return `${Math.floor(total / 3)}.${total % 3}`;
 }
 
-export async function aggregatePlayerStatsFromGames(gamePks: number[]): Promise<LivePlayerStat[]> {
-  if (gamePks.length === 0) return [];
-  const boxscores = await Promise.all(gamePks.map(pk => getHistoricalBoxScore(pk).catch(() => null)));
-  const map = new Map<number, LivePlayerStat>();
-  for (const bs of boxscores) {
-    if (!bs) continue;
-    for (const stat of extractBoxscoreStats(bs as { teams: { home: unknown; away: unknown } })) {
-      if (map.has(stat.playerId)) {
-        const e = map.get(stat.playerId)!;
+function scoreHitterGame(stats: LivePlayerStat['todayStats']): { score: number; label: string } {
+  const hrs = stats.homeRuns ?? 0;
+  const hits = stats.hits ?? 0;
+  const ab = stats.atBats ?? 0;
+  const rbi = stats.rbi ?? 0;
+  const parts: string[] = [];
+  let score = hrs * 25 + hits * 5 + rbi * 8;
+  if (hrs > 0) parts.push(`${hrs} HR`);
+  if (hits > 0 && ab > 0) parts.push(`${hits}-${ab}`);
+  if (rbi > 0) parts.push(`${rbi} RBI`);
+  if (hits === 0 && ab >= 3) { score = -15; return { score, label: `0-for-${ab}` }; }
+  return { score, label: parts.join(', ') };
+}
+
+function scorePitcherGame(stats: LivePlayerStat['todayStats']): { score: number; label: string } {
+  const ks = stats.pitchingStrikeOuts ?? 0;
+  const ip = parseFloat(stats.inningsPitched ?? '0');
+  const er = stats.earnedRuns ?? 0;
+  const score = ks * 4 + ip * 3 - er * 8;
+  const parts: string[] = [];
+  if (ip > 0) parts.push(`${ip} IP`);
+  if (ks > 0) parts.push(`${ks} K`);
+  if (stats.earnedRuns !== undefined) parts.push(`${er} ER`);
+  return { score, label: parts.join(', ') };
+}
+
+export async function aggregatePlayerStatsFromGames(
+  games: ScheduledGame[]
+): Promise<{ players: LivePlayerStat[]; perGameEvents: Map<number, GameEvent[]> }> {
+  if (games.length === 0) return { players: [], perGameEvents: new Map() };
+
+  const results = await Promise.all(
+    games.map(g => getHistoricalBoxScore(g.gamePk).catch(() => null).then(bs => bs ? { bs, date: g.date } : null))
+  );
+
+  const playerMap = new Map<number, LivePlayerStat>();
+  // playerId → list of significant game events (unsorted)
+  const rawEvents = new Map<number, Array<{ date: string; score: number; label: string; opponentTeamId: number }>>();
+
+  for (const result of results) {
+    if (!result) continue;
+    const { bs, date } = result;
+    const boxscore = bs as { teams: { home: unknown; away: unknown } };
+    const stats = extractBoxscoreStats(boxscore);
+
+    const homeTeamId = ((boxscore.teams as Record<string, unknown>).home as { team?: { id: number } })?.team?.id ?? 0;
+    const awayTeamId = ((boxscore.teams as Record<string, unknown>).away as { team?: { id: number } })?.team?.id ?? 0;
+
+    for (const stat of stats) {
+      // Aggregate totals
+      if (playerMap.has(stat.playerId)) {
+        const e = playerMap.get(stat.playerId)!;
         const s = e.todayStats; const n = stat.todayStats;
         s.atBats             = (s.atBats             ?? 0) + (n.atBats             ?? 0);
         s.hits               = (s.hits               ?? 0) + (n.hits               ?? 0);
@@ -171,55 +218,115 @@ export async function aggregatePlayerStatsFromGames(gamePks: number[]): Promise<
         s.earnedRuns         = (s.earnedRuns         ?? 0) + (n.earnedRuns         ?? 0);
         s.inningsPitched     = addInnings(s.inningsPitched, n.inningsPitched);
       } else {
-        map.set(stat.playerId, { ...stat, todayStats: { ...stat.todayStats } });
+        playerMap.set(stat.playerId, { ...stat, todayStats: { ...stat.todayStats } });
+      }
+
+      // Score this game for event tracking
+      const isPitcher = ['P', 'SP', 'RP', 'CP'].includes(stat.position);
+      const { score, label } = isPitcher
+        ? scorePitcherGame(stat.todayStats)
+        : scoreHitterGame(stat.todayStats);
+
+      if (Math.abs(score) >= 15 && label) {
+        const opponentTeamId = stat.teamId === homeTeamId ? awayTeamId : homeTeamId;
+        const existing = rawEvents.get(stat.playerId) ?? [];
+        existing.push({ date, score, label, opponentTeamId });
+        rawEvents.set(stat.playerId, existing);
       }
     }
   }
-  return [...map.values()];
+
+  // For each player, keep the top 4 most impactful games, sorted chronologically
+  const perGameEvents = new Map<number, GameEvent[]>();
+  for (const [playerId, events] of rawEvents) {
+    const top4 = events
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
+      .slice(0, 4)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    perGameEvents.set(playerId, top4.map(e => ({
+      date: e.date,
+      label: e.label,
+      impactScore: e.score,
+      opponentTeamId: e.opponentTeamId || undefined,
+    })));
+  }
+
+  return { players: [...playerMap.values()], perGameEvents };
 }
 
 export async function getSeasonStatsLeaders(): Promise<LivePlayerStat[]> {
   const season = new Date().getFullYear();
-  type LeaderEntry = { person: { id: number; fullName: string }; team: { id: number }; value: string };
-  type LeadersResponse = { leagueLeaders: Array<{ leaderCategory: string; leaders: LeaderEntry[] }> };
+
+  type StatSplit = {
+    player: { id: number; fullName: string };
+    team?: { id: number };
+    position?: { abbreviation: string };
+    stat: {
+      homeRuns?: number; rbi?: number; avg?: string;
+      atBats?: number; hits?: number;
+      strikeOuts?: number; inningsPitched?: string; earnedRuns?: number;
+    };
+  };
+  type StatsResponse = { stats: Array<{ splits?: StatSplit[] }> };
 
   const [hitting, pitching] = await Promise.all([
-    fetchMLB<LeadersResponse>(
-      `/stats/leaders?leaderCategories=homeRuns,rbi&season=${season}&leaderGameTypes=R&limit=12&sportId=1`,
+    fetchMLB<StatsResponse>(
+      `/stats?stats=season&group=hitting&season=${season}&gameType=R&limit=50&sportId=1`,
       'v1', 1800
     ).catch(() => null),
-    fetchMLB<LeadersResponse>(
-      `/stats/leaders?leaderCategories=strikeouts&season=${season}&leaderGameTypes=R&limit=10&sportId=1&statGroup=pitching`,
+    fetchMLB<StatsResponse>(
+      `/stats?stats=season&group=pitching&season=${season}&gameType=R&limit=30&sportId=1`,
       'v1', 1800
     ).catch(() => null),
   ]);
 
   const map = new Map<number, LivePlayerStat>();
-  const add = (entry: LeaderEntry, stats: LivePlayerStat['todayStats'], position: string) => {
-    if (!map.has(entry.person.id)) {
-      map.set(entry.person.id, {
-        playerId:   entry.person.id,
-        playerName: entry.person.fullName,
-        teamId:     entry.team?.id ?? 0,
-        position,
-        todayStats: stats,
-      });
-    } else {
-      Object.assign(map.get(entry.person.id)!.todayStats, stats);
-    }
-  };
 
-  for (const bucket of hitting?.leagueLeaders ?? []) {
-    for (const l of bucket.leaders ?? []) {
-      if (bucket.leaderCategory === 'homeRuns') add(l, { homeRuns: parseInt(l.value, 10) }, 'OF');
-      if (bucket.leaderCategory === 'rbi')      add(l, { rbi:      parseInt(l.value, 10) }, 'OF');
-    }
+  // Top hitters sorted by home runs
+  const hitterSplits = (hitting?.stats ?? []).flatMap(s => s.splits ?? []);
+  const topHitters = hitterSplits
+    .filter(s => s.player?.id && (s.stat.homeRuns ?? 0) > 0)
+    .sort((a, b) => (b.stat.homeRuns ?? 0) - (a.stat.homeRuns ?? 0))
+    .slice(0, 12);
+
+  for (const split of topHitters) {
+    map.set(split.player.id, {
+      playerId:   split.player.id,
+      playerName: split.player.fullName,
+      teamId:     split.team?.id ?? 0,
+      position:   split.position?.abbreviation ?? 'OF',
+      todayStats: {
+        homeRuns: split.stat.homeRuns ?? 0,
+        rbi:      split.stat.rbi ?? 0,
+        avg:      split.stat.avg,
+        atBats:   split.stat.atBats ?? 0,
+        hits:     split.stat.hits ?? 0,
+      },
+    });
   }
-  for (const bucket of pitching?.leagueLeaders ?? []) {
-    for (const l of bucket.leaders ?? []) {
-      add(l, { pitchingStrikeOuts: parseInt(l.value, 10) }, 'SP');
-    }
+
+  // Top pitchers sorted by strikeouts
+  const pitcherSplits = (pitching?.stats ?? []).flatMap(s => s.splits ?? []);
+  const topPitchers = pitcherSplits
+    .filter(s => s.player?.id && (s.stat.strikeOuts ?? 0) > 0)
+    .sort((a, b) => (b.stat.strikeOuts ?? 0) - (a.stat.strikeOuts ?? 0))
+    .slice(0, 8);
+
+  for (const split of topPitchers) {
+    if (map.has(split.player.id)) continue;
+    map.set(split.player.id, {
+      playerId:   split.player.id,
+      playerName: split.player.fullName,
+      teamId:     split.team?.id ?? 0,
+      position:   split.position?.abbreviation ?? 'SP',
+      todayStats: {
+        pitchingStrikeOuts: split.stat.strikeOuts ?? 0,
+        inningsPitched:     split.stat.inningsPitched,
+        earnedRuns:         split.stat.earnedRuns,
+      },
+    });
   }
+
   return [...map.values()];
 }
 

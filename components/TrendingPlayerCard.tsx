@@ -223,16 +223,33 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             <span className="text-slate-500 text-xs">{prediction.position}</span>
             <span className="text-slate-400 text-xs">·</span>
             {!isPitcher ? (
-              <span className="text-slate-500 text-xs">
-                {stats.hits ?? 0}-{stats.atBats ?? 0}
-                {stats.homeRuns ? ` · ${stats.homeRuns} HR` : ''}
-                {stats.rbi ? ` · ${stats.rbi} RBI` : ''}
-              </span>
+              prediction.dateWindow === 'season' ? (
+                <span className="text-slate-500 text-xs">
+                  {stats.avg ? `${stats.avg} AVG` : ''}
+                  {stats.homeRuns ? `${stats.avg ? ' · ' : ''}${stats.homeRuns} HR` : ''}
+                  {stats.rbi ? ` · ${stats.rbi} RBI` : ''}
+                </span>
+              ) : (
+                <span className="text-slate-500 text-xs">
+                  {stats.hits ?? 0}-{stats.atBats ?? 0}
+                  {stats.homeRuns ? ` · ${stats.homeRuns} HR` : ''}
+                  {stats.rbi ? ` · ${stats.rbi} RBI` : ''}
+                </span>
+              )
             ) : (
               <span className="text-slate-500 text-xs">
-                {stats.inningsPitched ?? '0'} IP
-                {stats.pitchingStrikeOuts ? ` · ${stats.pitchingStrikeOuts} K` : ''}
-                {stats.earnedRuns !== undefined ? ` · ${stats.earnedRuns} ER` : ''}
+                {prediction.dateWindow === 'season' ? (
+                  <>
+                    {stats.pitchingStrikeOuts ? `${stats.pitchingStrikeOuts} K` : ''}
+                    {stats.inningsPitched ? ` · ${stats.inningsPitched} IP` : ''}
+                  </>
+                ) : (
+                  <>
+                    {stats.inningsPitched ?? '0'} IP
+                    {stats.pitchingStrikeOuts ? ` · ${stats.pitchingStrikeOuts} K` : ''}
+                    {stats.earnedRuns !== undefined ? ` · ${stats.earnedRuns} ER` : ''}
+                  </>
+                )}
               </span>
             )}
           </div>

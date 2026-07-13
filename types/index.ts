@@ -120,6 +120,13 @@ export interface CardPriceSummary {
   priceHistory: { date: string; price: number }[];
 }
 
+export interface GameEvent {
+  date: string;          // YYYY-MM-DD
+  label: string;         // e.g. "2 HR, 4 RBI" or "13 Ks, 7 IP"
+  impactScore: number;   // positive = green dot, negative = red dot
+  opponentTeamId?: number;
+}
+
 export interface CardPrediction {
   playerId: number;
   playerName: string;
@@ -137,6 +144,8 @@ export interface CardPrediction {
   priceSummary?: CardPriceSummary;
   rookieCardOptions: RookieCardOption[];
   projection?: CardValueProjection;
+  gameEvents?: GameEvent[];
+  dateWindow?: 'day' | 'week' | 'month' | 'season';
 }
 
 export interface TrendingPlayer {

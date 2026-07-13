@@ -136,34 +136,113 @@
     border-radius: inherit;
   }
 
-  /* ── Liquid glass nav pill ───────────────────────────────────────────── */
+  /* ── Liquid glass nav pill — iOS 26 style ───────────────────────────── */
 
   .liquid-glass-nav {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(48px) saturate(200%) brightness(1.06);
-    -webkit-backdrop-filter: blur(48px) saturate(200%) brightness(1.06);
-    border: 1px solid rgba(255, 255, 255, 0.95);
+    /*
+     * Translucent base — low opacity so the colored orbs bleed through
+     * and the backdrop blur has something vivid to work with.
+     * The gradient border uses background-clip to paint a prismatic rim.
+     */
+    background:
+      /* Glass face — padding-box only */
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.30) 0%,
+        rgba(255, 255, 255, 0.18) 100%
+      ),
+      /* Prismatic border — border-box, visible as the 1px border */
+      linear-gradient(
+        160deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(200, 218, 255, 0.65) 28%,
+        rgba(255, 255, 255, 0.58) 50%,
+        rgba(195, 215, 255, 0.65) 72%,
+        rgba(255, 255, 255, 0.92) 100%
+      );
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+
+    backdrop-filter: blur(56px) saturate(280%) brightness(1.20) contrast(1.04);
+    -webkit-backdrop-filter: blur(56px) saturate(280%) brightness(1.20) contrast(1.04);
+
+    border: 1px solid transparent;
     border-radius: 999px;
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.14),
-      0 2px 8px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 1);
     position: relative;
     overflow: hidden;
+
+    box-shadow:
+      /* Lift shadow — pill floats above the page */
+      0 18px 52px rgba(0, 0, 0, 0.22),
+      0 6px 18px rgba(0, 0, 0, 0.13),
+      0 2px 5px rgba(0, 0, 0, 0.08),
+      /* Top rim specular — bright white glass edge */
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+      /* Bottom glass floor — darker, creates thickness illusion */
+      inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+      /* Side speculars — lens edges */
+      inset 2px 0 0 rgba(255, 255, 255, 0.52),
+      inset -2px 0 0 rgba(255, 255, 255, 0.52),
+      /* Inner ambient fill */
+      inset 0 0 28px rgba(255, 255, 255, 0.06);
   }
 
-  /* Specular highlight along the top rim */
+  /*
+   * Caustic light layer — simulates the optical behaviour of thick glass:
+   *   - bright elliptical specular along the top rim
+   *   - lens-edge brightening at left/right extremes
+   *   - a floating caustic blob (top-left) that mimics light scatter
+   */
   .liquid-glass-nav::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 8%;
-    right: 8%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 1), transparent);
+    inset: 0;
+    border-radius: inherit;
     pointer-events: none;
     z-index: 2;
-    border-radius: 999px;
+    background:
+      /* Top rim caustic — the primary specular lobe */
+      radial-gradient(ellipse 88% 18% at 50% 0%,
+        rgba(255, 255, 255, 0.94) 0%,
+        transparent 100%
+      ),
+      /* Left lens-edge — refraction brightening */
+      radial-gradient(ellipse 13% 72% at 0% 50%,
+        rgba(255, 255, 255, 0.74) 0%,
+        transparent 100%
+      ),
+      /* Right lens-edge */
+      radial-gradient(ellipse 13% 72% at 100% 50%,
+        rgba(255, 255, 255, 0.74) 0%,
+        transparent 100%
+      ),
+      /* Floating caustic blob (top-left) */
+      radial-gradient(ellipse 38% 52% at 22% 22%,
+        rgba(255, 255, 255, 0.40) 0%,
+        transparent 100%
+      );
+  }
+
+  /* Bottom glass-floor shadow + upper-half inner luster */
+  .liquid-glass-nav::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    background:
+      /* Glass floor shadow */
+      radial-gradient(ellipse 82% 22% at 50% 100%,
+        rgba(0, 0, 0, 0.10) 0%,
+        transparent 100%
+      ),
+      /* Upper inner luster gradient */
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.18) 0%,
+        transparent 52%
+      );
   }
 
   /* Active nav item — glass bubble that pops above the pill */

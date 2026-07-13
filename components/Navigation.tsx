@@ -33,6 +33,34 @@ export default function Navigation() {
         maxWidth: '512px',
       }}
     >
+      {/*
+        SVG filter: feTurbulence → feDisplacementMap creates the edge-refraction
+        shimmer. Applied only to the decorative overlay (not icons/text).
+      */}
+      <svg aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+        <defs>
+          <filter id="lg-edge-refract" x="-5%" y="-5%" width="110%" height="110%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.022 0.028" numOctaves="2" seed="7" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Edge refraction shimmer overlay — decorative, sits above glass layers */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 999,
+          background: 'radial-gradient(ellipse 100% 100% at 50% 0%, rgba(255,255,255,0.22) 0%, transparent 65%)',
+          filter: 'url(#lg-edge-refract)',
+          pointerEvents: 'none',
+          zIndex: 3,
+          mixBlendMode: 'screen',
+        }}
+      />
+
       <LayoutGroup>
         <div className="flex items-center justify-around px-2 py-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {

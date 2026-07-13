@@ -6,7 +6,7 @@ import {
 import { getPlayerCardPricing } from '@/lib/ebay-api';
 import { generateCardPrediction, generateTrendingPredictions } from '@/lib/predictions';
 import { getDummyTrendingPredictions } from '@/lib/dummy-data';
-import { LivePlayerStat } from '@/types';
+import { LivePlayerStat, GameEvent } from '@/types';
 
 type DateWindow = 'day' | 'week' | 'month' | 'season';
 
@@ -19,7 +19,7 @@ async function getPredictionsForWindow(
   window: DateWindow,
   grading: string | undefined,
   grade: string | undefined,
-): Promise<{ players: LivePlayerStat[]; gameCount: number; usedDummy: boolean }> {
+): Promise<{ players: LivePlayerStat[]; gameCount: number; usedDummy: boolean; perGameEvents?: Map<number, GameEvent[]> }> {
 
   if (window === 'day') {
     const games = await getTodayGames();
@@ -50,17 +50,17 @@ async function getPredictionsForWindow(
     return { players, gameCount: 0, usedDummy: false };
   }
 
-  // week or month — aggregate recent boxscores
+  // week or month — aggregate recent boxscores with per-game event tracking
   const daysBack = window === 'week' ? 7 : 30;
   const maxGames = window === 'week' ? 20 : 25;
   const startDate = etDateOffset(daysBack);
   const endDate   = etDateOffset(1); // through yesterday; today is 'day' window
 
-  const allPks = await getScheduleForDateRange(startDate, endDate);
-  // Take the most recent N games (PKs are ordered chronologically; slice from end)
-  const pks = allPks.slice(-maxGames);
-  const players = await aggregatePlayerStatsFromGames(pks);
-  return { players, gameCount: pks.length, usedDummy: false };
+  const allGames = await getScheduleForDateRange(startDate, endDate);
+  // Take the most recent N games (ordered chronologically; slice from end)
+  const games = allGames.slice(-maxGames);
+  const { players, perGameEvents } = await aggregatePlayerStatsFromGames(games);
+  return { players, gameCount: games.length, usedDummy: false, perGameEvents };
 }
 
 export async function GET(req: NextRequest) {
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   const window  = (req.nextUrl.searchParams.get('window') ?? 'day') as DateWindow;
 
   try {
-    const { players, gameCount, usedDummy } = await getPredictionsForWindow(window, grading, grade);
+    const { players, gameCount, usedDummy, perGameEvents } = await getPredictionsForWindow(window, grading, grade);
 
     let predictions;
     if (usedDummy || players.length === 0) {
@@ -81,7 +81,8 @@ export async function GET(req: NextRequest) {
           const priceSummary = await getPlayerCardPricing(
             player.playerId, player.playerName, player.debutYear, grading, grade
           );
-          return generateCardPrediction(player, priceSummary);
+          const gameEvents = perGameEvents?.get(player.playerId);
+          return generateCardPrediction(player, priceSummary, window, gameEvents);
         })
       );
     }

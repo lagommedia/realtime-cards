@@ -176,28 +176,73 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
     const target = scaledProjectedPrice;
     const nowDate = rawHistory.at(-1)?.date ?? new Date().toISOString().split('T')[0];
 
-    const movements = history
-      .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
-      .filter(m => Math.abs(m.change) >= 0.025);
+    const realGameEvents = prediction.gameEvents;
 
-    const eventIdxs = new Set([
-      ...movements.filter(m => m.change > 0).sort((a,b) => b.change - a.change).slice(0,2).map(m=>m.i),
-      ...movements.filter(m => m.change < 0).sort((a,b) => a.change - b.change).slice(0,2).map(m=>m.i),
-    ]);
-    const changeMap = new Map(movements.map(m => [m.i, m.change]));
-    const oppPool = OPPONENT_POOL.filter(id => id !== prediction.teamId);
-    const eventIdxArray = [...eventIdxs].sort((a,b) => a - b);
-    const oppMap = new Map(eventIdxArray.map((idx, n) => [idx, oppPool[n % oppPool.length]]));
+    let eventIdxs: Set<number>;
+    let changeMap: Map<number, number>;
+    let eventLabelMap: Map<number, string>;
+    let oppMap: Map<number, number>;
+
+    if (realGameEvents && realGameEvents.length > 0) {
+      // Use actual game performance events — match each game date to the nearest price history bucket
+      eventIdxs = new Set();
+      changeMap = new Map();
+      eventLabelMap = new Map();
+      oppMap = new Map();
+
+      // Track best (highest |impact|) event per price-history index to avoid duplicate dots
+      const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
+
+      for (const evt of realGameEvents) {
+        const evtMs = new Date(evt.date + 'T12:00:00').getTime();
+        let bestIdx = 0, bestDiff = Infinity;
+        for (let i = 0; i < history.length; i++) {
+          const diff = Math.abs(new Date(history[i].date + 'T12:00:00').getTime() - evtMs);
+          if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+        }
+        // Only overlay if within 30 days of a price-history point
+        if (bestDiff <= 30 * 86_400_000) {
+          const prev = bestByIdx.get(bestIdx);
+          if (!prev || Math.abs(evt.impactScore) > Math.abs(prev.score)) {
+            bestByIdx.set(bestIdx, { score: evt.impactScore, label: evt.label, oppTeamId: evt.opponentTeamId });
+          }
+        }
+      }
+
+      for (const [idx, { score, label, oppTeamId }] of bestByIdx) {
+        eventIdxs.add(idx);
+        // Convert raw impact score to a fractional price change for display
+        changeMap.set(idx, (score * 0.35) / 100);
+        eventLabelMap.set(idx, label);
+        if (oppTeamId) oppMap.set(idx, oppTeamId);
+      }
+    } else {
+      // Fallback: detect significant price movements in history
+      const movements = history
+        .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
+        .filter(m => Math.abs(m.change) >= 0.025);
+
+      eventIdxs = new Set([
+        ...movements.filter(m => m.change > 0).sort((a,b) => b.change - a.change).slice(0,2).map(m=>m.i),
+        ...movements.filter(m => m.change < 0).sort((a,b) => a.change - b.change).slice(0,2).map(m=>m.i),
+      ]);
+      changeMap = new Map(movements.map(m => [m.i, m.change]));
+      eventLabelMap = new Map(); // empty — will use buildEventLabel
+      const oppPool = OPPONENT_POOL.filter(id => id !== prediction.teamId);
+      const eventIdxArray = [...eventIdxs].sort((a,b) => a - b);
+      oppMap = new Map(eventIdxArray.map((idx, n) => [idx, oppPool[n % oppPool.length]]));
+    }
 
     const historicalPoints: SeasonPoint[] = history.map((h, i) => {
       const change = changeMap.get(i) ?? 0;
       const isEvent = eventIdxs.has(i);
+      const gameLabel = eventLabelMap.get(i);
       return {
         date: h.date, hist: h.price, proj: null,
         low95: h.price, wid95: 0, low55: h.price, wid55: 0,
         ...(isEvent ? {
           eventType: (change > 0 ? 'spike' : 'dip') as EventType,
-          eventLabel: buildEventLabel(change),
+          eventLabel: gameLabel ?? buildEventLabel(change),
           eventChangePct: change * 100,
           opponentTeamId: oppMap.get(i),
         } : {}),
@@ -329,14 +374,17 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
                           </div>
                         </div>
                         {/* Event row: opponent logo + matchup label + % change */}
-                        {isEvent && oppTeam && oppLogoUrl && (
+                        {isEvent && (
                           <div className="flex items-center gap-2.5 px-3 py-2 border-t border-white/10"
                             style={{ backgroundColor: up ? '#22c55e0a' : '#ef44440a' }}>
-                            <img src={oppLogoUrl} alt="" width={22} height={22} className="object-contain opacity-90 flex-shrink-0" />
+                            {oppTeam && oppLogoUrl && (
+                              <img src={oppLogoUrl} alt="" width={22} height={22} className="object-contain opacity-90 flex-shrink-0" />
+                            )}
                             <div className="flex-1 min-w-0">
-                              <p className="text-gray-400 text-[10px] leading-snug">vs {oppTeam.name}</p>
+                              {oppTeam && <p className="text-gray-400 text-[10px] leading-snug">vs {oppTeam.name}</p>}
                               <p className="text-[10px] font-semibold leading-snug" style={{ color: eventColor }}>
-                                {(pt.eventChangePct ?? 0) > 0 ? '+' : ''}{pt.eventChangePct?.toFixed(1)}% · {pt.eventLabel?.split('—')[0].trim()}
+                                {(pt.eventChangePct ?? 0) > 0 ? '+' : ''}{pt.eventChangePct?.toFixed(1)}%
+                                {pt.eventLabel ? ` · ${pt.eventLabel}` : ''}
                               </p>
                             </div>
                           </div>

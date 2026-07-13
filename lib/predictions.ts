@@ -1,5 +1,16 @@
-import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption } from '@/types';
-import { generateCardValueProjection } from '@/lib/card-value-model';
+import { CardPrediction, LivePlayerStat, CardPriceSummary, RookieCardOption, GameEvent } from '@/types';
+import { generateCardValueProjection, applySeasonFactors } from '@/lib/card-value-model';
+
+type DateWindow = 'day' | 'week' | 'month' | 'season';
+
+// Maps each date window to the appropriate projection horizon index
+// horizons: [1h, 24h, 7d, 30d, season-end]
+const WINDOW_HORIZON: Record<DateWindow, number> = {
+  day:    1,  // 24h
+  week:   2,  // 7d
+  month:  3,  // 30d
+  season: 4,  // season-end
+};
 
 // Price premium of each set relative to Series 1 base price
 export const SET_PRICE_MULTIPLIERS: Record<string, number> = {
@@ -110,62 +121,90 @@ function scorePriceHistory(priceSummary: CardPriceSummary): ScoringFactors {
 
 export function generateCardPrediction(
   player: LivePlayerStat,
-  priceSummary: CardPriceSummary
+  priceSummary: CardPriceSummary,
+  window: DateWindow = 'day',
+  gameEvents?: GameEvent[],
 ): CardPrediction {
   const isPitcher = ['P', 'SP', 'RP', 'CP'].includes(player.position);
-
-  const { score: perfScore, reasons: perfReasons } = isPitcher
-    ? scorePitchingPerformance(player.todayStats)
-    : scoreBattingPerformance(player.todayStats);
-
+  const currentPrice = priceSummary.averagePrice;
   const { score: priceScore, reasons: priceReasons } = scorePriceHistory(priceSummary);
 
-  const totalScore = Math.max(-100, Math.min(100, perfScore + priceScore));
-  const reasons = [...perfReasons, ...priceReasons];
+  let projection;
+  let reasons: string[];
 
-  const direction: 'up' | 'down' | 'neutral' =
-    totalScore > 5 ? 'up' : totalScore < -5 ? 'down' : 'neutral';
+  if (window === 'season') {
+    // Season: skip single-game scoring — use cumulative season arc factors instead
+    const emptyStatPlayer = { ...player, todayStats: {} };
+    const base = generateCardValueProjection(emptyStatPlayer, priceSummary);
+    projection = applySeasonFactors(base, {
+      homeRuns: player.todayStats.homeRuns,
+      rbi:      player.todayStats.rbi,
+    });
 
-  const percentageChange = parseFloat((totalScore * 0.35).toFixed(1));
+    // Generate season-appropriate reasons
+    const seasonReasons: string[] = [];
+    const hrs = player.todayStats.homeRuns ?? 0;
+    const rbi = player.todayStats.rbi ?? 0;
+    const ks  = player.todayStats.pitchingStrikeOuts ?? 0;
+    if (hrs >= 50) seasonReasons.push(`${hrs} HRs — historic pace this season`);
+    else if (hrs >= 35) seasonReasons.push(`${hrs} HRs — elite power season`);
+    else if (hrs >= 20) seasonReasons.push(`${hrs} HRs on the season`);
+    if (rbi >= 100) seasonReasons.push(`${rbi} RBI — elite run production`);
+    else if (rbi >= 70) seasonReasons.push(`${rbi} RBI on the season`);
+    if (ks >= 200) seasonReasons.push(`${ks} Ks — Cy Young-caliber season`);
+    else if (ks >= 150) seasonReasons.push(`${ks} strikeouts on the season`);
+    reasons = [...seasonReasons, ...priceReasons];
+  } else {
+    // Day / Week / Month: use aggregated stats-based scoring
+    const { score: perfScore, reasons: perfReasons } = isPitcher
+      ? scorePitchingPerformance(player.todayStats)
+      : scoreBattingPerformance(player.todayStats);
 
-  const absScore = Math.abs(totalScore);
-  const confidence: 'low' | 'medium' | 'high' =
-    absScore >= 40 ? 'high' : absScore >= 20 ? 'medium' : 'low';
+    const totalScore = Math.max(-100, Math.min(100, perfScore + priceScore));
+    projection = generateCardValueProjection(player, priceSummary);
 
-  const currentPrice = priceSummary.averagePrice;
-  const projectedPrice = parseFloat(
-    (currentPrice * (1 + percentageChange / 100)).toFixed(2)
-  );
+    const windowLabel = window === 'week' ? 'past week' : window === 'month' ? 'past month' : 'today';
+    // Rewrite "today" labels to match the date window
+    reasons = [
+      ...perfReasons.map(r => r.replace('today', windowLabel)),
+      ...priceReasons,
+    ];
+    if (reasons.length === 0) reasons = [`Limited game data available`];
+    void totalScore; // used implicitly via projection
+  }
 
-  const projection = generateCardValueProjection(player, priceSummary);
-
-  // Use projection's 24h estimate as the primary percentage change
-  const projPct = projection.horizons[1]?.pctChange ?? percentageChange;
-  const finalPct = parseFloat(projPct.toFixed(1));
-  const finalProjectedPrice = parseFloat(
-    (currentPrice * (1 + finalPct / 100)).toFixed(2)
-  );
+  const horizonIdx = WINDOW_HORIZON[window] ?? 1;
+  const horizon = projection.horizons[horizonIdx];
+  const fallbackPct = parseFloat((priceScore * 0.35).toFixed(1));
+  const finalPct = parseFloat((horizon?.pctChange ?? fallbackPct).toFixed(1));
+  const finalProjectedPrice = parseFloat((currentPrice * (1 + finalPct / 100)).toFixed(2));
   const finalDirection: 'up' | 'down' | 'neutral' =
     finalPct > 1 ? 'up' : finalPct < -1 ? 'down' : 'neutral';
-  const finalConfidence = projection.horizons[1]?.confidence ?? confidence;
+  const finalConfidence = horizon?.confidence ?? 'low';
+
+  const totalScore = Math.max(-100, Math.min(100,
+    (isPitcher ? scorePitchingPerformance(player.todayStats) : scoreBattingPerformance(player.todayStats)).score + priceScore
+  ));
 
   return {
-    playerId: player.playerId,
-    playerName: player.playerName,
-    teamId: player.teamId,
-    position: player.position,
-    battingOrder: player.battingOrder,
+    playerId:        player.playerId,
+    playerName:      player.playerName,
+    teamId:          player.teamId,
+    position:        player.position,
+    battingOrder:    player.battingOrder,
     predictionScore: totalScore,
-    direction: finalDirection,
+    direction:       finalDirection,
     percentageChange: finalPct,
-    confidence: finalConfidence,
-    reasons: reasons.length > 0 ? reasons : ['Limited game data available'],
+    confidence:      finalConfidence,
+    reasons:         reasons.length > 0 ? reasons : ['Limited game data available'],
     currentPrice,
-    projectedPrice: finalProjectedPrice,
-    liveStats: player.todayStats,
+    projectedPrice:  finalProjectedPrice,
+    liveStats:       player.todayStats,
     priceSummary,
     rookieCardOptions: getRookieCardOptions(player.playerId, player.debutYear),
     projection,
+    gameEvents:  gameEvents?.length ? gameEvents : undefined,
+    dateWindow:  window,
   };
 }
 
