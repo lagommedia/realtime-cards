@@ -12,6 +12,11 @@ import { RefreshCw, TrendingUp, TrendingDown, Users, Globe } from 'lucide-react'
 import Link from 'next/link';
 
 type Scope = 'overall' | 'myteam';
+type DateWindow = 'day' | 'week' | 'month' | 'season';
+
+const WINDOW_LABELS: Record<DateWindow, string> = {
+  day: 'Day', week: 'Week', month: 'Month', season: 'Season',
+};
 
 export default function TrendingPage() {
   const { theme, selectedTeamId } = useTeam();
@@ -22,16 +27,16 @@ export default function TrendingPage() {
   const [usedDummy, setUsedDummy] = useState(false);
   const [error, setError] = useState('');
   const [scope, setScope] = useState<Scope>('overall');
+  const [dateWindow, setDateWindow] = useState<DateWindow>('day');
 
   const selectedTeam = ALL_TEAMS.find(t => t.id === selectedTeamId);
 
-  async function fetchTrending() {
+  async function fetchTrending(window: DateWindow = dateWindow) {
     try {
       setError('');
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ window });
       if (companyId) { params.set('grading', companyId); if (gradeValue) params.set('grade', gradeValue); }
-      const url = params.size ? `/api/trending?${params}` : '/api/trending';
-      const res = await fetch(url);
+      const res = await fetch(`/api/trending?${params}`);
       const data = await res.json() as {
         predictions: CardPrediction[]; gameCount: number;
         usedDummy?: boolean; error?: string;
@@ -56,13 +61,21 @@ export default function TrendingPage() {
     }
   }
 
+  function handleWindowChange(w: DateWindow) {
+    setDateWindow(w);
+    setLoading(true);
+    fetchTrending(w);
+  }
+
   useEffect(() => {
     setLoading(true);
-    fetchTrending();
-    const interval = setInterval(fetchTrending, 120_000);
+    fetchTrending(dateWindow);
+    // Only auto-refresh on the day view — historical windows are stable
+    if (dateWindow !== 'day') return;
+    const interval = setInterval(() => fetchTrending('day'), 120_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, gradeValue]);
+  }, [companyId, gradeValue, dateWindow]);
 
   // Apply scope filter
   const scoped = scope === 'myteam' && selectedTeamId
@@ -85,9 +98,15 @@ export default function TrendingPage() {
             <p className="text-xs text-slate-500 mt-0.5">
               {usedDummy
                 ? 'Featured players · tap to expand'
-                : gameCount > 0
+                : dateWindow === 'day' && gameCount > 0
                   ? `Live across ${gameCount} game${gameCount !== 1 ? 's' : ''} · tap to expand`
-                  : 'Tap any player to expand'}
+                  : dateWindow === 'week'
+                    ? `Last 7 days · ${gameCount} games`
+                    : dateWindow === 'month'
+                      ? `Last 30 days · ${gameCount} games`
+                      : dateWindow === 'season'
+                        ? `${new Date().getFullYear()} season leaders`
+                        : 'Tap any player to expand'}
             </p>
           </div>
           <button
@@ -97,6 +116,26 @@ export default function TrendingPage() {
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
+        </div>
+
+        {/* Date window filter */}
+        <div
+          className="flex rounded-xl p-1 gap-0.5 mb-2"
+          style={{ backgroundColor: theme.cardBackground }}
+        >
+          {(Object.keys(WINDOW_LABELS) as DateWindow[]).map(w => (
+            <button
+              key={w}
+              onClick={() => handleWindowChange(w)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                backgroundColor: dateWindow === w ? theme.primary : 'transparent',
+                color: dateWindow === w ? '#fff' : '#9ca3af',
+              }}
+            >
+              {WINDOW_LABELS[w]}
+            </button>
+          ))}
         </div>
 
         {/* Overall / My Team toggle */}
