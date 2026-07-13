@@ -148,8 +148,8 @@
       /* Glass face — padding-box only */
       linear-gradient(
         180deg,
-        rgba(255, 255, 255, 0.30) 0%,
-        rgba(255, 255, 255, 0.18) 100%
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0.06) 100%
       ),
       /* Prismatic border — border-box, visible as the 1px border */
       linear-gradient(
