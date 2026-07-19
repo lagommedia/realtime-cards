@@ -22,27 +22,44 @@ async function getPredictionsForWindow(
 ): Promise<{ players: LivePlayerStat[]; gameCount: number; usedDummy: boolean; perGameEvents?: Map<number, GameEvent[]> }> {
 
   if (window === 'day') {
-    const games = await getTodayGames();
-    const active = games.filter(g =>
-      g.status.abstractGameState === 'Live' || g.status.abstractGameState === 'Final'
-    ).slice(0, 4);
-
-    if (active.length === 0) return { players: [], gameCount: 0, usedDummy: true };
-
-    const allPlayers = await Promise.all(
-      active.map(async (game) => {
+    // Run live stats and recent game-event history in parallel
+    const [liveResult, recentEventsResult] = await Promise.all([
+      // Today's live/final game stats
+      (async () => {
+        const games = await getTodayGames();
+        const active = games.filter(g =>
+          g.status.abstractGameState === 'Live' || g.status.abstractGameState === 'Final'
+        ).slice(0, 4);
+        if (active.length === 0) return { players: [] as LivePlayerStat[], gameCount: 0, usedDummy: true };
+        const allPlayers = await Promise.all(
+          active.map(async (game) => {
+            try {
+              const liveData = await getLiveGameFeed(game.gamePk);
+              return extractLivePlayerStats(liveData as Record<string, unknown>);
+            } catch { return [] as LivePlayerStat[]; }
+          })
+        );
+        const seen = new Set<number>();
+        const flat = allPlayers.flat().filter(p => {
+          if (seen.has(p.playerId)) return false;
+          seen.add(p.playerId); return true;
+        });
+        return { players: flat, gameCount: active.length, usedDummy: false };
+      })(),
+      // Last 7 days of box scores for game-event annotations (box scores are cached 24h)
+      (async (): Promise<Map<number, GameEvent[]>> => {
         try {
-          const liveData = await getLiveGameFeed(game.gamePk);
-          return extractLivePlayerStats(liveData as Record<string, unknown>);
-        } catch { return [] as LivePlayerStat[]; }
-      })
-    );
-    const seen = new Set<number>();
-    const flat = allPlayers.flat().filter(p => {
-      if (seen.has(p.playerId)) return false;
-      seen.add(p.playerId); return true;
-    });
-    return { players: flat, gameCount: active.length, usedDummy: false };
+          const startDate = etDateOffset(7);
+          const endDate   = etDateOffset(1);
+          const allGames  = await getScheduleForDateRange(startDate, endDate);
+          const { perGameEvents } = await aggregatePlayerStatsFromGames(allGames.slice(-20));
+          return perGameEvents;
+        } catch { return new Map(); }
+      })(),
+    ]);
+
+    if (liveResult.usedDummy) return { players: [], gameCount: 0, usedDummy: true };
+    return { players: liveResult.players, gameCount: liveResult.gameCount, usedDummy: false, perGameEvents: recentEventsResult };
   }
 
   if (window === 'season') {

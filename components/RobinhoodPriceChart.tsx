@@ -194,8 +194,8 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
       const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
 
       for (const evt of realGameEvents) {
-        // Only show events that caused ≥10% price change (score * 0.35 = % change)
-        if (Math.abs(evt.impactScore) * 0.35 < 10) continue;
+        // Only show events that caused ≥5% price change (score * 0.35 = % change)
+        if (Math.abs(evt.impactScore) * 0.35 < 5) continue;
         const evtMs = new Date(evt.date + 'T12:00:00').getTime();
         let bestIdx = 0, bestDiff = Infinity;
         for (let i = 0; i < history.length; i++) {
@@ -218,11 +218,11 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
         if (oppTeamId) oppMap.set(idx, oppTeamId);
       }
     } else {
-      // Fallback: detect significant price movements in history (≥10% swing only).
+      // Fallback: detect significant price movements in history (≥5% swing only).
       // No opponent data available here — don't assign fake teams.
       const movements = history
         .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
-        .filter(m => Math.abs(m.change) >= 0.10);
+        .filter(m => Math.abs(m.change) >= 0.05);
 
       eventIdxs = new Set([
         ...movements.filter(m => m.change > 0).sort((a,b) => b.change - a.change).slice(0,2).map(m=>m.i),
