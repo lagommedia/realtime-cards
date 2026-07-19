@@ -194,6 +194,8 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
       const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
 
       for (const evt of realGameEvents) {
+        // Only show events that caused ≥10% price change (score * 0.35 = % change)
+        if (Math.abs(evt.impactScore) * 0.35 < 10) continue;
         const evtMs = new Date(evt.date + 'T12:00:00').getTime();
         let bestIdx = 0, bestDiff = Infinity;
         for (let i = 0; i < history.length; i++) {
@@ -211,26 +213,24 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
 
       for (const [idx, { score, label, oppTeamId }] of bestByIdx) {
         eventIdxs.add(idx);
-        // Convert raw impact score to a fractional price change for display
         changeMap.set(idx, (score * 0.35) / 100);
         eventLabelMap.set(idx, label);
         if (oppTeamId) oppMap.set(idx, oppTeamId);
       }
     } else {
-      // Fallback: detect significant price movements in history
+      // Fallback: detect significant price movements in history (≥10% swing only).
+      // No opponent data available here — don't assign fake teams.
       const movements = history
         .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
-        .filter(m => Math.abs(m.change) >= 0.025);
+        .filter(m => Math.abs(m.change) >= 0.10);
 
       eventIdxs = new Set([
         ...movements.filter(m => m.change > 0).sort((a,b) => b.change - a.change).slice(0,2).map(m=>m.i),
         ...movements.filter(m => m.change < 0).sort((a,b) => a.change - b.change).slice(0,2).map(m=>m.i),
       ]);
       changeMap = new Map(movements.map(m => [m.i, m.change]));
-      eventLabelMap = new Map(); // empty — will use buildEventLabel
-      const oppPool = OPPONENT_POOL.filter(id => id !== prediction.teamId);
-      const eventIdxArray = [...eventIdxs].sort((a,b) => a - b);
-      oppMap = new Map(eventIdxArray.map((idx, n) => [idx, oppPool[n % oppPool.length]]));
+      eventLabelMap = new Map();
+      oppMap = new Map(); // no opponent info in fallback — omit team labels
     }
 
     const historicalPoints: SeasonPoint[] = history.map((h, i) => {

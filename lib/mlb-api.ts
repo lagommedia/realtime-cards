@@ -37,9 +37,10 @@ export async function getTodayGames(): Promise<MLBGame[]> {
     fetchDate(etYesterday),
   ]);
 
-  // After midnight ET, carry over yesterday's games that are Live (still in progress)
-  // or Final (completed late — so users can still see results). Skip Preview (postponed etc.)
-  const carryover = yesterdayGames.filter(g => g.status.abstractGameState !== 'Preview');
+  // After midnight ET, carry over yesterday's games that are still Live (West Coast late games).
+  // Final games from yesterday belong to a different calendar date — exclude them so "Finished Today"
+  // only shows games that completed on today's date.
+  const carryover = yesterdayGames.filter(g => g.status.abstractGameState === 'Live');
   return [...carryover, ...todayGames];
 }
 

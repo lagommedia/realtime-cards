@@ -46,6 +46,11 @@ export default function GameCard({ game }: Props) {
               {half === 'Top' ? '▲' : '▼'} {inning}
             </span>
           )}
+          {state === 'Preview' && game.gameDate && (
+            <span className="text-xs text-gray-400 font-normal ml-1">
+              {new Date(game.gameDate).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
         </div>
         <span className="text-xs text-slate-500">{game.venue.name}</span>
       </div>
