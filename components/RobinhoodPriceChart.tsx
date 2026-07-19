@@ -178,23 +178,25 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
 
     const realGameEvents = prediction.gameEvents;
 
-    let eventIdxs: Set<number>;
-    let changeMap: Map<number, number>;
-    let eventLabelMap: Map<number, string>;
-    let oppMap: Map<number, number>;
+    // Step 1: detect all weekly price movements ≥5% across the full history.
+    // Since history is weekly-bucketed, each entry is one week — so this gives
+    // one dot per week that had a notable swing, across the full price history.
+    const movements = history
+      .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
+      .filter(m => Math.abs(m.change) >= 0.05);
 
+    const eventIdxs: Set<number> = new Set(movements.map(m => m.i));
+    const changeMap: Map<number, number> = new Map(movements.map(m => [m.i, m.change]));
+    const eventLabelMap: Map<number, string> = new Map();
+    const oppMap: Map<number, number> = new Map();
+
+    // Step 2: overlay real game events (last 7 days) on top of the baseline.
+    // These carry actual opponent team IDs and specific performance labels,
+    // replacing the price-movement baseline for any week they match.
     if (realGameEvents && realGameEvents.length > 0) {
-      // Use actual game performance events — match each game date to the nearest price history bucket
-      eventIdxs = new Set();
-      changeMap = new Map();
-      eventLabelMap = new Map();
-      oppMap = new Map();
-
-      // Track best (highest |impact|) event per price-history index to avoid duplicate dots
       const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
 
       for (const evt of realGameEvents) {
-        // Only show events that caused ≥5% price change (score * 0.35 = % change)
         if (Math.abs(evt.impactScore) * 0.35 < 5) continue;
         const evtMs = new Date(evt.date + 'T12:00:00').getTime();
         let bestIdx = 0, bestDiff = Infinity;
@@ -202,7 +204,6 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
           const diff = Math.abs(new Date(history[i].date + 'T12:00:00').getTime() - evtMs);
           if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
         }
-        // Only overlay if within 30 days of a price-history point
         if (bestDiff <= 30 * 86_400_000) {
           const prev = bestByIdx.get(bestIdx);
           if (!prev || Math.abs(evt.impactScore) > Math.abs(prev.score)) {
@@ -217,20 +218,6 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
         eventLabelMap.set(idx, label);
         if (oppTeamId) oppMap.set(idx, oppTeamId);
       }
-    } else {
-      // Fallback: detect significant price movements in history (≥5% swing only).
-      // No opponent data available here — don't assign fake teams.
-      const movements = history
-        .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
-        .filter(m => Math.abs(m.change) >= 0.05);
-
-      eventIdxs = new Set([
-        ...movements.filter(m => m.change > 0).sort((a,b) => b.change - a.change).slice(0,2).map(m=>m.i),
-        ...movements.filter(m => m.change < 0).sort((a,b) => a.change - b.change).slice(0,2).map(m=>m.i),
-      ]);
-      changeMap = new Map(movements.map(m => [m.i, m.change]));
-      eventLabelMap = new Map();
-      oppMap = new Map(); // no opponent info in fallback — omit team labels
     }
 
     const historicalPoints: SeasonPoint[] = history.map((h, i) => {
