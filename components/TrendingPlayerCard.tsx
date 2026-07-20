@@ -14,6 +14,7 @@ import CardPeekCarousel from '@/components/CardPeekCarousel';
 import { getFeaturedCard } from '@/lib/card-utils';
 import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
+import { HofResult } from '@/lib/hof-probability';
 
 interface Props {
   prediction: CardPrediction;
@@ -148,6 +149,15 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       .catch(() => setCardsFetchStatus('done'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded, forceExpanded]);
+
+  const [hofData, setHofData] = useState<HofResult | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/player/${prediction.playerId}/hof`)
+      .then(r => r.json())
+      .then((d: HofResult & { error?: string }) => { if (!d.error) setHofData(d); })
+      .catch(() => {});
+  }, [prediction.playerId]);
 
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
 
@@ -294,6 +304,21 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         </div>
       </div>
 
+      {/* Mini HOF bar — visible on collapsed card */}
+      {hofData && !expanded && (
+        <div className="px-3.5 pb-3 -mt-0.5">
+          <div className="flex items-center gap-1.5">
+            <span style={{ color: '#9ca3af', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+              <div style={{ width: `${hofData.probability}%`, height: '100%', backgroundColor: hofData.tierColor, borderRadius: 9999, transition: 'width 1s ease' }} />
+            </div>
+            <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
+            <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
+            <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 600, flexShrink: 0 }}>{hofData.tier}</span>
+          </div>
+        </div>
+      )}
+
       {/* Expanded panel */}
       {expanded && (
         <div className="border-t border-slate-200 p-4 space-y-4">
@@ -414,6 +439,43 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             priceMultiplier={chartMultiplier}
             isLive={isLive}
           />
+
+          {/* ── HOF line meter ── */}
+          {hofData && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Hall of Fame Outlook
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold tabular-nums" style={{ color: hofData.tierColor }}>
+                    {hofData.probability}%
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{
+                      backgroundColor: `${hofData.tierColor}22`,
+                      color: hofData.tierColor,
+                      border: `1px solid ${hofData.tierColor}44`,
+                    }}
+                  >
+                    {hofData.tier}
+                  </span>
+                </div>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${hofData.probability}%`,
+                    backgroundColor: hofData.tierColor,
+                    boxShadow: `0 0 8px ${hofData.tierColor}66`,
+                  }}
+                />
+              </div>
+              <p className="text-gray-500 text-xs mt-1.5">{hofData.description}</p>
+            </div>
+          )}
 
         </div>
       )}

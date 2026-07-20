@@ -8,10 +8,8 @@ import { useWatchList } from '@/context/WatchListContext';
 import { useGrading, GRADING_COMPANIES, GRADING_GRADES, GradingCompanyId, DEFAULT_GRADE } from '@/context/GradingContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
-import HallOfFameMeter from '@/components/HallOfFameMeter';
 import { ArrowLeft, Star, ExternalLink } from 'lucide-react';
 import { getTeamTheme } from '@/lib/team-themes';
-import { HofResult } from '@/lib/hof-probability';
 
 interface TrendingResponse {
   predictions: CardPrediction[];
@@ -275,7 +273,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
   const [loading, setLoading]         = useState(true);
   const [setCards, setSetCards]       = useState<SetCardResult[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
-  const [hofData, setHofData]         = useState<HofResult | null>(null);
 
   // ── Fetch prediction ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -324,16 +321,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
       .catch(() => setSetCards([]))
       .finally(() => setLoadingCards(false));
   }, [playerId, prediction?.playerName, prediction?.rookieCardOptions?.[0]?.year, localCompanyId, localGradeValue, fallbackName]);
-
-  // ── Fetch Hall of Fame probability once per player ────────────────────────
-  useEffect(() => {
-    fetch(`/api/player/${playerId}/hof`)
-      .then(r => r.json())
-      .then((d: HofResult & { error?: string }) => {
-        if (!d.error) setHofData(d);
-      })
-      .catch(() => {});
-  }, [playerId]);
 
   const watched = isWatched(playerId);
 
@@ -498,16 +485,6 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ player
             hideCardImage
           />
 
-          {/* ── Hall of Fame Probability Meter ── */}
-          {hofData && (
-            <HallOfFameMeter data={hofData} cardBackground={theme.cardBackground} />
-          )}
-          {!hofData && (
-            <div
-              className="rounded-2xl p-4 border border-white/10 animate-pulse"
-              style={{ backgroundColor: theme.cardBackground, height: 320 }}
-            />
-          )}
         </div>
       )}
     </div>
