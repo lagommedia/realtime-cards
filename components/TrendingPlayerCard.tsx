@@ -16,19 +16,49 @@ import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
 import { HofResult } from '@/lib/hof-probability';
 
-const BENCHMARK_STYLES: Record<string, { color: string; icon: string }> = {
-  'Career Hits':       { color: '#3b82f6', icon: '🎯' },
-  'Home Runs':         { color: '#ef4444', icon: '🚀' },
-  'RBI':               { color: '#f97316', icon: '🏃' },
-  'Career AVG':        { color: '#22c55e', icon: '📈' },
-  'Career OPS':        { color: '#a855f7', icon: '⚡' },
-  'Career Strikeouts': { color: '#3b82f6', icon: '🔥' },
-  'Career Wins':       { color: '#22c55e', icon: '🏆' },
-  'Career ERA':        { color: '#ef4444', icon: '🎯' },
-  'Career WHIP':       { color: '#f97316', icon: '🌪️' },
-  'Innings Pitched':   { color: '#a855f7', icon: '⏱️' },
+const BENCHMARK_STYLES: Record<string, { color: string }> = {
+  'Career Hits':       { color: '#3b82f6' },
+  'Home Runs':         { color: '#ef4444' },
+  'RBI':               { color: '#f97316' },
+  'Career AVG':        { color: '#22c55e' },
+  'Career OPS':        { color: '#a855f7' },
+  'Career Strikeouts': { color: '#3b82f6' },
+  'Career Wins':       { color: '#22c55e' },
+  'Career ERA':        { color: '#ef4444' },
+  'Career WHIP':       { color: '#f97316' },
+  'Innings Pitched':   { color: '#a855f7' },
 };
-const DEFAULT_BENCHMARK_STYLE = { color: '#6b7280', icon: '📊' };
+const DEFAULT_BENCHMARK_STYLE = { color: '#6b7280' };
+
+function BenchmarkIcon({ label, size = 13, color = 'currentColor' }: { label: string; size?: number; color?: string }) {
+  const base = { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: color, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (label) {
+    // ── Hitters ──
+    case 'Career Hits': // bat + ball
+      return <svg {...base}><line x1="2" y1="14" x2="11" y2="5" strokeWidth="2.5" /><circle cx="12.5" cy="3.5" r="2" fill={color} stroke="none" /></svg>;
+    case 'Home Runs': // ball with arc over fence
+      return <svg {...base}><circle cx="7" cy="11" r="3.5" strokeWidth="1.5" /><path d="M9.5 8 Q11 3 15 4" strokeWidth="1.5" strokeDasharray="1.5 1" /><line x1="1" y1="13" x2="15" y2="13" strokeWidth="1.5" /></svg>;
+    case 'RBI': // home plate + runner arrow
+      return <svg {...base}><path d="M8 3 L13 7 L13 11 L3 11 L3 7 Z" strokeWidth="1.5" /><line x1="8" y1="1" x2="8" y2="3" strokeWidth="1.5" /><polyline points="6,2 8,0.5 10,2" strokeWidth="1.5" /></svg>;
+    case 'Career AVG': // three stat bars
+      return <svg {...base}><rect x="1.5" y="10" width="3" height="5" rx="0.5" fill={color} stroke="none" /><rect x="6.5" y="6" width="3" height="9" rx="0.5" fill={color} stroke="none" /><rect x="11.5" y="8" width="3" height="7" rx="0.5" fill={color} stroke="none" /></svg>;
+    case 'Career OPS': // lightning bolt (power)
+      return <svg {...base}><polyline points="10,1 5,9 9,9 6,15 13,6 9,6" strokeWidth="1.5" fill={color} fillOpacity="0.15" /></svg>;
+    // ── Pitchers ──
+    case 'Career Strikeouts': // stylised K
+      return <svg {...base}><line x1="4" y1="2" x2="4" y2="14" strokeWidth="2" /><line x1="4" y1="8" x2="12" y2="2" strokeWidth="1.75" /><line x1="4" y1="8" x2="12" y2="14" strokeWidth="1.75" /></svg>;
+    case 'Career Wins': // trophy cup
+      return <svg {...base}><path d="M4 2 H12 V8 Q12 13 8 13 Q4 13 4 8 Z" strokeWidth="1.5" /><path d="M4 4 Q1.5 4 1.5 7 Q1.5 10 4 10" strokeWidth="1.5" /><path d="M12 4 Q14.5 4 14.5 7 Q14.5 10 12 10" strokeWidth="1.5" /><line x1="8" y1="13" x2="8" y2="15" strokeWidth="1.5" /><line x1="5" y1="15" x2="11" y2="15" strokeWidth="1.5" /></svg>;
+    case 'Career ERA': // bullseye / target
+      return <svg {...base}><circle cx="8" cy="8" r="6.5" strokeWidth="1.5" /><circle cx="8" cy="8" r="3.5" strokeWidth="1.5" /><circle cx="8" cy="8" r="1" fill={color} stroke="none" /></svg>;
+    case 'Career WHIP': // pitching arc / whip curve
+      return <svg {...base}><path d="M2 10 Q4 3 9 5 Q14 7 13 12 Q12 15 9 14" strokeWidth="1.75" fill="none" /></svg>;
+    case 'Innings Pitched': // clock face (durability)
+      return <svg {...base}><circle cx="8" cy="8" r="6.5" strokeWidth="1.5" /><line x1="8" y1="8" x2="8" y2="3.5" strokeWidth="1.75" /><line x1="8" y1="8" x2="11.5" y2="10" strokeWidth="1.75" /></svg>;
+    default:
+      return <svg {...base}><circle cx="8" cy="8" r="6.5" strokeWidth="1.5" /></svg>;
+  }
+}
 
 interface Props {
   prediction: CardPrediction;
@@ -534,10 +564,10 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                   </div>
                   <div className="flex gap-1.5">
                     {hofData.benchmarks.map((b) => {
-                      const { icon } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                      const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
                       return (
-                        <div key={b.label} className="flex-1 text-center">
-                          <span style={{ fontSize: 12 }}>{icon}</span>
+                        <div key={b.label} className="flex-1 flex justify-center">
+                          <BenchmarkIcon label={b.label} size={13} color={color} />
                         </div>
                       );
                     })}
@@ -547,13 +577,13 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 {/* Per-benchmark detail rows */}
                 <div className="space-y-2.5">
                   {hofData.benchmarks.map((b) => {
-                    const { color, icon } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                    const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
                     const showProj = b.higherIsBetter && b.projected > b.current + 1;
                     return (
                       <div key={b.label}>
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <div className="flex items-center gap-1">
-                            <span style={{ fontSize: 11 }}>{icon}</span>
+                          <div className="flex items-center gap-1.5">
+                            <BenchmarkIcon label={b.label} size={12} color={color} />
                             <span className="text-xs text-gray-400">{b.label}</span>
                           </div>
                           <div className="flex items-baseline gap-1">
