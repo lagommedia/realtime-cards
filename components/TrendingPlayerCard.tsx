@@ -16,6 +16,20 @@ import { SET_PRICE_MULTIPLIERS } from '@/lib/predictions';
 import { useWatchList } from '@/context/WatchListContext';
 import { HofResult } from '@/lib/hof-probability';
 
+const BENCHMARK_STYLES: Record<string, { color: string; icon: string }> = {
+  'Career Hits':       { color: '#3b82f6', icon: '🎯' },
+  'Home Runs':         { color: '#ef4444', icon: '🚀' },
+  'RBI':               { color: '#f97316', icon: '🏃' },
+  'Career AVG':        { color: '#22c55e', icon: '📈' },
+  'Career OPS':        { color: '#a855f7', icon: '⚡' },
+  'Career Strikeouts': { color: '#3b82f6', icon: '🔥' },
+  'Career Wins':       { color: '#22c55e', icon: '🏆' },
+  'Career ERA':        { color: '#ef4444', icon: '🎯' },
+  'Career WHIP':       { color: '#f97316', icon: '🌪️' },
+  'Innings Pitched':   { color: '#a855f7', icon: '⏱️' },
+};
+const DEFAULT_BENCHMARK_STYLE = { color: '#6b7280', icon: '📊' };
+
 interface Props {
   prediction: CardPrediction;
   rank: number;
@@ -310,11 +324,14 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
           <div className="flex items-center gap-1.5">
             <span style={{ color: '#9ca3af', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
             <div className="flex flex-1 gap-0.5">
-              {hofData.benchmarks.map((b) => (
-                <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
-                  <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: hofData.tierColor, borderRadius: 9999 }} />
-                </div>
-              ))}
+              {hofData.benchmarks.map((b) => {
+                const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                return (
+                  <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+                    <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: color, borderRadius: 9999 }} />
+                  </div>
+                );
+              })}
             </div>
             <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
             <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
@@ -495,41 +512,50 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                   </div>
                 </div>
 
-                {/* Segmented benchmark pills with labels */}
+                {/* Segmented benchmark pills with icons */}
                 <div className="mb-3">
-                  <div className="flex gap-1 mb-1">
-                    {hofData.benchmarks.map((b) => (
-                      <div key={b.label} className="flex-1 h-2 rounded-full overflow-hidden"
-                        style={{ backgroundColor: '#00000009' }}>
-                        <div style={{
-                          width: `${Math.min(b.pct, 1) * 100}%`,
-                          height: '100%',
-                          backgroundColor: hofData.tierColor,
-                          borderRadius: 9999,
-                          transition: 'width 0.8s ease',
-                        }} />
-                      </div>
-                    ))}
+                  <div className="flex gap-1.5 mb-1.5">
+                    {hofData.benchmarks.map((b) => {
+                      const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                      return (
+                        <div key={b.label} className="flex-1 h-2 rounded-full overflow-hidden"
+                          style={{ backgroundColor: '#00000009' }}>
+                          <div style={{
+                            width: `${Math.min(b.pct, 1) * 100}%`,
+                            height: '100%',
+                            backgroundColor: color,
+                            borderRadius: 9999,
+                            transition: 'width 0.8s ease',
+                            boxShadow: `0 0 4px ${color}66`,
+                          }} />
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex gap-1">
-                    {hofData.benchmarks.map((b) => (
-                      <div key={b.label} className="flex-1 text-center">
-                        <span style={{ color: '#9ca3af', fontSize: 8, fontWeight: 600 }}>
-                          {b.unit || 'H'}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="flex gap-1.5">
+                    {hofData.benchmarks.map((b) => {
+                      const { icon } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                      return (
+                        <div key={b.label} className="flex-1 text-center">
+                          <span style={{ fontSize: 12 }}>{icon}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Per-benchmark detail rows */}
                 <div className="space-y-2.5">
                   {hofData.benchmarks.map((b) => {
+                    const { color, icon } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
                     const showProj = b.higherIsBetter && b.projected > b.current + 1;
                     return (
                       <div key={b.label}>
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="text-xs text-gray-400">{b.label}</span>
+                          <div className="flex items-center gap-1">
+                            <span style={{ fontSize: 11 }}>{icon}</span>
+                            <span className="text-xs text-gray-400">{b.label}</span>
+                          </div>
                           <div className="flex items-baseline gap-1">
                             <span className="text-xs font-semibold text-gray-700">
                               {fmtVal(b.current, b.unit)}
@@ -548,7 +574,7 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                           <div style={{
                             width: `${Math.min(b.pct, 1) * 100}%`,
                             height: '100%',
-                            backgroundColor: hofData.tierColor,
+                            backgroundColor: color,
                             borderRadius: 9999,
                           }} />
                         </div>
