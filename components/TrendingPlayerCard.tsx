@@ -30,6 +30,75 @@ const BENCHMARK_STYLES: Record<string, { color: string }> = {
 };
 const DEFAULT_BENCHMARK_STYLE = { color: '#6b7280' };
 
+// <50%: grey. 50-66%: bronze. 67-83%: silver. 84-100%: gold.
+const METAL_DEFS = {
+  gold: {
+    label: 'Gold' as const,
+    emoji: '🥇',
+    main: '#D4AF37',
+    glow: 'rgba(212,175,55,0.45)',
+    cssGradient: 'linear-gradient(135deg, #5A3E00 0%, #C8970F 25%, #FFF4B5 50%, #C8970F 75%, #5A3E00 100%)',
+    badgeBg:     'linear-gradient(135deg, #3D2900 0%, #A07D10 28%, #FFE080 50%, #A07D10 72%, #3D2900 100%)',
+    svgStops: [
+      { offset: '0%',   color: '#5A3E00' },
+      { offset: '30%',  color: '#D4AF37' },
+      { offset: '50%',  color: '#FFF4B5' },
+      { offset: '70%',  color: '#D4AF37' },
+      { offset: '100%', color: '#5A3E00' },
+    ],
+  },
+  silver: {
+    label: 'Silver' as const,
+    emoji: '🥈',
+    main: '#C0C0C0',
+    glow: 'rgba(192,192,192,0.35)',
+    cssGradient: 'linear-gradient(135deg, #3A3A3A 0%, #A8A8A8 25%, #F0F0F0 50%, #A8A8A8 75%, #3A3A3A 100%)',
+    badgeBg:     'linear-gradient(135deg, #1A1A1A 0%, #787878 28%, #E8E8E8 50%, #787878 72%, #1A1A1A 100%)',
+    svgStops: [
+      { offset: '0%',   color: '#3A3A3A' },
+      { offset: '30%',  color: '#C0C0C0' },
+      { offset: '50%',  color: '#F0F0F0' },
+      { offset: '70%',  color: '#C0C0C0' },
+      { offset: '100%', color: '#3A3A3A' },
+    ],
+  },
+  bronze: {
+    label: 'Bronze' as const,
+    emoji: '🥉',
+    main: '#CD7F32',
+    glow: 'rgba(205,127,50,0.4)',
+    cssGradient: 'linear-gradient(135deg, #4A2200 0%, #A05C20 25%, #EBA850 50%, #A05C20 75%, #4A2200 100%)',
+    badgeBg:     'linear-gradient(135deg, #2E1500 0%, #7A4010 28%, #E09040 50%, #7A4010 72%, #2E1500 100%)',
+    svgStops: [
+      { offset: '0%',   color: '#4A2200' },
+      { offset: '30%',  color: '#CD7F32' },
+      { offset: '50%',  color: '#EBA850' },
+      { offset: '70%',  color: '#CD7F32' },
+      { offset: '100%', color: '#4A2200' },
+    ],
+  },
+  none: {
+    label: null,
+    emoji: null,
+    main: '#9CA3AF',
+    glow: 'rgba(156,163,175,0.15)',
+    cssGradient: 'linear-gradient(135deg, #6B7280 0%, #9CA3AF 50%, #6B7280 100%)',
+    badgeBg:     'linear-gradient(135deg, #4B5563 0%, #9CA3AF 50%, #4B5563 100%)',
+    svgStops: [
+      { offset: '0%',   color: '#6B7280' },
+      { offset: '50%',  color: '#9CA3AF' },
+      { offset: '100%', color: '#6B7280' },
+    ],
+  },
+} as const;
+
+function metalFor(probability: number) {
+  if (probability >= 84) return METAL_DEFS.gold;
+  if (probability >= 67) return METAL_DEFS.silver;
+  if (probability >= 50) return METAL_DEFS.bronze;
+  return METAL_DEFS.none;
+}
+
 function BenchmarkIcon({ label, size = 13, color = 'currentColor' }: { label: string; size?: number; color?: string }) {
   const base = { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: color, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   switch (label) {
@@ -349,26 +418,31 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       </div>
 
       {/* Mini HOF bar — segmented pills, visible on collapsed card */}
-      {hofData && !expanded && (
-        <div className="px-3.5 pb-3 -mt-0.5">
-          <div className="flex items-center gap-1.5">
-            <span style={{ color: '#9ca3af', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
-            <div className="flex flex-1 gap-0.5">
-              {hofData.benchmarks.map((b) => {
-                const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
-                return (
-                  <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
-                    <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: color, borderRadius: 9999 }} />
-                  </div>
-                );
-              })}
+      {hofData && !expanded && (() => {
+        const metal = metalFor(hofData.probability);
+        return (
+          <div className="px-3.5 pb-3 -mt-0.5">
+            <div className="flex items-center gap-1.5">
+              <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
+              <div className="flex flex-1 gap-0.5">
+                {hofData.benchmarks.map((b) => {
+                  const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
+                  return (
+                    <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+                      <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: color, borderRadius: 9999 }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
+              <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
+              <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
+                {metal.label ?? hofData.tier}
+              </span>
             </div>
-            <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
-            <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
-            <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 600, flexShrink: 0 }}>{hofData.tier}</span>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Expanded panel */}
       {expanded && (
@@ -500,24 +574,42 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
               isRate(unit) ? v.toFixed(3).replace(/^0/, '') : Math.round(v).toLocaleString();
             const fmtTarget = (v: number, unit: string) =>
               unit === 'ERA' || unit === 'WHIP' ? v.toFixed(2) : isRate(unit) ? v.toFixed(3).replace(/^0/, '') : v.toLocaleString();
+            const metal = metalFor(hofData.probability);
+            const gradId = `hofMetal_${prediction.playerId}`;
 
             return (
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                {/* Metallic gradient header text */}
+                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{
+                  background: metal.cssGradient,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>
                   Hall of Fame Outlook
                 </p>
 
                 {/* Gauge + tier */}
                 <div className="flex items-center gap-4 mb-4">
                   <svg viewBox="0 0 164 140" width={120} height={104} style={{ flexShrink: 0 }}>
+                    <defs>
+                      <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                        {metal.svgStops.map((s, i) => (
+                          <stop key={i} offset={s.offset} stopColor={s.color} />
+                        ))}
+                      </linearGradient>
+                    </defs>
+                    {/* Track */}
                     <circle cx={82} cy={86} r={65} fill="none" stroke="#00000008" strokeWidth={11}
                       strokeDasharray={`${TRACK} ${CIRC - TRACK}`} strokeLinecap="round"
                       transform="rotate(135 82 86)" />
-                    <circle cx={82} cy={86} r={65} fill="none" stroke={hofData.tierColor} strokeWidth={11}
+                    {/* Fill arc — metallic gradient stroke */}
+                    <circle cx={82} cy={86} r={65} fill="none" stroke={`url(#${gradId})`} strokeWidth={11}
                       strokeDasharray={`${fillLen} ${CIRC - fillLen}`} strokeLinecap="round"
                       transform="rotate(135 82 86)"
-                      style={{ filter: `drop-shadow(0 0 5px ${hofData.tierColor}55)` }} />
-                    <text x={82} y={82} textAnchor="middle" fill={hofData.tierColor} fontSize={24}
+                      style={{ filter: `drop-shadow(0 0 6px ${metal.glow})` }} />
+                    {/* Probability number — gradient fill */}
+                    <text x={82} y={82} textAnchor="middle" fill={`url(#${gradId})`} fontSize={24}
                       fontWeight="900" fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">
                       {hofData.probability}%
                     </text>
@@ -527,12 +619,27 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                     </text>
                   </svg>
                   <div className="flex-1 min-w-0">
-                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full mb-2"
-                      style={{ backgroundColor: `${hofData.tierColor}22`, border: `1px solid ${hofData.tierColor}44` }}>
-                      <span className="text-xs font-bold" style={{ color: hofData.tierColor }}>
-                        🏆 {hofData.tier}
+                    {/* Metallic badge */}
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-2" style={{
+                      background: metal.badgeBg,
+                      boxShadow: `0 2px 8px ${metal.glow}, inset 0 1px 0 rgba(255,255,255,0.22)`,
+                    }}>
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: '#fff',
+                        letterSpacing: '0.05em',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.55)',
+                      }}>
+                        {metal.emoji ? `${metal.emoji} ${metal.label!.toUpperCase()}` : hofData.tier}
                       </span>
                     </div>
+                    {/* HOF tier name shown below the metal badge */}
+                    {metal.label && (
+                      <p style={{ fontSize: 10, fontWeight: 600, color: metal.main, marginBottom: 4 }}>
+                        {hofData.tier}
+                      </p>
+                    )}
                     <p className="text-gray-500 text-xs leading-relaxed">{hofData.description}</p>
                     {hofData.yearsRemaining > 0 && (
                       <p className="text-gray-400 text-xs mt-1.5">
