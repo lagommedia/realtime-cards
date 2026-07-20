@@ -61,10 +61,17 @@ export function calculateHof(
   const retirementAge = isPitcher ? 37 : 38;
   const yearsRemaining = Math.max(0, retirementAge - age);
 
-  // Per-season pace, discounted 15% for age-related decline in later years
+  // How much to trust a projection: ramps from 0→1 over the first 7 seasons.
+  // Prevents young players with elite rate stats from projecting to First Ballot
+  // before they've proven sustained excellence over multiple seasons.
+  const credibility = Math.min(1, seasonsPlayed / 7);
+
+  // Per-season pace extrapolated to retirement, scaled by career credibility.
+  // Veterans with 7+ seasons get the full bonus; rookies only a fraction.
   function project(careerTotal: number): number {
     const perSeason = careerTotal / seasonsPlayed;
-    return Math.round(careerTotal + perSeason * yearsRemaining * 0.82);
+    const rawBonus = perSeason * yearsRemaining * 0.82;
+    return Math.round(careerTotal + rawBonus * credibility);
   }
 
   let score = 0;
@@ -87,7 +94,11 @@ export function calculateHof(
     const avgPct = avg >= 0.300 ? 1 : avg >= 0.285 ? 0.75 : avg >= 0.270 ? 0.50 : avg >= 0.255 ? 0.25 : 0.05;
     const opsPct = ops >= 0.950 ? 1 : ops >= 0.900 ? 0.85 : ops >= 0.850 ? 0.65 : ops >= 0.800 ? 0.40 : ops >= 0.750 ? 0.20 : 0.05;
 
-    score += hitPct * 26 + hrPct * 22 + rbiPct * 18 + avgPct * 18 + opsPct * 16;
+    // Rate stats need a volume gate: a .300 AVG over 100 games scores differently
+    // than a .300 AVG over 1,500 games. Full credit at 700 career games (~4-5 seasons).
+    const rateVolume = Math.min(1, (career.gamesPlayed ?? 0) / 700);
+
+    score += hitPct * 26 + hrPct * 22 + rbiPct * 18 + (avgPct * rateVolume) * 18 + (opsPct * rateVolume) * 16;
 
     benchmarks.push(
       { label: 'Career Hits',   current: hit, projected: pH,  target: 3000,  pct: hitPct, higherIsBetter: true,  unit: '' },
@@ -114,7 +125,11 @@ export function calculateHof(
     const eraPct  = era  <= 2.50 ? 1 : era  <= 3.00 ? 0.82 : era  <= 3.50 ? 0.60 : era  <= 4.00 ? 0.28 : 0.05;
     const whipPct = whip <= 0.95 ? 1 : whip <= 1.10 ? 0.82 : whip <= 1.25 ? 0.60 : whip <= 1.40 ? 0.28 : 0.05;
 
-    score += ksPct * 28 + winsPct * 20 + eraPct * 20 + whipPct * 18 + ipPct * 14;
+    // Same volume gate for pitchers: full ERA/WHIP credit requires ~800 IP (~5 seasons).
+    // Prevents a dominant 2-year pitcher from scoring the same as a 15-year HOF ace.
+    const rateVolume = Math.min(1, ip / 800);
+
+    score += ksPct * 28 + winsPct * 20 + (eraPct * rateVolume) * 20 + (whipPct * rateVolume) * 18 + ipPct * 14;
 
     benchmarks.push(
       { label: 'Career Strikeouts', current: ks,   projected: pKs,   target: 3000, pct: ksPct,   higherIsBetter: true,  unit: 'K' },
