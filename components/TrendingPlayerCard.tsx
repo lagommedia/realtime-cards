@@ -82,12 +82,11 @@ const METAL_DEFS = {
     emoji: null,
     main: '#9CA3AF',
     glow: 'rgba(156,163,175,0.15)',
-    cssGradient: 'linear-gradient(135deg, #6B7280 0%, #9CA3AF 50%, #6B7280 100%)',
-    badgeBg:     'linear-gradient(135deg, #4B5563 0%, #9CA3AF 50%, #4B5563 100%)',
+    cssGradient: '#D1D5DB',  // flat — no metallic shimmer for sub-50%
+    badgeBg:     '#9CA3AF',
     svgStops: [
-      { offset: '0%',   color: '#6B7280' },
-      { offset: '50%',  color: '#9CA3AF' },
-      { offset: '100%', color: '#6B7280' },
+      { offset: '0%',   color: '#9CA3AF' },
+      { offset: '100%', color: '#9CA3AF' },
     ],
   },
 } as const;
@@ -428,7 +427,11 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                 <div style={{
                   width: `${hofData.probability}%`,
                   height: '100%',
-                  background: metal.cssGradient,
+                  background: metal.label
+                    ? `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.38) 50%, transparent 100%), ${metal.cssGradient}`
+                    : metal.cssGradient,
+                  backgroundSize: metal.label ? '300% 100%, 100% 100%' : undefined,
+                  animation: metal.label ? 'metalShine 3.5s ease-in-out 0.6s infinite' : undefined,
                   borderRadius: 9999,
                   transition: 'width 0.8s ease',
                 }} />
@@ -616,7 +619,11 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
                   <div className="flex-1 min-w-0">
                     {/* Metallic badge */}
                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-2" style={{
-                      background: metal.badgeBg,
+                      background: metal.label
+                        ? `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%), ${metal.badgeBg}`
+                        : metal.badgeBg,
+                      backgroundSize: metal.label ? '400% 100%, 100% 100%' : undefined,
+                      animation: metal.label ? 'metalShine 4s ease-in-out 1.2s infinite' : undefined,
                       boxShadow: `0 2px 8px ${metal.glow}, inset 0 1px 0 rgba(255,255,255,0.22)`,
                     }}>
                       <span style={{

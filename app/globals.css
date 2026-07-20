@@ -32,6 +32,11 @@
   }
 }
 
+@keyframes metalShine {
+  0%   { background-position: -250% center, center center; }
+  100% { background-position: 250% center, center center; }
+}
+
 @layer components {
   /* ── Ambient background orbs ─────────────────────────────────────────── */
 
