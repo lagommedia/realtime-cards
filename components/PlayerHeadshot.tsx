@@ -34,6 +34,7 @@ export default function PlayerHeadshot({ playerId, playerName, size = 48 }: Prop
         src={getPlayerHeadshotUrl(playerId)}
         alt={playerName}
         fill
+        unoptimized
         sizes={`${size}px`}
         className="object-contain object-center scale-110"
         onError={() => setErrored(true)}

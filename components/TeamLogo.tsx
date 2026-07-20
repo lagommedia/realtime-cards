@@ -30,6 +30,7 @@ export default function TeamLogo({ teamId, abbreviation, size = 32, className = 
         src={src}
         alt={abbreviation}
         fill
+        unoptimized
         sizes={`${size}px`}
         className="object-contain drop-shadow-sm"
         onError={(e) => {
