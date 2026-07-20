@@ -304,13 +304,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         </div>
       </div>
 
-      {/* Mini HOF bar — visible on collapsed card */}
+      {/* Mini HOF bar — segmented pills, visible on collapsed card */}
       {hofData && !expanded && (
         <div className="px-3.5 pb-3 -mt-0.5">
           <div className="flex items-center gap-1.5">
             <span style={{ color: '#9ca3af', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
-            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
-              <div style={{ width: `${hofData.probability}%`, height: '100%', backgroundColor: hofData.tierColor, borderRadius: 9999, transition: 'width 1s ease' }} />
+            <div className="flex flex-1 gap-0.5">
+              {hofData.benchmarks.map((b) => (
+                <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+                  <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: hofData.tierColor, borderRadius: 9999 }} />
+                </div>
+              ))}
             </div>
             <span style={{ color: hofData.tierColor, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
             <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
@@ -440,42 +444,121 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             isLive={isLive}
           />
 
-          {/* ── HOF line meter ── */}
-          {hofData && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          {/* ── Hall of Fame Outlook (full) ── */}
+          {hofData && (() => {
+            const CIRC = 408.407, TRACK = 306.305;
+            const fillLen = (hofData.probability / 100) * TRACK;
+            const isRate = (unit: string) => ['AVG', 'OPS', 'ERA', 'WHIP'].includes(unit);
+            const fmtVal = (v: number, unit: string) =>
+              isRate(unit) ? v.toFixed(3).replace(/^0/, '') : Math.round(v).toLocaleString();
+            const fmtTarget = (v: number, unit: string) =>
+              unit === 'ERA' || unit === 'WHIP' ? v.toFixed(2) : isRate(unit) ? v.toFixed(3).replace(/^0/, '') : v.toLocaleString();
+
+            return (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                   Hall of Fame Outlook
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold tabular-nums" style={{ color: hofData.tierColor }}>
-                    {hofData.probability}%
-                  </span>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={{
-                      backgroundColor: `${hofData.tierColor}22`,
-                      color: hofData.tierColor,
-                      border: `1px solid ${hofData.tierColor}44`,
-                    }}
-                  >
-                    {hofData.tier}
-                  </span>
+                </p>
+
+                {/* Gauge + tier */}
+                <div className="flex items-center gap-4 mb-4">
+                  <svg viewBox="0 0 164 140" width={120} height={104} style={{ flexShrink: 0 }}>
+                    <circle cx={82} cy={86} r={65} fill="none" stroke="#00000008" strokeWidth={11}
+                      strokeDasharray={`${TRACK} ${CIRC - TRACK}`} strokeLinecap="round"
+                      transform="rotate(135 82 86)" />
+                    <circle cx={82} cy={86} r={65} fill="none" stroke={hofData.tierColor} strokeWidth={11}
+                      strokeDasharray={`${fillLen} ${CIRC - fillLen}`} strokeLinecap="round"
+                      transform="rotate(135 82 86)"
+                      style={{ filter: `drop-shadow(0 0 5px ${hofData.tierColor}55)` }} />
+                    <text x={82} y={82} textAnchor="middle" fill={hofData.tierColor} fontSize={24}
+                      fontWeight="900" fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">
+                      {hofData.probability}%
+                    </text>
+                    <text x={82} y={97} textAnchor="middle" fill="#9ca3af" fontSize={8}
+                      fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">
+                      HOF PROBABILITY
+                    </text>
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full mb-2"
+                      style={{ backgroundColor: `${hofData.tierColor}22`, border: `1px solid ${hofData.tierColor}44` }}>
+                      <span className="text-xs font-bold" style={{ color: hofData.tierColor }}>
+                        🏆 {hofData.tier}
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-xs leading-relaxed">{hofData.description}</p>
+                    {hofData.yearsRemaining > 0 && (
+                      <p className="text-gray-400 text-xs mt-1.5">
+                        ~{hofData.yearsRemaining}yr{hofData.yearsRemaining !== 1 ? 's' : ''} of career projected
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Segmented benchmark pills with labels */}
+                <div className="mb-3">
+                  <div className="flex gap-1 mb-1">
+                    {hofData.benchmarks.map((b) => (
+                      <div key={b.label} className="flex-1 h-2 rounded-full overflow-hidden"
+                        style={{ backgroundColor: '#00000009' }}>
+                        <div style={{
+                          width: `${Math.min(b.pct, 1) * 100}%`,
+                          height: '100%',
+                          backgroundColor: hofData.tierColor,
+                          borderRadius: 9999,
+                          transition: 'width 0.8s ease',
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-1">
+                    {hofData.benchmarks.map((b) => (
+                      <div key={b.label} className="flex-1 text-center">
+                        <span style={{ color: '#9ca3af', fontSize: 8, fontWeight: 600 }}>
+                          {b.unit || 'H'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Per-benchmark detail rows */}
+                <div className="space-y-2.5">
+                  {hofData.benchmarks.map((b) => {
+                    const showProj = b.higherIsBetter && b.projected > b.current + 1;
+                    return (
+                      <div key={b.label}>
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <span className="text-xs text-gray-400">{b.label}</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xs font-semibold text-gray-700">
+                              {fmtVal(b.current, b.unit)}
+                            </span>
+                            {showProj && (
+                              <span style={{ color: '#9ca3af', fontSize: 10 }}>
+                                → {fmtVal(b.projected, b.unit)}
+                              </span>
+                            )}
+                            <span style={{ color: '#c4c4c4', fontSize: 10 }}>
+                              / {fmtTarget(b.target, b.unit)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
+                          <div style={{
+                            width: `${Math.min(b.pct, 1) * 100}%`,
+                            height: '100%',
+                            backgroundColor: hofData.tierColor,
+                            borderRadius: 9999,
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-1000"
-                  style={{
-                    width: `${hofData.probability}%`,
-                    backgroundColor: hofData.tierColor,
-                    boxShadow: `0 0 8px ${hofData.tierColor}66`,
-                  }}
-                />
-              </div>
-              <p className="text-gray-500 text-xs mt-1.5">{hofData.description}</p>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       )}
