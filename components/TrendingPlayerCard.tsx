@@ -417,28 +417,23 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         </div>
       </div>
 
-      {/* Mini HOF bar — segmented pills, visible on collapsed card */}
+      {/* Mini HOF bar — single metallic progress bar, visible on collapsed card */}
       {hofData && !expanded && (() => {
         const metal = metalFor(hofData.probability);
         return (
           <div className="px-3.5 pb-3 -mt-0.5">
             <div className="flex items-center gap-1.5">
               <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>HOF</span>
-              <div className="flex flex-1 gap-0.5">
-                {hofData.benchmarks.map((b) => {
-                  const { color } = BENCHMARK_STYLES[b.label] ?? DEFAULT_BENCHMARK_STYLE;
-                  return (
-                    <div key={b.label} className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#00000009' }}>
-                      <div style={{ width: `${Math.min(b.pct, 1) * 100}%`, height: '100%', backgroundColor: color, borderRadius: 9999 }} />
-                    </div>
-                  );
-                })}
+              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#0000000a' }}>
+                <div style={{
+                  width: `${hofData.probability}%`,
+                  height: '100%',
+                  background: metal.cssGradient,
+                  borderRadius: 9999,
+                  transition: 'width 0.8s ease',
+                }} />
               </div>
               <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{hofData.probability}%</span>
-              <span style={{ color: '#9ca3af', fontSize: 9 }}>·</span>
-              <span style={{ color: metal.main, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
-                {metal.label ?? hofData.tier}
-              </span>
             </div>
           </div>
         );
