@@ -8,6 +8,7 @@ import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import TeamLogo from '@/components/TeamLogo';
 import { Star, X, Bell, BellOff, FlaskConical, ChevronDown, ChevronUp, Clock, Search } from 'lucide-react';
+import SearchPlayerRow from '@/components/SearchPlayerRow';
 
 interface PlayerResult {
   id: number;
@@ -182,44 +183,16 @@ export default function WatchlistPage() {
               {searching ? 'Searching…' : searchResults.length === 0 ? `No results for "${searchQuery}"` : 'Players'}
             </p>
             <div className="space-y-2">
-              {searchResults.slice(0, 10).map(p => {
-                const watched = watchedIds.has(p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
-                    style={{ backgroundColor: theme.cardBackground }}
-                  >
-                    <PlayerHeadshot playerId={p.id} playerName={p.fullName} size={42} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-slate-900 font-semibold text-sm truncate">{p.fullName}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {p.currentTeam && <TeamLogo teamId={p.currentTeam.id} abbreviation="" size={12} />}
-                        <span className="text-gray-500 text-xs">
-                          {[p.currentTeam?.name ?? 'Free Agent', p.primaryPosition?.abbreviation].filter(Boolean).join(' · ')}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => toggleWatch({
-                        playerId: p.id,
-                        playerName: p.fullName,
-                        teamId: p.currentTeam?.id ?? 0,
-                        position: p.primaryPosition?.abbreviation ?? '',
-                      })}
-                      className="p-2 rounded-xl transition-colors"
-                      style={{ backgroundColor: watched ? `${theme.primary}22` : 'rgba(0,0,0,0.04)' }}
-                      aria-label={watched ? 'Unfollow' : 'Follow'}
-                    >
-                      <Star
-                        size={17}
-                        style={{ color: watched ? theme.primary : '#9ca3af' }}
-                        fill={watched ? theme.primary : 'none'}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
+              {searchResults.slice(0, 10).map(p => (
+                <SearchPlayerRow
+                  key={p.id}
+                  playerId={p.id}
+                  playerName={p.fullName}
+                  teamId={p.currentTeam?.id ?? 0}
+                  teamName={p.currentTeam?.name}
+                  position={p.primaryPosition?.abbreviation ?? ''}
+                />
+              ))}
             </div>
           </div>
         )}

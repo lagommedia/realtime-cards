@@ -387,15 +387,17 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setExpanded(v => !v); }}
         className="w-full flex items-center gap-3 p-3.5 text-left active:opacity-80 cursor-pointer select-none"
       >
-        <div
-          className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0"
-          style={{
-            backgroundColor: rank <= 3 ? `${theme.primary}22` : 'rgba(0,0,0,0.06)',
-            color: rank <= 3 ? theme.primary : '#64748b',
-          }}
-        >
-          {rank}
-        </div>
+        {rank > 0 && (
+          <div
+            className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0"
+            style={{
+              backgroundColor: rank <= 3 ? `${theme.primary}22` : 'rgba(0,0,0,0.06)',
+              color: rank <= 3 ? theme.primary : '#64748b',
+            }}
+          >
+            {rank}
+          </div>
+        )}
 
         <PlayerHeadshot playerId={prediction.playerId} playerName={prediction.playerName} size={46} />
 

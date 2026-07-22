@@ -8,10 +8,9 @@ import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TeamLogo from '@/components/TeamLogo';
 import { ALL_TEAMS } from '@/lib/team-themes';
-import { RefreshCw, TrendingUp, TrendingDown, Users, Globe, Search, X, Star } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Users, Globe, Search, X } from 'lucide-react';
 import Link from 'next/link';
-import { useWatchList } from '@/context/WatchListContext';
-import PlayerHeadshot from '@/components/PlayerHeadshot';
+import SearchPlayerRow from '@/components/SearchPlayerRow';
 
 type Scope = 'overall' | 'myteam';
 type DateWindow = 'day' | 'week' | 'month' | 'season';
@@ -30,7 +29,7 @@ const WINDOW_LABELS: Record<DateWindow, string> = {
 export default function TrendingPage() {
   const { theme, selectedTeamId } = useTeam();
   const { companyId, gradeValue } = useGrading();
-  const { isWatched, toggleWatch } = useWatchList();
+
   const [predictions, setPredictions] = useState<CardPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameCount, setGameCount] = useState(0);
@@ -344,38 +343,14 @@ export default function TrendingPage() {
             </p>
             <div className="space-y-2">
               {mlbResults.slice(0, 8).map(p => (
-                <div
+                <SearchPlayerRow
                   key={p.id}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
-                  style={{ backgroundColor: theme.cardBackground }}
-                >
-                  <PlayerHeadshot playerId={p.id} playerName={p.fullName} size={42} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-slate-900 font-semibold text-sm truncate">{p.fullName}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {p.currentTeam && <TeamLogo teamId={p.currentTeam.id} abbreviation="" size={12} />}
-                      <span className="text-gray-500 text-xs">
-                        {[p.currentTeam?.name ?? 'Free Agent', p.primaryPosition?.abbreviation].filter(Boolean).join(' · ')}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => toggleWatch({
-                      playerId: p.id,
-                      playerName: p.fullName,
-                      teamId: p.currentTeam?.id ?? 0,
-                      position: p.primaryPosition?.abbreviation ?? '',
-                    })}
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ backgroundColor: isWatched(p.id) ? `${theme.primary}22` : 'rgba(0,0,0,0.04)' }}
-                  >
-                    <Star
-                      size={16}
-                      style={{ color: isWatched(p.id) ? theme.primary : '#9ca3af' }}
-                      fill={isWatched(p.id) ? theme.primary : 'none'}
-                    />
-                  </button>
-                </div>
+                  playerId={p.id}
+                  playerName={p.fullName}
+                  teamId={p.currentTeam?.id ?? 0}
+                  teamName={p.currentTeam?.name}
+                  position={p.primaryPosition?.abbreviation ?? ''}
+                />
               ))}
             </div>
           </div>
