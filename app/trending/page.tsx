@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useGrading } from '@/context/GradingContext';
@@ -8,11 +8,20 @@ import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TeamLogo from '@/components/TeamLogo';
 import { ALL_TEAMS } from '@/lib/team-themes';
-import { RefreshCw, TrendingUp, TrendingDown, Users, Globe } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Users, Globe, Search, X, Star } from 'lucide-react';
 import Link from 'next/link';
+import { useWatchList } from '@/context/WatchListContext';
+import PlayerHeadshot from '@/components/PlayerHeadshot';
 
 type Scope = 'overall' | 'myteam';
 type DateWindow = 'day' | 'week' | 'month' | 'season';
+
+interface PlayerResult {
+  id: number;
+  fullName: string;
+  currentTeam?: { id: number; name: string };
+  primaryPosition?: { name: string; abbreviation: string };
+}
 
 const WINDOW_LABELS: Record<DateWindow, string> = {
   day: 'Day', week: 'Week', month: 'Month', season: 'Season',
@@ -21,6 +30,7 @@ const WINDOW_LABELS: Record<DateWindow, string> = {
 export default function TrendingPage() {
   const { theme, selectedTeamId } = useTeam();
   const { companyId, gradeValue } = useGrading();
+  const { isWatched, toggleWatch } = useWatchList();
   const [predictions, setPredictions] = useState<CardPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameCount, setGameCount] = useState(0);
@@ -28,6 +38,12 @@ export default function TrendingPage() {
   const [error, setError] = useState('');
   const [scope, setScope] = useState<Scope>('overall');
   const [dateWindow, setDateWindow] = useState<DateWindow>('day');
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mlbResults, setMlbResults] = useState<PlayerResult[]>([]);
+  const [mlbSearching, setMlbSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedTeam = ALL_TEAMS.find(t => t.id === selectedTeamId);
 
@@ -77,10 +93,32 @@ export default function TrendingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, gradeValue, dateWindow]);
 
+  // Search: filter trending list + MLB-wide fallback
+  const trendingMatch = searchQuery.length > 0
+    ? predictions.filter(p => p.playerName.toLowerCase().includes(searchQuery.toLowerCase()))
+    : predictions;
+
+  useEffect(() => {
+    if (searchQuery.length < 2) { setMlbResults([]); return; }
+    setMlbSearching(true);
+    const t = setTimeout(() => {
+      const trendingIds = new Set(trendingMatch.map(p => p.playerId));
+      fetch(`/api/players/search?q=${encodeURIComponent(searchQuery)}`)
+        .then(r => r.json())
+        .then((d: { people: PlayerResult[] }) =>
+          setMlbResults((d.people ?? []).filter(p => !trendingIds.has(p.id)))
+        )
+        .catch(() => {})
+        .finally(() => setMlbSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   // Apply scope filter
   const scoped = scope === 'myteam' && selectedTeamId
-    ? predictions.filter(p => p.teamId === selectedTeamId)
-    : predictions;
+    ? trendingMatch.filter(p => p.teamId === selectedTeamId)
+    : trendingMatch;
 
   const rising = scoped.filter(p => p.direction === 'up');
   const falling = scoped.filter(p => p.direction === 'down');
@@ -116,6 +154,30 @@ export default function TrendingPage() {
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-3">
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search any player…"
+            style={{
+              width: '100%', padding: '10px 36px', borderRadius: 12,
+              border: '1px solid #e2e8f0', fontSize: 14, color: '#0f172a',
+              background: 'rgba(255,255,255,0.9)', outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', padding: 4 }}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Date window filter */}
@@ -222,6 +284,11 @@ export default function TrendingPage() {
           </div>
         )}
 
+        {/* Search: no trending match message */}
+        {searchQuery.length > 0 && !loading && scoped.length === 0 && mlbResults.length === 0 && !mlbSearching && (
+          <p className="text-center text-slate-500 text-sm py-6">No players found for "{searchQuery}"</p>
+        )}
+
         {!loading && !error && scoped.length > 0 && (
           <div className="space-y-5 mt-1">
             {/* Rising bucket */}
@@ -267,6 +334,50 @@ export default function TrendingPage() {
                 </div>
               </section>
             )}
+          </div>
+        )}
+        {/* MLB-wide search results (non-trending players) */}
+        {(mlbSearching || mlbResults.length > 0) && (
+          <div className="mt-4">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              {mlbSearching ? 'Searching…' : 'Other players'}
+            </p>
+            <div className="space-y-2">
+              {mlbResults.slice(0, 8).map(p => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
+                  style={{ backgroundColor: theme.cardBackground }}
+                >
+                  <PlayerHeadshot playerId={p.id} playerName={p.fullName} size={42} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-900 font-semibold text-sm truncate">{p.fullName}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {p.currentTeam && <TeamLogo teamId={p.currentTeam.id} abbreviation="" size={12} />}
+                      <span className="text-gray-500 text-xs">
+                        {[p.currentTeam?.name ?? 'Free Agent', p.primaryPosition?.abbreviation].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleWatch({
+                      playerId: p.id,
+                      playerName: p.fullName,
+                      teamId: p.currentTeam?.id ?? 0,
+                      position: p.primaryPosition?.abbreviation ?? '',
+                    })}
+                    className="p-2 rounded-xl transition-colors"
+                    style={{ backgroundColor: isWatched(p.id) ? `${theme.primary}22` : 'rgba(0,0,0,0.04)' }}
+                  >
+                    <Star
+                      size={16}
+                      style={{ color: isWatched(p.id) ? theme.primary : '#9ca3af' }}
+                      fill={isWatched(p.id) ? theme.primary : 'none'}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

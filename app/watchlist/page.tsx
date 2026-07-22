@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useWatchList } from '@/context/WatchListContext';
 import TrendingPlayerCard from '@/components/TrendingPlayerCard';
 import PlayerHeadshot from '@/components/PlayerHeadshot';
 import TeamLogo from '@/components/TeamLogo';
-import { Star, X, Bell, BellOff, FlaskConical, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Star, X, Bell, BellOff, FlaskConical, ChevronDown, ChevronUp, Clock, Search } from 'lucide-react';
+
+interface PlayerResult {
+  id: number;
+  fullName: string;
+  currentTeam?: { id: number; name: string };
+  primaryPosition?: { name: string; abbreviation: string };
+}
 import { useLiveEvents } from '@/context/LiveEventsContext';
 import { PlayEventType, getEventEmoji, getEventLabel } from '@/lib/play-detector';
 import { getEventNotificationTier, TIER_CONFIGS } from '@/lib/notification-tiers';
@@ -35,6 +42,12 @@ export default function WatchlistPage() {
   const [testOpen, setTestOpen] = useState(false);
   const [testPlayerId, setTestPlayerId] = useState<number | null>(null);
   const [trendingPredictions, setTrendingPredictions] = useState<CardPrediction[]>([]);
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<PlayerResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [teamGameStatuses, setTeamGameStatuses] = useState<Record<number, 'live' | 'final' | 'scheduled'>>({});
   const [teamGameTimes, setTeamGameTimes] = useState<Record<number, string>>({});
   const [loadingTrending, setLoadingTrending] = useState(false);
@@ -52,6 +65,20 @@ export default function WatchlistPage() {
       .catch(() => {})
       .finally(() => setLoadingTrending(false));
   }, [watchedPlayers.length]);
+
+  // Debounced MLB player search
+  useEffect(() => {
+    if (searchQuery.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      fetch(`/api/players/search?q=${encodeURIComponent(searchQuery)}`)
+        .then(r => r.json())
+        .then((d: { people: PlayerResult[] }) => setSearchResults(d.people ?? []))
+        .catch(() => {})
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const watchedIds = new Set(watchedPlayers.map(p => p.playerId));
 
@@ -120,11 +147,85 @@ export default function WatchlistPage() {
             ? `${watchedPlayers.length} player${watchedPlayers.length !== 1 ? 's' : ''} followed`
             : 'No players followed yet'}
         </p>
+
+        {/* Search bar */}
+        <div className="relative mt-3">
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search any player to follow…"
+            style={{
+              width: '100%', padding: '10px 36px', borderRadius: 12,
+              border: '1px solid #e2e8f0', fontSize: 14, color: '#0f172a',
+              background: 'rgba(255,255,255,0.9)', outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', padding: 4 }}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-4 space-y-6 pb-8">
+
+        {/* Search results */}
+        {(searching || searchResults.length > 0 || (searchQuery.length >= 2 && !searching && searchResults.length === 0)) && (
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              {searching ? 'Searching…' : searchResults.length === 0 ? `No results for "${searchQuery}"` : 'Players'}
+            </p>
+            <div className="space-y-2">
+              {searchResults.slice(0, 10).map(p => {
+                const watched = watchedIds.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200"
+                    style={{ backgroundColor: theme.cardBackground }}
+                  >
+                    <PlayerHeadshot playerId={p.id} playerName={p.fullName} size={42} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-slate-900 font-semibold text-sm truncate">{p.fullName}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {p.currentTeam && <TeamLogo teamId={p.currentTeam.id} abbreviation="" size={12} />}
+                        <span className="text-gray-500 text-xs">
+                          {[p.currentTeam?.name ?? 'Free Agent', p.primaryPosition?.abbreviation].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleWatch({
+                        playerId: p.id,
+                        playerName: p.fullName,
+                        teamId: p.currentTeam?.id ?? 0,
+                        position: p.primaryPosition?.abbreviation ?? '',
+                      })}
+                      className="p-2 rounded-xl transition-colors"
+                      style={{ backgroundColor: watched ? `${theme.primary}22` : 'rgba(0,0,0,0.04)' }}
+                      aria-label={watched ? 'Unfollow' : 'Follow'}
+                    >
+                      <Star
+                        size={17}
+                        style={{ color: watched ? theme.primary : '#9ca3af' }}
+                        fill={watched ? theme.primary : 'none'}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
-        {!hasAny && (
+        {!hasAny && !searchQuery && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -135,7 +236,7 @@ export default function WatchlistPage() {
             <div>
               <p className="text-slate-900 font-semibold text-base">No players followed</p>
               <p className="text-gray-500 text-sm mt-1">
-                Tap the ★ next to any player to add them here
+                Search for a player above to follow them
               </p>
             </div>
           </div>
