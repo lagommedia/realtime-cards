@@ -5,6 +5,7 @@ import { WatchListProvider } from '@/context/WatchListContext';
 import { LiveEventsProvider } from '@/context/LiveEventsContext';
 import { BroadcastProvider } from '@/context/BroadcastContext';
 import { GradingProvider } from '@/context/GradingContext';
+import { CollectionProvider } from '@/context/CollectionContext';
 import Navigation from '@/components/Navigation';
 
 export const metadata: Metadata = {
@@ -26,20 +27,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TeamProvider>
           <BroadcastProvider>
             <GradingProvider>
-            <WatchListProvider>
-              <LiveEventsProvider>
-                {/* Orbs inside TeamProvider so they inherit --color-primary/secondary/accent CSS vars */}
-                <div className="orb-container" aria-hidden="true">
-                  <div className="orb orb-1" />
-                  <div className="orb orb-2" />
-                  <div className="orb orb-3" />
-                </div>
-                <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
-                  <main className="pb-28">{children}</main>
-                  <Navigation />
-                </div>
-              </LiveEventsProvider>
-            </WatchListProvider>
+              <WatchListProvider>
+                <CollectionProvider>
+                  <LiveEventsProvider>
+                    <div className="orb-container" aria-hidden="true">
+                      <div className="orb orb-1" />
+                      <div className="orb orb-2" />
+                      <div className="orb orb-3" />
+                    </div>
+                    <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
+                      <main className="pb-28">{children}</main>
+                      <Navigation />
+                    </div>
+                  </LiveEventsProvider>
+                </CollectionProvider>
+              </WatchListProvider>
             </GradingProvider>
           </BroadcastProvider>
         </TeamProvider>

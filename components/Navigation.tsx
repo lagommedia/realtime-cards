@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTeam } from '@/context/TeamContext';
-import { TrendingUp, Settings, Tv, Star } from 'lucide-react';
+import { TrendingUp, Settings, Tv, Star, Package } from 'lucide-react';
 import TeamLogo from '@/components/TeamLogo';
 import { ALL_TEAMS } from '@/lib/team-themes';
 import { motion, LayoutGroup } from 'framer-motion';
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Games', icon: Tv },
   { href: '/trending', label: 'Trending', icon: TrendingUp },
   { href: '/watchlist', label: 'Watchlist', icon: Star },
+  { href: '/collection', label: 'Collection', icon: Package },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

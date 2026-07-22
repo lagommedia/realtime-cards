@@ -32,6 +32,10 @@
   }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes metalShine {
   0%   { background-position: -250% center, center center; }
   100% { background-position: 250% center, center center; }

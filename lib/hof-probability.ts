@@ -140,6 +140,32 @@ export function calculateHof(
     );
   }
 
+  // Two-way player boost: if a batter also has substantial pitching innings (e.g. Ohtani),
+  // score both sides and blend so the pitching contribution isn't silently ignored.
+  if (!isPitcher) {
+    const ipNum = parseFloat(String(career.inningsPitched ?? '0'));
+    if (ipNum > 200) {
+      const ks   = career.strikeOuts ?? 0;
+      const wins = career.wins ?? 0;
+      const era  = isNaN(career.era ?? NaN) ? 9.99 : (career.era ?? 9.99);
+      const whip = isNaN(career.whip ?? NaN) ? 2.99 : (career.whip ?? 2.99);
+
+      const pKs2   = project(ks);
+      const pWins2 = project(wins);
+      const pIP2   = project(Math.round(ipNum));
+
+      const ksPct2   = Math.min(pKs2   / 3000, 1);
+      const winsPct2 = Math.min(pWins2 / 250,  1);
+      const ipPct2   = Math.min(pIP2   / 2500, 1);
+      const eraPct2  = era  <= 2.50 ? 1 : era  <= 3.00 ? 0.82 : era  <= 3.50 ? 0.60 : era  <= 4.00 ? 0.28 : 0.05;
+      const whipPct2 = whip <= 0.95 ? 1 : whip <= 1.10 ? 0.82 : whip <= 1.25 ? 0.60 : whip <= 1.40 ? 0.28 : 0.05;
+      const pitchVol = Math.min(1, ipNum / 800);
+
+      const pitchSub = ksPct2 * 28 + winsPct2 * 20 + (eraPct2 * pitchVol) * 20 + (whipPct2 * pitchVol) * 18 + ipPct2 * 14;
+      score = Math.min(100, score + pitchSub * 0.55);
+    }
+  }
+
   const probability = Math.min(96, Math.max(2, Math.round(score)));
   const tier = hofTierFor(probability);
 
