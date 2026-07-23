@@ -126,8 +126,8 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
               preserveAspectRatio="xMidYMid slice"
               filter={`url(#zone-blur-${pfx})`}
             />
-            {/* Frosted glass tint */}
-            <rect x={Z.x} y={Z.y} width={Z.w} height={Z.h} fill="rgba(255,255,255,0.18)" />
+            {/* Frosted glass tint — brighter than the background overlay */}
+            <rect x={Z.x} y={Z.y} width={Z.w} height={Z.h} fill="rgba(255,255,255,0.72)" />
           </g>
         </g>
 
