@@ -46,26 +46,30 @@ export async function GET(
     const abbr = person.primaryPosition?.abbreviation ?? '';
     const isPitcher = pos === 'Pitcher' || abbr === 'P' || abbr === 'SP' || abbr === 'RP';
 
-    // Merge all career stat splits into one flat object
-    const flat: Record<string, string | number | undefined> = {};
+    // Keep hitting and pitching career stats separate to avoid gamesPlayed overwrite
+    // (e.g. Ohtani's pitching gamesPlayed ~130 must not clobber his batting gamesPlayed ~900)
+    const hit: Record<string, string | number | undefined> = {};
+    const pit: Record<string, string | number | undefined> = {};
     for (const block of person.stats ?? []) {
       if (block.type?.displayName !== 'career') continue;
       const split = block.splits?.[0]?.stat;
-      if (split) Object.assign(flat, split);
+      if (!split) continue;
+      if (block.group?.displayName === 'hitting') Object.assign(hit, split);
+      else if (block.group?.displayName === 'pitching') Object.assign(pit, split);
     }
 
     const career: RawCareerStats = {
-      gamesPlayed:    Number(flat.gamesPlayed    ?? 0),
-      hits:           Number(flat.hits            ?? 0),
-      homeRuns:       Number(flat.homeRuns        ?? 0),
-      rbi:            Number(flat.rbi             ?? 0),
-      avg:            parseFloat(String(flat.avg  ?? '0')),
-      ops:            parseFloat(String(flat.ops  ?? '0')),
-      wins:           Number(flat.wins            ?? 0),
-      era:            parseFloat(String(flat.era  ?? '9.99')),
-      strikeOuts:     Number(flat.strikeOuts      ?? 0),
-      whip:           parseFloat(String(flat.whip ?? '2.99')),
-      inningsPitched: String(flat.inningsPitched  ?? '0'),
+      gamesPlayed:    Number((isPitcher ? pit : hit).gamesPlayed ?? 0),
+      hits:           Number(hit.hits            ?? 0),
+      homeRuns:       Number(hit.homeRuns        ?? 0),
+      rbi:            Number(hit.rbi             ?? 0),
+      avg:            parseFloat(String(hit.avg  ?? '0')),
+      ops:            parseFloat(String(hit.ops  ?? '0')),
+      wins:           Number(pit.wins            ?? 0),
+      era:            parseFloat(String(pit.era  ?? '9.99')),
+      strikeOuts:     Number(pit.strikeOuts      ?? 0),
+      whip:           parseFloat(String(pit.whip ?? '2.99')),
+      inningsPitched: String(pit.inningsPitched  ?? '0'),
     };
 
     const result = calculateHof(career, age, debutYear, isPitcher);
