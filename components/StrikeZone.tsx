@@ -2,24 +2,18 @@
 
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
-// 4-family color scheme: Fastball=red, Breaking=blue, Offspeed=green, Specialty=amber
-const FASTBALL   = '#dc2626';
-const BREAKING   = '#2563eb';
-const OFFSPEED   = '#16a34a';
-const SPECIALTY  = '#d97706';
-
 export const PITCH_TYPE_COLORS: Record<string, string> = {
-  FF: FASTBALL,  FA: FASTBALL,   // four-seam
-  FT: FASTBALL,  SI: FASTBALL,   // two-seam / sinker
-  FC: FASTBALL,                   // cutter
-  SL: BREAKING,  ST: BREAKING,   // slider / sweeper
-  SV: BREAKING,                   // slurve
-  CU: BREAKING,  CS: BREAKING,   // curveball
-  KC: BREAKING,                   // knuckle-curve
-  CH: OFFSPEED,                   // changeup
-  FS: OFFSPEED,  FO: OFFSPEED,   // splitter / forkball
-  KN: SPECIALTY,                  // knuckleball
-  EP: SPECIALTY,                  // eephus
+  FF: '#f87171', FA: '#f87171',  // coral — four-seam fastball
+  FT: '#fb923c', SI: '#fb923c',  // peach — two-seam / sinker
+  FC: '#fbbf24',                  // amber — cutter
+  SL: '#c084fc', ST: '#c084fc',  // soft purple — slider / sweeper
+  SV: '#a78bfa',                  // violet — slurve
+  CU: '#60a5fa', CS: '#60a5fa',  // sky blue — curveball
+  KC: '#38bdf8',                  // cyan — knuckle-curve
+  CH: '#4ade80',                  // mint green — changeup
+  FS: '#2dd4bf', FO: '#2dd4bf',  // teal — splitter / forkball
+  KN: '#facc15',                  // yellow — knuckleball
+  EP: '#f9a8d4',                  // rose — eephus
 };
 
 function pitchColor(pitchType?: string): string {
