@@ -194,7 +194,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
               )}
               <circle cx={cx} cy={cy} r={r}
                 fill={`${color}${fillOpacity}`}
-                stroke={color} strokeWidth={compact ? 1.2 : 1.8}
+                stroke={color} strokeWidth={compact ? 0.7 : 1}
                 strokeDasharray={dash}
                 className={isLatest ? 'pitch-flash' : undefined}
               />
@@ -247,18 +247,18 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
             {seen.map(type => (
               <div key={type} className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `${pitchColor(type)}40`, border: `1.5px solid ${pitchColor(type)}` }} />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `${pitchColor(type)}30`, border: `1px solid ${pitchColor(type)}` }} />
                 <span className="text-[10px] text-slate-400">{LABEL_MAP[type] ?? type}</span>
               </div>
             ))}
             {seen.length === 0 && (
               <>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef444420', border: '1.5px solid #ef4444' }} />
-                  <span className="text-[10px] text-slate-400">Strike</span>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#991b1b20', border: '1px solid #991b1b' }} />
+                  <span className="text-[10px] text-slate-400">Strike / Foul</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e20', border: '1.5px solid #22c55e' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#16653420', border: '1px solid #166534', borderStyle: 'dashed' }} />
                   <span className="text-[10px] text-slate-400">Ball</span>
                 </div>
               </>
