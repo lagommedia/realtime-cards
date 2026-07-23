@@ -226,7 +226,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             dominantBaseline="auto"
             fontSize={compact ? 7 : 9}
             fontWeight="900"
-            fill="rgba(255,255,255,0.85)"
+            fill="#eab308"
             fontFamily="monospace"
             className="pitch-flash"
           >
