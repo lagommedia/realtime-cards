@@ -3,17 +3,17 @@
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
 export const PITCH_TYPE_COLORS: Record<string, string> = {
-  FF: '#991b1b', FA: '#991b1b',  // deep crimson — four-seam fastball
-  FT: '#9a3412', SI: '#9a3412',  // burnt orange — two-seam / sinker
-  FC: '#92400e',                  // dark amber — cutter
-  SL: '#5b21b6', ST: '#5b21b6',  // deep violet — slider / sweeper
-  SV: '#6b21a8',                  // deep purple — slurve
-  CU: '#1e40af', CS: '#1e40af',  // navy blue — curveball
-  KC: '#075985',                  // deep sky — knuckle-curve
-  CH: '#166534',                  // forest green — changeup
-  FS: '#115e59', FO: '#115e59',  // deep teal — splitter / forkball
-  KN: '#854d0e',                  // dark gold — knuckleball
-  EP: '#9d174d',                  // deep rose — eephus
+  FF: '#f97316', FA: '#f97316',
+  FT: '#fb923c', SI: '#fb923c',
+  FC: '#ef4444',
+  SL: '#a855f7', ST: '#a855f7',
+  SV: '#8b5cf6',
+  CU: '#3b82f6', CS: '#3b82f6',
+  KC: '#60a5fa',
+  CH: '#22c55e',
+  FS: '#14b8a6', FO: '#14b8a6',
+  KN: '#eab308',
+  EP: '#ec4899',
 };
 
 function pitchColor(pitchType?: string): string {
@@ -113,7 +113,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             preserveAspectRatio="xMidYMid slice"
           />
           {/* Brightness overlay — washes out image so pitch dots and text stay legible */}
-          <rect x={F.x} y={F.y} width={F.w} height={F.h} fill="rgba(255,255,255,0.58)" />
+          <rect x={F.x} y={F.y} width={F.w} height={F.h} fill="rgba(255,255,255,0.68)" />
         </g>
 
         {/* ── Glass morphism: blurred photo + frost tint behind zone only ── */}
@@ -254,11 +254,11 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             {seen.length === 0 && (
               <>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#991b1b20', border: '1px solid #991b1b' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef444420', border: '1px solid #ef4444' }} />
                   <span className="text-[10px] text-slate-400">Strike / Foul</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#16653420', border: '1px solid #166534', borderStyle: 'dashed' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e20', border: '1px solid #22c55e', borderStyle: 'dashed' }} />
                   <span className="text-[10px] text-slate-400">Ball</span>
                 </div>
               </>
