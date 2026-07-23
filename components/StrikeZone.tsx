@@ -219,19 +219,28 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
 
         {/* MPH readout */}
         {mostRecent?.velocity && (
-          <text
-            x={F.x + F.w - 4}
-            y={F.y + F.h - (compact ? 4 : 6)}
-            textAnchor="end"
-            dominantBaseline="auto"
-            fontSize={compact ? 7 : 9}
-            fontWeight="900"
-            fill="#fde047"
-            fontFamily="monospace"
-            className="pitch-flash"
-          >
-            {Math.round(mostRecent.velocity)} MPH
-          </text>
+          <g className="pitch-flash">
+            <rect
+              x={F.x + F.w - (compact ? 32 : 52)}
+              y={F.y + F.h - (compact ? 12 : 17)}
+              width={compact ? 30 : 48}
+              height={compact ? 10 : 13}
+              rx={compact ? 1.5 : 2}
+              fill="rgba(22, 101, 52, 0.75)"
+            />
+            <text
+              x={F.x + F.w - 4}
+              y={F.y + F.h - (compact ? 4 : 6)}
+              textAnchor="end"
+              dominantBaseline="auto"
+              fontSize={compact ? 7 : 9}
+              fontWeight="900"
+              fill="#fde047"
+              fontFamily="monospace"
+            >
+              {Math.round(mostRecent.velocity)} MPH
+            </text>
+          </g>
         )}
       </svg>
 
