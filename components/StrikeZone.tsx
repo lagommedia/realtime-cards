@@ -56,7 +56,7 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
   const filterId = compact ? 'sz-glow-c' : 'sz-glow-f';
   const pfx = compact ? 'c' : 'f';
 
-  function svgX(x: number) { return F.x + (1 - x) * F.w; }
+  function svgX(x: number) { return F.x + x * F.w; }
   function svgY(y: number) { return F.y + (1 - y) * F.h; }
 
   return (
@@ -112,6 +112,8 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             width={F.w} height={F.h}
             preserveAspectRatio="xMidYMid slice"
           />
+          {/* Brightness overlay — washes out image so pitch dots and text stay legible */}
+          <rect x={F.x} y={F.y} width={F.w} height={F.h} fill="rgba(255,255,255,0.58)" />
         </g>
 
         {/* ── Glass morphism: blurred photo + frost tint behind zone only ── */}
