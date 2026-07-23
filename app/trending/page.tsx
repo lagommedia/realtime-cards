@@ -350,6 +350,7 @@ export default function TrendingPage() {
                   teamId={p.currentTeam?.id ?? 0}
                   teamName={p.currentTeam?.name}
                   position={p.primaryPosition?.abbreviation ?? ''}
+                  dateWindow={dateWindow}
                 />
               ))}
             </div>

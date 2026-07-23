@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CardPrediction } from '@/types';
 import { useTeam } from '@/context/TeamContext';
 import { useGrading } from '@/context/GradingContext';
@@ -16,41 +16,44 @@ interface Props {
   teamId: number;
   teamName?: string;
   position: string;
+  dateWindow?: string;
 }
 
-export default function SearchPlayerRow({ playerId, playerName, teamId, teamName, position }: Props) {
+export default function SearchPlayerRow({ playerId, playerName, teamId, teamName, position, dateWindow }: Props) {
   const { theme } = useTeam();
   const { companyId, gradeValue } = useGrading();
   const { isWatched, toggleWatch } = useWatchList();
   const [prediction, setPrediction] = useState<CardPrediction | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  async function handleTap() {
-    if (prediction || loading) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (companyId) { params.set('grading', companyId); if (gradeValue) params.set('grade', gradeValue); }
-      const res = await fetch(`/api/player/${playerId}/prediction?${params}`);
-      const d = await res.json() as CardPrediction & { error?: string };
-      if (!d.error) setPrediction(d);
-    } catch { /* swallow */ } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (companyId) { params.set('grading', companyId); if (gradeValue) params.set('grade', gradeValue); }
+    if (dateWindow) params.set('window', dateWindow);
+    fetch(`/api/player/${playerId}/prediction?${params}`)
+      .then(r => r.json())
+      .then((d: CardPrediction & { error?: string }) => {
+        if (!d.error) setPrediction(d);
+        else setFailed(true);
+      })
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerId, companyId, gradeValue, dateWindow]);
 
   if (prediction) {
-    return <TrendingPlayerCard prediction={prediction} rank={0} defaultExpanded />;
+    return <TrendingPlayerCard prediction={prediction} rank={0} />;
   }
 
+  // Loading skeleton or fallback if prediction unavailable
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleTap}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleTap(); }}
-      className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 cursor-pointer active:opacity-70 select-none"
-      style={{ backgroundColor: theme.cardBackground }}
+      role={failed ? 'button' : undefined}
+      tabIndex={failed ? 0 : undefined}
+      onClick={failed ? () => setFailed(false) : undefined}
+      className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 select-none"
+      style={{ backgroundColor: theme.cardBackground, cursor: failed ? 'pointer' : 'default' }}
     >
       <PlayerHeadshot playerId={playerId} playerName={playerName} size={42} />
       <div className="flex-1 min-w-0">
