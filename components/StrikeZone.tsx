@@ -2,18 +2,24 @@
 
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
+// 4-family color scheme: Fastball=red, Breaking=blue, Offspeed=green, Specialty=amber
+const FASTBALL   = '#dc2626';
+const BREAKING   = '#2563eb';
+const OFFSPEED   = '#16a34a';
+const SPECIALTY  = '#d97706';
+
 export const PITCH_TYPE_COLORS: Record<string, string> = {
-  FF: '#f97316', FA: '#f97316',
-  FT: '#fb923c', SI: '#fb923c',
-  FC: '#ef4444',
-  SL: '#a855f7', ST: '#a855f7',
-  SV: '#8b5cf6',
-  CU: '#3b82f6', CS: '#3b82f6',
-  KC: '#60a5fa',
-  CH: '#22c55e',
-  FS: '#14b8a6', FO: '#14b8a6',
-  KN: '#eab308',
-  EP: '#ec4899',
+  FF: FASTBALL,  FA: FASTBALL,   // four-seam
+  FT: FASTBALL,  SI: FASTBALL,   // two-seam / sinker
+  FC: FASTBALL,                   // cutter
+  SL: BREAKING,  ST: BREAKING,   // slider / sweeper
+  SV: BREAKING,                   // slurve
+  CU: BREAKING,  CS: BREAKING,   // curveball
+  KC: BREAKING,                   // knuckle-curve
+  CH: OFFSPEED,                   // changeup
+  FS: OFFSPEED,  FO: OFFSPEED,   // splitter / forkball
+  KN: SPECIALTY,                  // knuckleball
+  EP: SPECIALTY,                  // eephus
 };
 
 function pitchColor(pitchType?: string): string {
