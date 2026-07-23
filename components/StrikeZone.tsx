@@ -221,18 +221,18 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
         {mostRecent?.velocity && (
           <g className="pitch-flash">
             <rect
-              x={F.x + F.w - (compact ? 32 : 52)}
-              y={F.y + F.h - (compact ? 12 : 17)}
-              width={compact ? 30 : 48}
-              height={compact ? 10 : 13}
-              rx={compact ? 1.5 : 2}
+              x={F.x + F.w - (compact ? 34 : 54)}
+              y={F.y + F.h - (compact ? 13 : 16)}
+              width={compact ? 32 : 52}
+              height={compact ? 11 : 14}
+              rx={compact ? 2 : 2.5}
               fill="rgba(22, 101, 52, 0.75)"
             />
             <text
-              x={F.x + F.w - 4}
-              y={F.y + F.h - (compact ? 4 : 6)}
+              x={F.x + F.w - (compact ? 5 : 6)}
+              y={F.y + F.h - (compact ? 7.5 : 9)}
               textAnchor="end"
-              dominantBaseline="auto"
+              dominantBaseline="middle"
               fontSize={compact ? 7 : 9}
               fontWeight="900"
               fill="#fde047"
