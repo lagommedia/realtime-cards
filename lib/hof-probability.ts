@@ -1,6 +1,16 @@
 // Hall of Fame probability model.
 // Scores a player's projected career against historical HOF benchmarks.
 // Returns a 0-100 probability + per-benchmark breakdown.
+//
+// Rate stats (AVG, OPS, ERA, WHIP) use a smooth cubic interpolation instead of
+// discrete thresholds so that tiny daily fluctuations in career averages produce
+// proportionally tiny changes in HOF probability (no step-function jumps).
+
+// Smooth cubic (smoothstep) interpolation — 0 at lo, 1 at hi, no sharp edges.
+function smooth(val: number, lo: number, hi: number): number {
+  const t = Math.max(0, Math.min(1, (val - lo) / (hi - lo)));
+  return t * t * (3 - 2 * t);
+}
 
 export type HofBenchmark = {
   label: string;
@@ -91,8 +101,10 @@ export function calculateHof(
     const hitPct = Math.min(pH  / 3000, 1);
     const hrPct  = Math.min(pHR / 500,  1);
     const rbiPct = Math.min(pR  / 1500, 1);
-    const avgPct = avg >= 0.300 ? 1 : avg >= 0.285 ? 0.75 : avg >= 0.270 ? 0.50 : avg >= 0.255 ? 0.25 : 0.05;
-    const opsPct = ops >= 0.950 ? 1 : ops >= 0.900 ? 0.85 : ops >= 0.850 ? 0.65 : ops >= 0.800 ? 0.40 : ops >= 0.750 ? 0.20 : 0.05;
+    // Smooth curves: .240→0, .310→1 for AVG; .710→0, 1.000→1 for OPS.
+    // Tiny daily changes in career averages produce proportionally tiny score changes.
+    const avgPct = smooth(avg, 0.240, 0.310);
+    const opsPct = smooth(ops, 0.710, 1.000);
 
     // Rate stats need a volume gate: a .300 AVG over 100 games scores differently
     // than a .300 AVG over 1,500 games. Full credit at 700 career games (~4-5 seasons).
@@ -121,9 +133,10 @@ export function calculateHof(
     const ksPct   = Math.min(pKs   / 3000, 1);
     const winsPct = Math.min(pWins / 250,  1);
     const ipPct   = Math.min(pIP   / 2500, 1);
-    // ERA / WHIP: lower is better — score how far below the HOF threshold they are
-    const eraPct  = era  <= 2.50 ? 1 : era  <= 3.00 ? 0.82 : era  <= 3.50 ? 0.60 : era  <= 4.00 ? 0.28 : 0.05;
-    const whipPct = whip <= 0.95 ? 1 : whip <= 1.10 ? 0.82 : whip <= 1.25 ? 0.60 : whip <= 1.40 ? 0.28 : 0.05;
+    // ERA / WHIP: lower is better — smooth inverted curves.
+    // ERA: 2.50→1 (elite), 4.80→0 (poor). WHIP: 0.90→1 (elite), 1.65→0 (poor).
+    const eraPct  = smooth(4.80 - era,  0, 4.80 - 2.50);
+    const whipPct = smooth(1.65 - whip, 0, 1.65 - 0.90);
 
     // Same volume gate for pitchers: full ERA/WHIP credit requires ~800 IP (~5 seasons).
     // Prevents a dominant 2-year pitcher from scoring the same as a 15-year HOF ace.
@@ -157,8 +170,8 @@ export function calculateHof(
       const ksPct2   = Math.min(pKs2   / 3000, 1);
       const winsPct2 = Math.min(pWins2 / 250,  1);
       const ipPct2   = Math.min(pIP2   / 2500, 1);
-      const eraPct2  = era  <= 2.50 ? 1 : era  <= 3.00 ? 0.82 : era  <= 3.50 ? 0.60 : era  <= 4.00 ? 0.28 : 0.05;
-      const whipPct2 = whip <= 0.95 ? 1 : whip <= 1.10 ? 0.82 : whip <= 1.25 ? 0.60 : whip <= 1.40 ? 0.28 : 0.05;
+      const eraPct2  = smooth(4.80 - era,  0, 4.80 - 2.50);
+      const whipPct2 = smooth(1.65 - whip, 0, 1.65 - 0.90);
       const pitchVol = Math.min(1, ipNum / 800);
 
       const pitchSub = ksPct2 * 28 + winsPct2 * 20 + (eraPct2 * pitchVol) * 20 + (whipPct2 * pitchVol) * 18 + ipPct2 * 14;

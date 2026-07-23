@@ -30,7 +30,7 @@ export async function GET(
   try {
     const res = await fetch(
       `${MLB_BASE}/people/${id}?hydrate=stats(group=[hitting,pitching],type=career)&sportId=1`,
-      { next: { revalidate: 3600 }, headers: { Accept: 'application/json' } },
+      { next: { revalidate: 86400 }, headers: { Accept: 'application/json' } },
     );
     if (!res.ok) throw new Error(`MLB ${res.status}`);
     const data: { people: MlbPerson[] } = await res.json();
