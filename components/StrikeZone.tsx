@@ -51,21 +51,13 @@ const MODES = {
 
 export default function StrikeZone({ pitches, compact = false }: { pitches: Pitch[]; compact?: boolean }) {
   const m = compact ? MODES.compact : MODES.full;
-  const { F, Z, r, fs, sw, glowR, glowSd, horizonY, grassPts, dirtPts, backdropY, backdropH, mound, rubber, plate } = m;
+  const { F, Z, r, fs, sw, glowR, glowSd } = m;
   const mostRecent = pitches[pitches.length - 1];
   const filterId = compact ? 'sz-glow-c' : 'sz-glow-f';
   const pfx = compact ? 'c' : 'f';
 
   function svgX(x: number) { return F.x + (1 - x) * F.w; }
   function svgY(y: number) { return F.y + (1 - y) * F.h; }
-
-  const platePts = [
-    `${plate.cx - plate.halfW},${plate.topY}`,
-    `${plate.cx + plate.halfW},${plate.topY}`,
-    `${plate.cx + plate.halfW},${plate.midY}`,
-    `${plate.cx},${plate.botY}`,
-    `${plate.cx - plate.halfW},${plate.midY}`,
-  ].join(' ');
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -96,109 +88,45 @@ export default function StrikeZone({ pitches, compact = false }: { pitches: Pitc
             </feMerge>
           </filter>
 
-          {/* Sky gradient */}
-          <linearGradient id={`sky-${pfx}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#0b1d3a" />
-            <stop offset="100%" stopColor="#1e4a8a" />
-          </linearGradient>
-          {/* Outfield grass */}
-          <linearGradient id={`grass-${pfx}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#14451a" />
-            <stop offset="100%" stopColor="#1f6627" />
-          </linearGradient>
-          {/* Infield dirt */}
-          <linearGradient id={`dirt-${pfx}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#4a2a0e" />
-            <stop offset="100%" stopColor="#6b3d18" />
-          </linearGradient>
-          {/* Pitcher's mound */}
-          <radialGradient id={`mound-${pfx}`} cx="50%" cy="30%" r="60%">
-            <stop offset="0%"   stopColor="#7a4a22" />
-            <stop offset="100%" stopColor="#4a2a0e" />
-          </radialGradient>
+          {/* Blur filter for glass morphism zone */}
+          <filter id={`zone-blur-${pfx}`} x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation={compact ? 4 : 7} />
+          </filter>
 
           {/* Clip to rounded frame */}
           <clipPath id={`clip-${pfx}`}>
             <rect x={F.x} y={F.y} width={F.w} height={F.h} rx={compact ? 5 : 9} />
           </clipPath>
+
+          {/* Clip to strike zone rectangle */}
+          <clipPath id={`zone-clip-${pfx}`}>
+            <rect x={Z.x} y={Z.y} width={Z.w} height={Z.h} />
+          </clipPath>
         </defs>
 
-        {/* ── Batter's-eye-view background (clipped to frame) ── */}
+        {/* ── Stadium photo background (clipped to frame) ── */}
         <g clipPath={`url(#clip-${pfx})`}>
-          {/* Sky */}
-          <rect x={F.x} y={F.y} width={F.w} height={F.h} fill={`url(#sky-${pfx})`} />
-
-          {/* Batter's eye — dark center-field backdrop directly behind pitcher */}
-          <rect
-            x={F.x} y={backdropY}
-            width={F.w} height={backdropH}
-            fill="#060f06"
+          <image
+            href="/stadium-bg.jpg"
+            x={F.x} y={F.y}
+            width={F.w} height={F.h}
+            preserveAspectRatio="xMidYMid slice"
           />
+        </g>
 
-          {/* Outfield wall cap — thin bright line at top of grass */}
-          <rect
-            x={F.x} y={horizonY - (compact ? 1 : 2)}
-            width={F.w} height={compact ? 2 : 4}
-            fill="#1a3320"
-          />
-
-          {/* Outfield grass — perspective trapezoid */}
-          <polygon points={grassPts} fill={`url(#grass-${pfx})`} />
-
-          {/* Subtle grass texture lines (depth cues) */}
-          {[0.25, 0.5, 0.75].map(t => {
-            const y = horizonY + t * (F.y + F.h - horizonY);
-            const xL = F.x + t * ((F.x) - F.x);
-            const xR = F.x + F.w - t * 0;
-            return (
-              <line key={t}
-                x1={xL} y1={y} x2={xR} y2={y}
-                stroke="rgba(255,255,255,0.04)"
-                strokeWidth={compact ? 0.5 : 1}
-              />
-            );
-          })}
-
-          {/* Infield dirt — perspective trapezoid */}
-          <polygon points={dirtPts} fill={`url(#dirt-${pfx})`} />
-
-          {/* Pitcher's mound */}
-          <ellipse
-            cx={mound.cx} cy={mound.cy}
-            rx={mound.rx} ry={mound.ry}
-            fill={`url(#mound-${pfx})`}
-          />
-          {/* Mound highlight rim */}
-          <ellipse
-            cx={mound.cx} cy={mound.cy - (compact ? 1.5 : 2)}
-            rx={mound.rx * 0.7} ry={mound.ry * 0.45}
-            fill="rgba(255,255,255,0.06)"
-          />
-
-          {/* Pitcher's rubber */}
-          <rect
-            x={rubber.x} y={rubber.y}
-            width={rubber.w} height={rubber.h}
-            fill="rgba(255,255,255,0.88)" rx={compact ? 0.5 : 1}
-          />
-
-          {/* Home plate */}
-          <polygon points={platePts} fill="rgba(255,255,255,0.92)" />
-          {/* Plate outline */}
-          <polygon
-            points={platePts}
-            fill="none"
-            stroke="rgba(180,180,180,0.5)"
-            strokeWidth={compact ? 0.6 : 1}
-          />
-
-          {/* Basepath lines from plate to corners (subtle) */}
-          {!compact && (
-            <>
-              <line x1={140} y1={194} x2={88}  y2={154} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
-              <line x1={140} y1={194} x2={192} y2={154} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
-            </>
-          )}
+        {/* ── Glass morphism: blurred photo + frost tint behind zone only ── */}
+        <g clipPath={`url(#clip-${pfx})`}>
+          <g clipPath={`url(#zone-clip-${pfx})`}>
+            <image
+              href="/stadium-bg.jpg"
+              x={F.x} y={F.y}
+              width={F.w} height={F.h}
+              preserveAspectRatio="xMidYMid slice"
+              filter={`url(#zone-blur-${pfx})`}
+            />
+            {/* Frosted glass tint */}
+            <rect x={Z.x} y={Z.y} width={Z.w} height={Z.h} fill="rgba(255,255,255,0.18)" />
+          </g>
         </g>
 
         {/* ── Frame border (dashed, on top of background) ── */}
