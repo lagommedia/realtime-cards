@@ -3,17 +3,17 @@
 import { Pitch } from '@/lib/dummy-game-chc-stl';
 
 export const PITCH_TYPE_COLORS: Record<string, string> = {
-  FF: '#f87171', FA: '#f87171',  // coral — four-seam fastball
-  FT: '#fb923c', SI: '#fb923c',  // peach — two-seam / sinker
-  FC: '#fbbf24',                  // amber — cutter
-  SL: '#c084fc', ST: '#c084fc',  // soft purple — slider / sweeper
-  SV: '#a78bfa',                  // violet — slurve
-  CU: '#60a5fa', CS: '#60a5fa',  // sky blue — curveball
-  KC: '#38bdf8',                  // cyan — knuckle-curve
-  CH: '#4ade80',                  // mint green — changeup
-  FS: '#2dd4bf', FO: '#2dd4bf',  // teal — splitter / forkball
-  KN: '#facc15',                  // yellow — knuckleball
-  EP: '#f9a8d4',                  // rose — eephus
+  FF: '#991b1b', FA: '#991b1b',  // deep crimson — four-seam fastball
+  FT: '#9a3412', SI: '#9a3412',  // burnt orange — two-seam / sinker
+  FC: '#92400e',                  // dark amber — cutter
+  SL: '#5b21b6', ST: '#5b21b6',  // deep violet — slider / sweeper
+  SV: '#6b21a8',                  // deep purple — slurve
+  CU: '#1e40af', CS: '#1e40af',  // navy blue — curveball
+  KC: '#075985',                  // deep sky — knuckle-curve
+  CH: '#166534',                  // forest green — changeup
+  FS: '#115e59', FO: '#115e59',  // deep teal — splitter / forkball
+  KN: '#854d0e',                  // dark gold — knuckleball
+  EP: '#9d174d',                  // deep rose — eephus
 };
 
 function pitchColor(pitchType?: string): string {
@@ -25,7 +25,7 @@ const MODES = {
     vb: '0 0 280 240',
     F:  { x: 20,  y: 15,  w: 240, h: 195 },
     Z:  { x: 85,  y: 45,  w: 110, h: 121 },
-    r: 8, fs: 8, sw: 1.8, glowR: 12, glowSd: 3,
+    r: 6, fs: 7, sw: 1.8, glowR: 9, glowSd: 3,
     horizonY:   36,
     grassPts:  '100,36 180,36 260,210 20,210',
     dirtPts:   '38,140 242,140 260,210 20,210',
@@ -38,7 +38,7 @@ const MODES = {
     vb: '0 0 120 144',
     F:  { x: 2,  y: 2,  w: 116, h: 140 },
     Z:  { x: 36, y: 26, w: 48,  h:  84 },
-    r: 5, fs: 6, sw: 1, glowR: 8, glowSd: 2,
+    r: 4, fs: 5, sw: 1, glowR: 6, glowSd: 2,
     horizonY:   20,
     grassPts:  '40,20 80,20 118,142 2,142',
     dirtPts:   '10,86 110,86 118,142 2,142',
