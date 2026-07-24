@@ -172,6 +172,24 @@ function buildMilestoneImpacts(
   });
 }
 
+// ── Single-card sold history ──────────────────────────────────────────────────
+
+/**
+ * Fetches up to 90 eBay sold listings for a specific card search query,
+ * returning them sorted chronologically as { date, price } points.
+ * Used by the collection card chart to show real last-sold data.
+ */
+export async function getCardSoldHistory(
+  query: string,
+): Promise<Array<{ date: string; price: number }>> {
+  const token = await getToken();
+  if (!token) return [];
+  const listings = await fetchSoldListings(query, token, 90);
+  return listings
+    .sort((a, b) => a.soldDate.localeCompare(b.soldDate))
+    .map(l => ({ date: l.soldDate.split('T')[0], price: l.price }));
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 const SETS_TO_TRACK = [

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RefreshCw, Trash2, TrendingUp, TrendingDown, Minus, ImageOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { CollectionCard } from '@/context/CollectionContext';
+import CardSoldChart from '@/components/CardSoldChart';
 
 interface Props {
   card: CollectionCard;
@@ -108,41 +109,32 @@ export default function CollectionCardTile({ card, onRemove, onRefresh }: Props)
         </div>
       </div>
 
-      {/* Expanded: price history + delete */}
+      {/* Expanded: price chart + delete */}
       {expanded && (
-        <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px 14px' }}>
-          {card.priceHistory.length > 1 && (
-            <>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                Price History
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12, maxHeight: 120, overflowY: 'auto' }}>
-                {[...card.priceHistory].reverse().map((h, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#64748b' }}>{fmtDate(h.date)}</span>
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{fmt(h.value)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {card.notes && (
-            <p style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic', marginBottom: 10 }}>"{card.notes}"</p>
-          )}
-          {card.lastChecked && (
-            <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>
-              Last updated {fmtDate(card.lastChecked)}
-            </p>
-          )}
-          <button
-            onClick={onRemove}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              color: '#ef4444', fontSize: 13, fontWeight: 600,
-            }}
-          >
-            <Trash2 size={13} /> Remove from collection
-          </button>
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '12px 14px 14px' }}>
+          <CardSoldChart card={card} />
+
+          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              {card.notes && (
+                <p style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic', marginBottom: 4 }}>"{card.notes}"</p>
+              )}
+              {card.lastChecked && (
+                <p style={{ fontSize: 11, color: '#94a3b8' }}>
+                  Last updated {fmtDate(card.lastChecked)}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={onRemove}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                color: '#ef4444', fontSize: 13, fontWeight: 600, flexShrink: 0,
+              }}
+            >
+              <Trash2 size={13} /> Remove
+            </button>
+          </div>
         </div>
       )}
     </div>
