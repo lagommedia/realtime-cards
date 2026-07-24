@@ -42,8 +42,12 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
 
   // Fullscreen carousel refs
   const fsTrackRef = useRef<HTMLDivElement>(null);
+  const fsOverlayRef = useRef<HTMLDivElement | null>(null);
   const fsIdxRef = useRef(0);
-  const fsDragRef = useRef<{ startX: number; startOffset: number } | null>(null);
+  const fsDragRef = useRef<{
+    startX: number; startY: number; startTime: number;
+    startOffset: number; axis: 'h' | 'v' | null;
+  } | null>(null);
   const fsFirstSnap = useRef(true);
 
   useEffect(() => { setMounted(true); }, []);
@@ -243,6 +247,7 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
       {/* ── Fullscreen modal ──────────────────────────────────────────────── */}
       {mounted && fullscreen !== null && createPortal(
         <div
+          ref={fsOverlayRef}
           style={{
             position: 'fixed',
             inset: 0,
@@ -266,27 +271,83 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
             fsTrackRef.current.style.transition = '';
             fsDragRef.current = {
               startX: e.touches[0].clientX,
+              startY: e.touches[0].clientY,
+              startTime: Date.now(),
               startOffset: -fsIdxRef.current * window.innerWidth,
+              axis: null,
             };
           }}
           onTouchMove={e => {
-            if (!fsDragRef.current || !fsTrackRef.current) return;
+            if (!fsDragRef.current) return;
             const dx = e.touches[0].clientX - fsDragRef.current.startX;
-            fsTrackRef.current.style.transform = `translateX(${fsDragRef.current.startOffset + dx}px)`;
+            const dy = e.touches[0].clientY - fsDragRef.current.startY;
+
+            // Lock to the dominant axis after 6 px of movement
+            if (fsDragRef.current.axis === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+              fsDragRef.current.axis = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+            }
+
+            if (fsDragRef.current.axis === 'v') {
+              // Drag the whole overlay vertically; fade slightly as it moves
+              const overlay = fsOverlayRef.current;
+              if (overlay) {
+                overlay.style.animation = 'none';
+                overlay.style.transform = `translateY(${dy}px)`;
+                overlay.style.opacity = String(Math.max(0.15, 1 - Math.abs(dy) / 350));
+              }
+            } else if (fsDragRef.current.axis === 'h' && fsTrackRef.current) {
+              fsTrackRef.current.style.transform = `translateX(${fsDragRef.current.startOffset + dx}px)`;
+            }
           }}
           onTouchEnd={e => {
             if (!fsDragRef.current) return;
-            const dx = fsDragRef.current.startX - e.changedTouches[0].clientX;
+            const touch = e.changedTouches[0];
+            const dx = fsDragRef.current.startX - touch.clientX;
+            const dy = touch.clientY - fsDragRef.current.startY;
+            const elapsed = Date.now() - fsDragRef.current.startTime;
+            const axis = fsDragRef.current.axis;
             fsDragRef.current = null;
-            const idx = fsIdxRef.current;
-            if (Math.abs(dx) < 8) {
-              snapFsTrack(idx, true);
-            } else if (dx > 40 && idx < cards.length - 1) {
-              setFsIdx(idx + 1);
-            } else if (dx < -40 && idx > 0) {
-              setFsIdx(idx - 1);
+
+            if (axis === 'v') {
+              const velocity = Math.abs(dy) / Math.max(elapsed, 1); // px/ms
+              const shouldDismiss = Math.abs(dy) > 80 || (Math.abs(dy) > 30 && velocity > 0.5);
+
+              if (shouldDismiss) {
+                // Slide the overlay off in the direction the user swiped
+                const overlay = fsOverlayRef.current;
+                if (overlay) {
+                  overlay.style.transition = 'transform 0.22s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.18s ease';
+                  overlay.style.transform = `translateY(${dy > 0 ? window.innerHeight : -window.innerHeight}px)`;
+                  overlay.style.opacity = '0';
+                }
+                setTimeout(() => {
+                  setActiveIdx(fsIdxRef.current);
+                  setFullscreen(null);
+                  setFsClosing(false);
+                }, 230);
+              } else {
+                // Snap back to centre with a spring feel
+                const overlay = fsOverlayRef.current;
+                if (overlay) {
+                  overlay.style.transition = 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s ease';
+                  overlay.style.transform = '';
+                  overlay.style.opacity = '';
+                  const el = overlay;
+                  setTimeout(() => { el.style.transition = ''; }, 320);
+                }
+              }
             } else {
-              snapFsTrack(idx, true);
+              // Horizontal card navigation (existing logic)
+              const idx = fsIdxRef.current;
+              if (Math.abs(dx) < 8) {
+                snapFsTrack(idx, true);
+              } else if (dx > 40 && idx < cards.length - 1) {
+                setFsIdx(idx + 1);
+              } else if (dx < -40 && idx > 0) {
+                setFsIdx(idx - 1);
+              } else {
+                snapFsTrack(idx, true);
+              }
             }
           }}
         >
