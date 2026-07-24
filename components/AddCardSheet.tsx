@@ -57,11 +57,13 @@ export default function AddCardSheet({ onClose }: Props) {
   const [step, setStep]     = useState<1 | 2 | 3>(1);
   const [saving, setSaving] = useState(false);
 
-  // Step 1 — photo + crop
-  const [photo, setPhoto]               = useState<string | null>(null);
-  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null); // pre-crop
-  const [showCrop, setShowCrop]         = useState(false);
-  const [analyzing, setAnalyzing]       = useState(false);
+  // Step 1 — front + back photos
+  const [frontPhoto, setFrontPhoto]   = useState<string | null>(null);
+  const [backPhoto, setBackPhoto]     = useState<string | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
+  const [cropTarget, setCropTarget]   = useState<'front' | 'back' | null>(null);
+  const captureTargetRef              = useRef<'front' | 'back'>('front');
+  const [analyzing, setAnalyzing]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 2 — card details
@@ -105,8 +107,8 @@ export default function AddCardSheet({ onClose }: Props) {
     return () => clearTimeout(t);
   }, [playerQuery, selectedPlayer]);
 
-  // ── AI analysis ───────────────────────────────────────────────
-  const analyzeAndAdvance = useCallback(async (dataUrl: string) => {
+  // ── AI analysis (runs in background after front photo, does NOT auto-advance) ──
+  const analyzeInBackground = useCallback(async (dataUrl: string) => {
     setAnalyzing(true);
     try {
       const res = await fetch('/api/card/analyze', {
@@ -142,14 +144,18 @@ export default function AddCardSheet({ onClose }: Props) {
       }
       setAiPopulated(true);
     } catch {
-      // AI failed — advance with empty fields for manual entry
+      // AI failed silently — user fills in details manually
     } finally {
       setAnalyzing(false);
-      setStep(2);
     }
   }, [year, yearNum]);
 
   // ── Photo flow ────────────────────────────────────────────────
+  const capturePhoto = useCallback((side: 'front' | 'back') => {
+    captureTargetRef.current = side;
+    fileInputRef.current?.click();
+  }, []);
+
   const handlePhotoChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -157,19 +163,40 @@ export default function AddCardSheet({ onClose }: Props) {
     try {
       const compressed = await compressPhoto(file);
       setPendingPhoto(compressed);
-      setShowCrop(true);
+      setCropTarget(captureTargetRef.current);
     } catch {}
   }, []);
 
   const handleCropDone = useCallback(async (croppedUrl: string) => {
-    setShowCrop(false);
+    const side = cropTarget;
+    setCropTarget(null);
     setPendingPhoto(null);
-    setPhoto(croppedUrl);
-    setAiPopulated(false);
-    await analyzeAndAdvance(croppedUrl);
-  }, [analyzeAndAdvance]);
+    if (side === 'front') {
+      setFrontPhoto(croppedUrl);
+      setAiPopulated(false);
+      analyzeInBackground(croppedUrl); // non-blocking
+    } else {
+      setBackPhoto(croppedUrl);
+    }
+  }, [cropTarget, analyzeInBackground]);
+
+  const handleCropSkip = useCallback(() => {
+    const side = cropTarget;
+    const raw = pendingPhoto;
+    setCropTarget(null);
+    setPendingPhoto(null);
+    if (!raw) return;
+    if (side === 'front') {
+      setFrontPhoto(raw);
+      setAiPopulated(false);
+      analyzeInBackground(raw);
+    } else {
+      setBackPhoto(raw);
+    }
+  }, [cropTarget, pendingPhoto, analyzeInBackground]);
 
   // ── Validation ────────────────────────────────────────────────
+  const canAdvanceStep1 = !analyzing; // can proceed even without photos (skip path)
   const canAdvanceStep2 = !!selectedPlayer && !!cardSet;
   const canSave = canAdvanceStep2 && price !== '' && !isNaN(parseFloat(price)) && parseFloat(price) >= 0;
 
@@ -187,7 +214,8 @@ export default function AddCardSheet({ onClose }: Props) {
         grade,
         purchasePrice: parseFloat(price),
         purchaseDate,
-        photoDataUrl: photo,
+        photoDataUrl: frontPhoto,
+        photoBackDataUrl: backPhoto,
         notes: notes || null,
       });
       onClose();
@@ -199,11 +227,12 @@ export default function AddCardSheet({ onClose }: Props) {
   return (
     <>
       {/* Crop overlay (full-screen, above sheet) */}
-      {showCrop && pendingPhoto && (
+      {cropTarget !== null && pendingPhoto && (
         <CropSheet
           imageDataUrl={pendingPhoto}
+          hint={cropTarget === 'front' ? 'Front of card' : 'Back of card'}
           onApply={handleCropDone}
-          onSkip={() => handleCropDone(pendingPhoto)}
+          onSkip={handleCropSkip}
         />
       )}
 
@@ -232,72 +261,123 @@ export default function AddCardSheet({ onClose }: Props) {
 
           <div style={{ padding: '0 20px' }}>
 
-            {/* ── Step 1: Photo ── */}
+            {/* ── Step 1: Front + Back Photos ── */}
             {step === 1 && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingBottom: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
                 <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: 'none' }} />
 
-                {photo ? (
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      src={photo}
-                      alt="Card photo"
-                      style={{ width: 200, height: 280, objectFit: 'cover', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.15)', filter: analyzing ? 'brightness(0.5)' : undefined, transition: 'filter 0.2s' }}
-                    />
-                    {analyzing && (
-                      <div style={{ position: 'absolute', inset: 0, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Loader2 size={28} color="#fff" style={{ animation: 'spin 1s linear infinite' }} />
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.3 }}>Analyzing<br />card…</span>
+                {/* AI hint */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 99, background: '#eff6ff', border: '1px solid #bfdbfe', alignSelf: 'center' }}>
+                  <Sparkles size={13} color="#3b82f6" />
+                  <span style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 600 }}>
+                    {analyzing ? 'AI analyzing front…' : 'AI auto-fills card details from the front photo'}
+                  </span>
+                  {analyzing && <Loader2 size={12} color="#3b82f6" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />}
+                </div>
+
+                {/* Side-by-side photo slots */}
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  {/* Front */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Front</span>
+                    {frontPhoto ? (
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={frontPhoto}
+                          alt="Front"
+                          style={{ width: 140, height: 196, objectFit: 'cover', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', filter: analyzing ? 'brightness(0.65)' : undefined, transition: 'filter 0.2s' }}
+                        />
+                        {analyzing && (
+                          <div style={{ position: 'absolute', inset: 0, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Loader2 size={22} color="#fff" style={{ animation: 'spin 1s linear infinite' }} />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => { setFrontPhoto(null); setAiPopulated(false); }}
+                          style={{ position: 'absolute', top: -8, right: -8, background: '#ef4444', color: '#fff', borderRadius: 999, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <X size={12} />
+                        </button>
+                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: '#16a34a', borderRadius: 99, width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={11} color="#fff" strokeWidth={3} />
+                        </div>
                       </div>
-                    )}
-                    {!analyzing && (
+                    ) : (
                       <button
-                        onClick={() => { setPhoto(null); setAiPopulated(false); }}
-                        style={{ position: 'absolute', top: -8, right: -8, background: '#ef4444', color: '#fff', borderRadius: 999, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => capturePhoto('front')}
+                        style={{ width: 140, height: 196, borderRadius: 10, border: '2px dashed #cbd5e1', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#64748b', cursor: 'pointer' }}
                       >
-                        <X size={14} />
+                        <Camera size={30} strokeWidth={1.5} />
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>Add Front</span>
                       </button>
                     )}
                   </div>
-                ) : (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ width: 200, height: 280, borderRadius: 12, border: '2px dashed #cbd5e1', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: '#64748b', cursor: 'pointer' }}
-                  >
-                    <Camera size={40} strokeWidth={1.5} />
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>Scan Card</span>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>Camera or photo library</span>
-                  </button>
-                )}
 
-                {!photo && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 99, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                    <Sparkles size={13} color="#3b82f6" />
-                    <span style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 600 }}>AI will auto-fill card details from your photo</span>
+                  {/* Back */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: frontPhoto ? '#64748b' : '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Back</span>
+                    {backPhoto ? (
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={backPhoto}
+                          alt="Back"
+                          style={{ width: 140, height: 196, objectFit: 'cover', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
+                        />
+                        <button
+                          onClick={() => setBackPhoto(null)}
+                          style={{ position: 'absolute', top: -8, right: -8, background: '#ef4444', color: '#fff', borderRadius: 999, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <X size={12} />
+                        </button>
+                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: '#16a34a', borderRadius: 99, width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={11} color="#fff" strokeWidth={3} />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => capturePhoto('back')}
+                        disabled={!frontPhoto}
+                        style={{ width: 140, height: 196, borderRadius: 10, border: '2px dashed #cbd5e1', background: frontPhoto ? '#f8fafc' : '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: frontPhoto ? '#64748b' : '#cbd5e1', cursor: frontPhoto ? 'pointer' : 'not-allowed' }}
+                      >
+                        <Camera size={30} strokeWidth={1.5} />
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{frontPhoto ? 'Add Back' : 'Add Front first'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Both captured nudge / status */}
+                {frontPhoto && backPhoto && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 99, background: '#f0fdf4', border: '1px solid #bbf7d0', alignSelf: 'center' }}>
+                    <Check size={13} color="#16a34a" strokeWidth={3} />
+                    <span style={{ fontSize: 12, color: '#15803d', fontWeight: 600 }}>Both sides captured — great for eBay listings!</span>
                   </div>
                 )}
-
-                {photo && !analyzing && (
-                  <button onClick={() => fileInputRef.current?.click()} style={{ fontSize: 13, color: '#1e40af', fontWeight: 600 }}>
-                    Retake photo
-                  </button>
+                {frontPhoto && !backPhoto && (
+                  <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
+                    Back photo recommended for eBay listings
+                  </p>
                 )}
 
                 <div style={{ width: '100%', display: 'flex', gap: 10, marginTop: 4 }}>
-                  <button onClick={() => setStep(2)} disabled={analyzing} style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#f1f5f9', color: analyzing ? '#cbd5e1' : '#64748b', fontWeight: 600, fontSize: 14 }}>
+                  <button
+                    onClick={() => setStep(2)}
+                    disabled={analyzing}
+                    style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#f1f5f9', color: analyzing ? '#cbd5e1' : '#64748b', fontWeight: 600, fontSize: 14 }}
+                  >
                     Skip
                   </button>
                   <button
-                    onClick={() => photo ? setStep(2) : fileInputRef.current?.click()}
-                    disabled={analyzing}
-                    style={{ flex: 2, padding: '12px', borderRadius: 12, background: analyzing ? '#e2e8f0' : '#1e40af', color: analyzing ? '#94a3b8' : '#fff', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    onClick={() => frontPhoto ? setStep(2) : capturePhoto('front')}
+                    disabled={!canAdvanceStep1}
+                    style={{ flex: 2, padding: '12px', borderRadius: 12, background: canAdvanceStep1 ? '#1e40af' : '#e2e8f0', color: canAdvanceStep1 ? '#fff' : '#94a3b8', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >
                     {analyzing ? (
                       <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Analyzing…</>
-                    ) : photo ? (
+                    ) : frontPhoto ? (
                       <>Next <ChevronRight size={16} /></>
                     ) : (
-                      <>Take Photo <Camera size={15} /></>
+                      <>Take Front Photo <Camera size={15} /></>
                     )}
                   </button>
                 </div>

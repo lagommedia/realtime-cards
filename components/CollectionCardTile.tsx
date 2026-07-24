@@ -22,6 +22,7 @@ function fmtDate(iso: string) {
 export default function CollectionCardTile({ card, onRemove, onRefresh }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showBack, setShowBack] = useState(false);
 
   const gain = card.currentValue !== null ? card.currentValue - card.purchasePrice : null;
   const gainPct = gain !== null && card.purchasePrice > 0 ? (gain / card.purchasePrice) * 100 : null;
@@ -42,16 +43,34 @@ export default function CollectionCardTile({ card, onRemove, onRefresh }: Props)
     }}>
       {/* Main row */}
       <div style={{ display: 'flex', gap: 12, padding: '12px 14px' }}>
-        {/* Photo */}
-        <div style={{
-          width: 64, height: 90, flexShrink: 0, borderRadius: 8,
-          overflow: 'hidden', background: '#f1f5f9',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {card.photoDataUrl ? (
-            <img src={card.photoDataUrl} alt={card.playerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {/* Photo — tappable to flip if back exists */}
+        <div
+          onClick={() => card.photoBackDataUrl && setShowBack(s => !s)}
+          style={{
+            width: 64, height: 90, flexShrink: 0, borderRadius: 8,
+            overflow: 'hidden', background: '#f1f5f9',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: card.photoBackDataUrl ? 'pointer' : 'default',
+            position: 'relative',
+          }}
+        >
+          {(showBack ? card.photoBackDataUrl : card.photoDataUrl) ? (
+            <img
+              src={(showBack ? card.photoBackDataUrl : card.photoDataUrl)!}
+              alt={card.playerName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.18s ease' }}
+            />
           ) : (
             <ImageOff size={22} color="#cbd5e1" />
+          )}
+          {card.photoBackDataUrl && (
+            <div style={{
+              position: 'absolute', bottom: 3, right: 3,
+              background: 'rgba(0,0,0,0.52)', borderRadius: 4,
+              padding: '1px 4px', fontSize: 8, fontWeight: 700, color: '#fff',
+            }}>
+              {showBack ? 'BACK' : 'FRONT'}
+            </div>
           )}
         </div>
 

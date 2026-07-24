@@ -7,6 +7,7 @@ interface Props {
   imageDataUrl: string;
   onApply: (croppedDataUrl: string) => void;
   onSkip: () => void;
+  hint?: string; // e.g. "Front of card" | "Back of card"
 }
 
 interface Box { x: number; y: number; w: number; h: number; }
@@ -34,7 +35,17 @@ function getImageRect(img: HTMLImageElement, container: HTMLElement): Box {
   return { x: dx, y: dy, w: dw, h: dh };
 }
 
-export default function CropSheet({ imageDataUrl, onApply, onSkip }: Props) {
+// Snaps crop to card ratio (2.5 × 3.5 = 5:7) centred within the image rect
+function snapToCardRatio(imgRect: Box): Box {
+  const RATIO = 5 / 7; // width / height
+  const imgR = imgRect.w / imgRect.h;
+  let w: number, h: number;
+  if (imgR > RATIO) { h = imgRect.h; w = h * RATIO; }
+  else               { w = imgRect.w; h = w / RATIO; }
+  return { x: imgRect.x + (imgRect.w - w) / 2, y: imgRect.y + (imgRect.h - h) / 2, w, h };
+}
+
+export default function CropSheet({ imageDataUrl, onApply, onSkip, hint }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef       = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Box | null>(null);
@@ -154,8 +165,11 @@ export default function CropSheet({ imageDataUrl, onApply, onSkip }: Props) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#000', display: 'flex', flexDirection: 'column' }}>
       {/* Hint */}
-      <div style={{ padding: '14px 20px 10px', textAlign: 'center' }}>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+      <div style={{ padding: '14px 20px 8px', textAlign: 'center' }}>
+        {hint && (
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{hint}</p>
+        )}
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>
           Drag corners to crop · drag inside to move
         </p>
       </div>
@@ -219,25 +233,48 @@ export default function CropSheet({ imageDataUrl, onApply, onSkip }: Props) {
 
       {/* Buttons */}
       <div style={{
-        padding: '14px 20px max(20px, env(safe-area-inset-bottom))',
+        padding: '12px 20px max(20px, env(safe-area-inset-bottom))',
         background: '#111',
-        display: 'flex', gap: 12,
+        display: 'flex', flexDirection: 'column', gap: 10,
       }}>
+        {/* Smart crop row */}
         <button
-          onClick={onSkip}
-          style={{ flex: 1, padding: '14px', borderRadius: 14, background: 'rgba(255,255,255,0.12)', color: '#fff', fontWeight: 600, fontSize: 15 }}
-        >
-          Skip
-        </button>
-        <button
-          onClick={applyCrop}
+          onClick={() => {
+            if (!imgRef.current || !containerRef.current) return;
+            const r = getImageRect(imgRef.current, containerRef.current);
+            setCrop(snapToCardRatio(r));
+          }}
           style={{
-            flex: 2, padding: '14px', borderRadius: 14, background: '#1e40af', color: '#fff',
-            fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '11px', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)',
+            fontWeight: 600, fontSize: 13,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}
         >
-          <Check size={18} /> Use Crop
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="8" height="12" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M4 5h4M4 7h4M4 9h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Smart Fit — Card Ratio (2.5 × 3.5)
         </button>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onSkip}
+            style={{ flex: 1, padding: '14px', borderRadius: 14, background: 'rgba(255,255,255,0.12)', color: '#fff', fontWeight: 600, fontSize: 15 }}
+          >
+            Skip
+          </button>
+          <button
+            onClick={applyCrop}
+            style={{
+              flex: 2, padding: '14px', borderRadius: 14, background: '#1e40af', color: '#fff',
+              fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            <Check size={18} /> Use Crop
+          </button>
+        </div>
       </div>
     </div>
   );
