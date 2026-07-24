@@ -253,7 +253,7 @@ export async function getPlayerCardSets(
   gradeValue?: string,
 ): Promise<{ sets: SetCardResult[]; rateLimited: boolean }> {
   const grade = gradeValue ?? '10';
-  const cacheKey = `v2|${playerName}|${rookieYear}|psa|${grade}`;
+  const cacheKey = `v3|${playerName}|${rookieYear}|psa|${grade}`;
   const cached = _resultCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return { sets: cached.sets, rateLimited: false };
 
@@ -266,6 +266,15 @@ export async function getPlayerCardSets(
   const rcPat = /\brc\b|\brookie\b/i;
   // Bowman 1st Prospect pattern
   const firstPat = /\b1st\b|\bfirst\b/i;
+
+  // All tokens of the player's name must appear in the listing title.
+  // This prevents cross-player contamination (e.g. "Sale" matching "for sale"
+  // and returning a completely different player's card).
+  const nameTokens = playerName.toLowerCase().split(/\s+/).filter(t => t.length > 1);
+  function hasPlayerName(title: string): boolean {
+    const t = title.toLowerCase();
+    return nameTokens.every(tok => t.includes(tok));
+  }
 
   // Broad Topps query — catches S1, S2, Update, Chrome, Stadium Club
   const toppsQuery  = `${playerName} ${rookieYear} Topps PSA ${grade} RC`;
@@ -301,6 +310,7 @@ export async function getPlayerCardSets(
   // ── Bucket 1: Topps RC (S1, S2, Update, Chrome, Stadium Club) ─────────────
   const toppsRC = toppsRaw
     .filter(l =>
+      hasPlayerName(l.title)              &&  // must be this player
       /\btopps\b/i.test(l.title)          &&  // must be Topps
       gradePat.test(l.title)              &&  // must be correct PSA grade
       rcPat.test(l.title)                 &&  // must say RC or Rookie
@@ -313,6 +323,7 @@ export async function getPlayerCardSets(
   // ── Bucket 2: Bowman RC (regular rookie, not a 1st Prospect) ──────────────
   const bowmanRC = bowmanRaw
     .filter(l =>
+      hasPlayerName(l.title)              &&  // must be this player
       /\bbowman\b/i.test(l.title)         &&
       gradePat.test(l.title)              &&  // must be correct PSA grade
       rcPat.test(l.title)                 &&  // must say RC or Rookie
@@ -324,6 +335,7 @@ export async function getPlayerCardSets(
   // ── Bucket 3: Bowman 1st Prospect ─────────────────────────────────────────
   const bowmanFirst = bowmanRaw
     .filter(l =>
+      hasPlayerName(l.title)              &&  // must be this player
       /\bbowman\b/i.test(l.title)         &&
       gradePat.test(l.title)              &&  // must be correct PSA grade
       firstPat.test(l.title)              &&  // must say 1st or First
