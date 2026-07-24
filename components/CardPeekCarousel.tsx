@@ -31,6 +31,7 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
   // Fullscreen state
   const [fullscreen, setFullscreen] = useState<number | null>(null);
   const [fsIdx, setFsIdx] = useState(0);
+  const [fsClosing, setFsClosing] = useState(false);
 
   // Mini carousel refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,20 +130,32 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
 
   function openFullscreen(idx: number) {
     fsFirstSnap.current = true;
+    setFsClosing(false);
     setFsIdx(idx);
     fsIdxRef.current = idx;
     setFullscreen(idx);
   }
 
   function closeFullscreen() {
-    setActiveIdx(fsIdxRef.current);
-    setFullscreen(null);
+    setFsClosing(true);
   }
 
   const cardW = containerW * CARD_RATIO;
 
   return (
     <>
+      <style>{`
+        @keyframes fs-open {
+          0%   { opacity: 0; transform: scale(0.80); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fs-close {
+          0%   { opacity: 1; transform: scale(1); }
+          18%  { opacity: 1; transform: scale(1.05); }
+          100% { opacity: 0; transform: scale(0.80); }
+        }
+      `}</style>
+
       {/* ── Mini carousel ─────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
@@ -237,6 +250,16 @@ export default function CardPeekCarousel({ cards, renderFallback, overlayRendere
             zIndex: 9999,
             display: 'flex',
             flexDirection: 'column',
+            animation: fsClosing
+              ? 'fs-close 0.28s cubic-bezier(0.32, 0, 0.67, 0) forwards'
+              : 'fs-open 0.44s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          }}
+          onAnimationEnd={() => {
+            if (fsClosing) {
+              setActiveIdx(fsIdxRef.current);
+              setFullscreen(null);
+              setFsClosing(false);
+            }
           }}
           onTouchStart={e => {
             if (!fsTrackRef.current) return;
