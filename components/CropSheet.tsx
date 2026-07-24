@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Sparkles, Loader2 } from 'lucide-react';
+import type { CropDetection } from '@/app/api/card/crop-detect/route';
 
 interface Props {
   imageDataUrl: string;
   onApply: (croppedDataUrl: string) => void;
   onSkip: () => void;
-  hint?: string; // e.g. "Front of card" | "Back of card"
+  hint?: string;
+  enableAiDetect?: boolean;
 }
 
 interface Box { x: number; y: number; w: number; h: number; }
@@ -45,10 +47,11 @@ function snapToCardRatio(imgRect: Box): Box {
   return { x: imgRect.x + (imgRect.w - w) / 2, y: imgRect.y + (imgRect.h - h) / 2, w, h };
 }
 
-export default function CropSheet({ imageDataUrl, onApply, onSkip, hint }: Props) {
+export default function CropSheet({ imageDataUrl, onApply, onSkip, hint, enableAiDetect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef       = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Box | null>(null);
+  const [aiDetecting, setAiDetecting] = useState(false);
 
   const dragRef = useRef<{
     handle: Handle;
@@ -140,6 +143,35 @@ export default function CropSheet({ imageDataUrl, onApply, onSkip, hint }: Props
   }, []);
 
   const onPointerUp = useCallback(() => { dragRef.current = null; }, []);
+
+  // ── AI detect card boundaries ──────────────────────────────────
+  const handleAiDetect = useCallback(async () => {
+    const img = imgRef.current;
+    const container = containerRef.current;
+    if (!img || !container) return;
+    setAiDetecting(true);
+    try {
+      const res = await fetch('/api/card/crop-detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl }),
+      });
+      const detection = await res.json() as CropDetection | null;
+      if (!detection) return;
+      const r = getImageRect(img, container);
+      // Convert normalized fractions → screen pixel coords within the container
+      setCrop({
+        x: r.x + detection.x * r.w,
+        y: r.y + detection.y * r.h,
+        w: detection.w * r.w,
+        h: detection.h * r.h,
+      });
+    } catch {
+      // Silent — user can still adjust manually
+    } finally {
+      setAiDetecting(false);
+    }
+  }, [imageDataUrl]);
 
   // ── Apply crop ─────────────────────────────────────────────────
   const applyCrop = useCallback(() => {
@@ -237,26 +269,48 @@ export default function CropSheet({ imageDataUrl, onApply, onSkip, hint }: Props
         background: '#111',
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
-        {/* Smart crop row */}
-        <button
-          onClick={() => {
-            if (!imgRef.current || !containerRef.current) return;
-            const r = getImageRect(imgRef.current, containerRef.current);
-            setCrop(snapToCardRatio(r));
-          }}
-          style={{
-            width: '100%', padding: '11px', borderRadius: 12,
-            background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)',
-            fontWeight: 600, fontSize: 13,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="1" width="8" height="12" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M4 5h4M4 7h4M4 9h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-          </svg>
-          Smart Fit — Card Ratio (2.5 × 3.5)
-        </button>
+        {/* AI Detect + Smart Fit row */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {enableAiDetect && (
+            <button
+              onClick={handleAiDetect}
+              disabled={aiDetecting}
+              style={{
+                flex: 1, padding: '11px', borderRadius: 12,
+                background: aiDetecting ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.22)',
+                color: aiDetecting ? 'rgba(147,197,253,0.8)' : '#93c5fd',
+                fontWeight: 600, fontSize: 13,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              {aiDetecting
+                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Detecting…</>
+                : <><Sparkles size={13} /> AI Detect</>
+              }
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (!imgRef.current || !containerRef.current) return;
+              const r = getImageRect(imgRef.current, containerRef.current);
+              setCrop(snapToCardRatio(r));
+            }}
+            style={{
+              flex: enableAiDetect ? 1 : undefined,
+              width: enableAiDetect ? undefined : '100%',
+              padding: '11px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)',
+              fontWeight: 600, fontSize: 13,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="1" width="8" height="12" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M4 5h4M4 7h4M4 9h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            {enableAiDetect ? 'Card Ratio' : 'Smart Fit — Card Ratio (2.5 × 3.5)'}
+          </button>
+        </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button

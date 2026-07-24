@@ -6,8 +6,10 @@ import { useCollection } from '@/context/CollectionContext';
 import { getSetsForYear } from '@/lib/card-sets';
 import CropSheet from '@/components/CropSheet';
 import type { CardAnalysis } from '@/app/api/card/analyze/route';
+import { enhanceCardImage } from '@/lib/image-enhance';
 
 const GRADES = ['Raw', 'PSA 10', 'PSA 9', 'PSA 8', 'BGS 9.5', 'BGS 9', 'SGC 10', 'SGC 9'];
+const COMMON_VARIANTS = ['Refractor', 'X-Fractor', 'Gold Refractor', 'Prizm', 'Gold', 'Silver', 'Blue', 'Red', 'Purple', 'Auto', 'SuperFractor'];
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '10px 14px', borderRadius: 10,
@@ -76,6 +78,9 @@ export default function AddCardSheet({ onClose }: Props) {
   const [grade,          setGrade]          = useState('Raw');
   const [searching,      setSearching]      = useState(false);
   const [aiPopulated,    setAiPopulated]    = useState(false);
+
+  // Step 2 continued — variant
+  const [variant, setVariant] = useState('');
 
   // Step 3 — purchase
   const [price,        setPrice]        = useState('');
@@ -171,27 +176,30 @@ export default function AddCardSheet({ onClose }: Props) {
     const side = cropTarget;
     setCropTarget(null);
     setPendingPhoto(null);
+    // Enhance the cropped image (non-blocking; falls back to unenhanced on failure)
+    const enhanced = await enhanceCardImage(croppedUrl).catch(() => croppedUrl);
     if (side === 'front') {
-      setFrontPhoto(croppedUrl);
+      setFrontPhoto(enhanced);
       setAiPopulated(false);
-      analyzeInBackground(croppedUrl); // non-blocking
+      analyzeInBackground(enhanced); // non-blocking
     } else {
-      setBackPhoto(croppedUrl);
+      setBackPhoto(enhanced);
     }
   }, [cropTarget, analyzeInBackground]);
 
-  const handleCropSkip = useCallback(() => {
+  const handleCropSkip = useCallback(async () => {
     const side = cropTarget;
     const raw = pendingPhoto;
     setCropTarget(null);
     setPendingPhoto(null);
     if (!raw) return;
+    const enhanced = await enhanceCardImage(raw).catch(() => raw);
     if (side === 'front') {
-      setFrontPhoto(raw);
+      setFrontPhoto(enhanced);
       setAiPopulated(false);
-      analyzeInBackground(raw);
+      analyzeInBackground(enhanced);
     } else {
-      setBackPhoto(raw);
+      setBackPhoto(enhanced);
     }
   }, [cropTarget, pendingPhoto, analyzeInBackground]);
 
@@ -212,6 +220,7 @@ export default function AddCardSheet({ onClose }: Props) {
         year: year ? parseInt(year) : null,
         set: cardSet || null,
         grade,
+        variant: variant.trim() || null,
         purchasePrice: parseFloat(price),
         purchaseDate,
         photoDataUrl: frontPhoto,
@@ -231,6 +240,7 @@ export default function AddCardSheet({ onClose }: Props) {
         <CropSheet
           imageDataUrl={pendingPhoto}
           hint={cropTarget === 'front' ? 'Front of card' : 'Back of card'}
+          enableAiDetect={cropTarget === 'front'}
           onApply={handleCropDone}
           onSkip={handleCropSkip}
         />
@@ -501,6 +511,36 @@ export default function AddCardSheet({ onClose }: Props) {
                   </div>
                 </div>
 
+                {/* Variant / Parallel */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Variant / Parallel <span style={{ fontWeight: 400, color: '#94a3b8' }}>(optional)</span>
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>
+                    {COMMON_VARIANTS.map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setVariant(cur => cur === v ? '' : v)}
+                        style={{
+                          padding: '5px 11px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          background: variant === v ? '#7c3aed' : '#f1f5f9',
+                          color: variant === v ? '#fff' : '#475569',
+                          border: variant === v ? '1px solid #7c3aed' : '1px solid transparent',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={variant}
+                    onChange={e => setVariant(e.target.value)}
+                    placeholder="Or type a custom variant…"
+                    style={{ ...INPUT_STYLE, marginTop: 8, fontSize: 13 }}
+                  />
+                </div>
+
                 <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                   <button onClick={() => setStep(1)} style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#f1f5f9', color: '#64748b', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <ChevronLeft size={16} /> Back
@@ -553,7 +593,7 @@ export default function AddCardSheet({ onClose }: Props) {
                 <div style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                   <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Summary</p>
                   <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{selectedPlayer?.fullName}</p>
-                  <p style={{ fontSize: 12, color: '#64748b' }}>{[year, cardSet, grade].filter(Boolean).join(' · ')}</p>
+                  <p style={{ fontSize: 12, color: '#64748b' }}>{[year, cardSet, variant.trim() || null, grade].filter(Boolean).join(' · ')}</p>
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

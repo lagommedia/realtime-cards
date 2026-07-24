@@ -80,7 +80,7 @@ export default function CollectionCardTile({ card, onRemove, onRefresh }: Props)
             {card.playerName}
           </p>
           <p style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
-            {[card.year, card.set, card.grade].filter(Boolean).join(' · ')}
+            {[card.year, card.set, card.variant, card.grade].filter(Boolean).join(' · ')}
           </p>
 
           {/* Value row */}

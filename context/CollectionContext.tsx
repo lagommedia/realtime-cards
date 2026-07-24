@@ -17,6 +17,7 @@ export interface CollectionCard {
   purchaseDate: string;
   photoDataUrl: string | null;
   photoBackDataUrl: string | null;
+  variant: string | null;
   notes: string | null;
   currentValue: number | null;
   lastChecked: string | null;
@@ -79,7 +80,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as CollectionCard[];
         // Backfill photoBackDataUrl for cards saved before front/back was introduced
-        setCards(parsed.map(c => ({ ...c, photoBackDataUrl: c.photoBackDataUrl ?? null })));
+        setCards(parsed.map(c => ({ ...c, photoBackDataUrl: c.photoBackDataUrl ?? null, variant: c.variant ?? null })));
       }
     } catch {}
   }, []);
