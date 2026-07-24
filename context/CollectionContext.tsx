@@ -79,7 +79,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as CollectionCard[];
         // Backfill photoBackDataUrl for cards saved before front/back was introduced
-        setCards(parsed.map(c => ({ photoBackDataUrl: null, ...c })));
+        setCards(parsed.map(c => ({ ...c, photoBackDataUrl: c.photoBackDataUrl ?? null })));
       }
     } catch {}
   }, []);
