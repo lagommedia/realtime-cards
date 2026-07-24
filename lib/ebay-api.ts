@@ -172,11 +172,12 @@ function upgradeEbayImageUrl(url: string | undefined): string | undefined {
 
 // ── Filtering helpers ─────────────────────────────────────────────────────────
 
-const EXCLUDED_CARD_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
+const EXCLUDED_CARD_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
 
-const EXCLUDED_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;
+const EXCLUDED_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|gypsy(\s*queen)?|allen(\s*(and|&|n))?\s*ginter|archives|gallery|inception|clearly\s*authentic|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek|psa|bgs|sgc|cgc|beckett|graded|slab)\b/i;
 
-const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome)\b/i;
+// Topps flagship sets the user wants — Stadium Club is intentionally included
+const TOPPS_ALLOWED_SETS = /\b(series\s*[12]|series\s*one|series\s*two|update(\s+series)?|chrome|stadium\s*club)\b/i;
 
 function gradingPattern(company: string): RegExp {
   if (company === 'psa') return /\bpsa\b/i;
@@ -215,17 +216,19 @@ function matchesGrading(title: string, company: string, grade?: string): boolean
 
 // Topps + Bowman sets we recognize in listing titles (most-specific first)
 const TOPPS_SET_MAP: Array<{ pattern: RegExp; set: string; shortName: string }> = [
-  { pattern: /\btopps\s+chrome\b/i,                                           set: 'Topps Chrome',      shortName: 'Chrome'      },
-  { pattern: /\btopps\s+update\b/i,                                           set: 'Topps Update',      shortName: 'Update'      },
-  { pattern: /\btopps\s+series\s*(?:2|two)\b|\btopps\s+s2\b/i,               set: 'Topps Series 2',    shortName: 'S2'          },
-  { pattern: /\btopps\s+series\s*(?:1|one)\b|\btopps\s+s1\b/i,               set: 'Topps Series 1',    shortName: 'S1'          },
-  { pattern: /\bbowman\s+chrome\b.*\b1st\b|\b1st\s+bowman\s+chrome\b/i,      set: 'Bowman Chrome 1st', shortName: 'Chrome 1st'  },
-  { pattern: /\bbowman\s+chrome\b/i,                                          set: 'Bowman Chrome',     shortName: 'Bowman Chrome'},
-  { pattern: /\b1st\s+bowman\b|\bbowman\s+1st\b/i,                           set: 'Bowman 1st',        shortName: 'Bowman 1st'  },
-  { pattern: /\bbowman\b/i,                                                   set: 'Bowman',            shortName: 'Bowman'      },
+  { pattern: /\btopps\s+chrome\b/i,                                           set: 'Topps Chrome',        shortName: 'Chrome'        },
+  { pattern: /\btopps\s+update\b/i,                                           set: 'Topps Update',        shortName: 'Update'        },
+  { pattern: /\btopps\s+series\s*(?:2|two)\b|\btopps\s+s2\b/i,               set: 'Topps Series 2',      shortName: 'S2'            },
+  { pattern: /\btopps\s+series\s*(?:1|one)\b|\btopps\s+s1\b/i,               set: 'Topps Series 1',      shortName: 'S1'            },
+  { pattern: /\btopps\s+stadium\s*club\b/i,                                   set: 'Topps Stadium Club',  shortName: 'Stadium Club'  },
+  { pattern: /\bbowman\s+chrome\b.*\b1st\b|\b1st\s+bowman\s+chrome\b/i,      set: 'Bowman Chrome 1st',   shortName: 'Chrome 1st'    },
+  { pattern: /\bbowman\s+chrome\b/i,                                          set: 'Bowman Chrome',       shortName: 'Bowman Chrome' },
+  { pattern: /\b1st\s+bowman\b|\bbowman\s+1st\b/i,                           set: 'Bowman 1st',          shortName: 'Bowman 1st'    },
+  { pattern: /\bbowman\b/i,                                                   set: 'Bowman',              shortName: 'Bowman'        },
 ];
 
-const NON_TOPPS_BOWMAN_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|stadium\s*club|gypsy|allen|archives|gallery|inception|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
+// Non-Topps/Bowman brands to exclude — Stadium Club intentionally omitted (it's a Topps set)
+const NON_TOPPS_BOWMAN_BRANDS = /\b(prizm|donruss|panini|select|optic|score|leaf|upper\s*deck|fleer|finest|heritage|gypsy|allen|archives|gallery|inception|luminance|mosaic|chronicles|national\s*treasure|immaculate|contenders?|playoff|triple\s*thread|topps\s*now|tier\s*one|five\s*star|dynasty|high\s*tek)\b/i;
 
 // Parallel, auto, and numbered-card markers — anything that isn't the base card
 const PARALLEL_MARKERS = /\b(auto(?:graph)?|refractor|xfractor|superfractor|gold|silver|blue|red|orange|purple|pink|green|yellow|black|rainbow|foil|short\s*print|wave|1st\s*ed(?:ition)?)\b|\/\d+\b|\bsp\b/i;
@@ -235,43 +238,50 @@ function isBaseCard(title: string): boolean {
 }
 
 /**
- * Fetches up to 10 active BIN PSA Topps RC listings for a player.
- * Uses a single broad "Topps RC PSA" query — 4 parallel set-specific queries
- * burned through eBay's production burst rate limit (429s). One call per
- * batter is well within limits. Set labels are derived from listing titles.
+ * Fetches up to 10 active BIN listings for a player's rookie cards, ordered:
+ *   1. Topps RC (Series 1, Series 2, Update, Chrome, Stadium Club) — cheapest first
+ *   2. Bowman RC — cheapest first
+ *   3. Bowman 1st — cheapest first
  *
- * Returns { sets, rateLimited } so callers can distinguish "no results"
- * from "eBay quota exhausted" and show a better message to the user.
+ * Strict filters: must match PSA + exact grade, must include RC/Rookie marker
+ * (or 1st for Bowman 1st bucket). Non-flagship brands are excluded.
  */
 export async function getPlayerCardSets(
   playerName: string,
   rookieYear: number,
-  _gradingCompany?: string,  // reserved — PSA is always used
+  _gradingCompany?: string,
   gradeValue?: string,
 ): Promise<{ sets: SetCardResult[]; rateLimited: boolean }> {
   const grade = gradeValue ?? '10';
-  const cacheKey = `${playerName}|${rookieYear}|psa|${grade}`;
+  const cacheKey = `v2|${playerName}|${rookieYear}|psa|${grade}`;
   const cached = _resultCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return { sets: cached.sets, rateLimited: false };
 
   const token = await getEbayToken();
   if (!token) return { sets: [], rateLimited: false };
 
-  // Two parallel BIN searches: Topps flagship RCs + Bowman 1st/RC cards.
-  // Kept to 2 queries — prior attempt with 4 parallel queries hit rate limits.
-  // Topps Chrome is the flagship Topps product that gets PSA-graded at scale.
-  // Series 1/2 base cards ($5-10 raw) are rarely graded; Topps Now is excluded.
-  const toppsQuery  = `${playerName} ${rookieYear} Topps Chrome PSA ${grade}`;
+  // Must match "PSA 10" (or whichever grade) — rejects PSA 9, PSA 8, raw cards
+  const gradePat = new RegExp(`\\bPSA\\s*${grade.replace('.', '\\.')}\\b`, 'i');
+  // Must be labelled as a rookie card
+  const rcPat = /\brc\b|\brookie\b/i;
+  // Bowman 1st Prospect pattern
+  const firstPat = /\b1st\b|\bfirst\b/i;
+
+  // Broad Topps query — catches S1, S2, Update, Chrome, Stadium Club
+  const toppsQuery  = `${playerName} ${rookieYear} Topps PSA ${grade} RC`;
   const bowmanQuery = `${playerName} Bowman PSA ${grade}`;
+
   const [toppsRaw, bowmanRaw] = await Promise.all([
-    searchEbayListings(toppsQuery,  token, false, 15),
-    searchEbayListings(bowmanQuery, token, false, 10),
+    searchEbayListings(toppsQuery,  token, false, 20),
+    searchEbayListings(bowmanQuery, token, false, 20),
   ]);
 
   if (toppsRaw === 'rate_limited' || bowmanRaw === 'rate_limited') return { sets: [], rateLimited: true };
 
   const seenIds = new Set<string>();
-  const toResult = (listing: (typeof toppsRaw)[number]): SetCardResult | null => {
+  const byPrice = (a: { price: number }, b: { price: number }) => a.price - b.price;
+
+  function toResult(listing: EbayListing): SetCardResult | null {
     if (!listing.itemId || seenIds.has(listing.itemId)) return null;
     seenIds.add(listing.itemId);
     const setInfo = TOPPS_SET_MAP.find(s => s.pattern.test(listing.title))
@@ -286,30 +296,50 @@ export async function getPlayerCardSets(
       imageUrl:  listing.imageUrl,
       itemUrl:   listing.itemUrl,
     };
-  };
+  }
 
-  const byPrice = (a: { price: number }, b: { price: number }) => a.price - b.price;
-
-  const toppsFiltered = toppsRaw
-    .filter(l => /\btopps\b/i.test(l.title) && TOPPS_ALLOWED_SETS.test(l.title) && /\bpsa\b/i.test(l.title) && !/\bbowman\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title))
+  // ── Bucket 1: Topps RC (S1, S2, Update, Chrome, Stadium Club) ─────────────
+  const toppsRC = toppsRaw
+    .filter(l =>
+      /\btopps\b/i.test(l.title)          &&  // must be Topps
+      gradePat.test(l.title)              &&  // must be correct PSA grade
+      rcPat.test(l.title)                 &&  // must say RC or Rookie
+      TOPPS_ALLOWED_SETS.test(l.title)   &&  // must be S1/S2/Update/Chrome/Stadium Club
+      !/\bbowman\b/i.test(l.title)        &&  // not a Bowman card
+      !NON_TOPPS_BOWMAN_BRANDS.test(l.title)
+    )
     .sort(byPrice);
 
-  const bowmanFiltered = bowmanRaw
-    .filter(l => /\bbowman\b/i.test(l.title) && /\bpsa\b/i.test(l.title) && !NON_TOPPS_BOWMAN_BRANDS.test(l.title) && /\b1st\b|\brc\b|\brookie\b/i.test(l.title))
+  // ── Bucket 2: Bowman RC (regular rookie, not a 1st Prospect) ──────────────
+  const bowmanRC = bowmanRaw
+    .filter(l =>
+      /\bbowman\b/i.test(l.title)         &&
+      gradePat.test(l.title)              &&  // must be correct PSA grade
+      rcPat.test(l.title)                 &&  // must say RC or Rookie
+      !firstPat.test(l.title)             &&  // NOT a 1st Bowman Prospect
+      !NON_TOPPS_BOWMAN_BRANDS.test(l.title)
+    )
     .sort(byPrice);
 
-  // Topps (cheapest→priciest) before Bowman (cheapest→priciest).
-  const allFiltered = [...toppsFiltered, ...bowmanFiltered];
+  // ── Bucket 3: Bowman 1st Prospect ─────────────────────────────────────────
+  const bowmanFirst = bowmanRaw
+    .filter(l =>
+      /\bbowman\b/i.test(l.title)         &&
+      gradePat.test(l.title)              &&  // must be correct PSA grade
+      firstPat.test(l.title)              &&  // must say 1st or First
+      !NON_TOPPS_BOWMAN_BRANDS.test(l.title)
+    )
+    .sort(byPrice);
 
+  // Combine in strict order: Topps RC → Bowman RC → Bowman 1st
   const results: SetCardResult[] = [];
-  for (const listing of allFiltered) {
+  for (const listing of [...toppsRC, ...bowmanRC, ...bowmanFirst]) {
     const r = toResult(listing);
     if (r) results.push(r);
   }
 
   const sets = results.slice(0, 10);
 
-  // Only cache non-empty results — an empty response shouldn't block retries.
   if (sets.length > 0) {
     _resultCache.set(cacheKey, { sets, expiresAt: Date.now() + 2 * 60 * 60 * 1000 });
   }
