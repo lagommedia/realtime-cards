@@ -3,6 +3,7 @@ import type { NextAuthConfig } from 'next-auth';
 // Edge-safe config (no Node.js-only imports like `pg`)
 // Used by middleware for session verification only.
 export const authConfig = {
+  secret: process.env.AUTH_SECRET,
   pages: { signIn: '/login' },
   providers: [], // Populated in auth.ts; not needed for JWT verification in middleware
   callbacks: {
