@@ -30,8 +30,13 @@ export async function GET(req: NextRequest) {
         email TEXT UNIQUE,
         "emailVerified" TIMESTAMPTZ,
         image TEXT,
+        password TEXT,
         PRIMARY KEY (id)
       );
+    `);
+    // Idempotent: add password column to existing tables
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT;
     `);
 
     await client.query(`
