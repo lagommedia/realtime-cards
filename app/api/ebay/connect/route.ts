@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
-const SCOPES = [
-  'https://api.ebay.com/oauth/api_scope',
-  'https://api.ebay.com/oauth/api_scope/buy.order.readonly',
-].join(' ');
+const SCOPES = 'https://api.ebay.com/oauth/api_scope';
 
 export async function GET() {
   const session = await auth();
