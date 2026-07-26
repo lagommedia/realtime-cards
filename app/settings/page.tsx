@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { useTeam } from '@/context/TeamContext';
 import { useBroadcast } from '@/context/BroadcastContext';
 import { useGrading, GRADING_COMPANIES, GRADING_GRADES } from '@/context/GradingContext';
 import { ALL_TEAMS } from '@/lib/team-themes';
-import { Check, X } from 'lucide-react';
+import { Check, X, LogOut, ExternalLink, Loader2 } from 'lucide-react';
 import TeamLogo from '@/components/TeamLogo';
 
 const DIVISIONS = ['AL East', 'AL Central', 'AL West', 'NL East', 'NL Central', 'NL West'];
@@ -14,7 +15,38 @@ export default function SettingsPage() {
   const { theme, selectedTeamId, setSelectedTeamId } = useTeam();
   const { delaySec, setDelaySec } = useBroadcast();
   const { companyId, setCompanyId, gradeValue, setGradeValue } = useGrading();
+  const { data: session } = useSession();
   const [search, setSearch] = useState('');
+
+  // eBay connection status
+  const [ebayStatus, setEbayStatus] = useState<{ connected: boolean; expired?: boolean } | null>(null);
+  const [ebayLoading, setEbayLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/ebay/status')
+      .then(r => r.json())
+      .then(setEbayStatus)
+      .catch(() => setEbayStatus({ connected: false }));
+  }, []);
+
+  // Check URL for eBay callback result
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ebay = params.get('ebay');
+    if (ebay === 'connected') {
+      fetch('/api/ebay/status').then(r => r.json()).then(setEbayStatus);
+      window.history.replaceState({}, '', '/settings');
+    } else if (ebay === 'error') {
+      window.history.replaceState({}, '', '/settings');
+    }
+  }, []);
+
+  const handleEbayDisconnect = async () => {
+    setEbayLoading(true);
+    await fetch('/api/ebay/status', { method: 'DELETE' });
+    setEbayStatus({ connected: false });
+    setEbayLoading(false);
+  };
 
   const filteredTeams = ALL_TEAMS.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -32,6 +64,75 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-6 pb-6">
+
+        {/* Connected Accounts */}
+        <div className="rounded-2xl border border-slate-200 overflow-hidden" style={{ backgroundColor: theme.cardBackground }}>
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium px-4 pt-4 pb-2">Connected Accounts</p>
+
+          {/* Google */}
+          {session?.user && (
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+              {session.user.image ? (
+                <img src={session.user.image} alt="" style={{ width: 36, height: 36, borderRadius: 999, objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: 36, height: 36, borderRadius: 999, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+                  {session.user.name?.[0] ?? '?'}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{session.user.name}</p>
+                <p className="text-xs text-slate-500 truncate">{session.user.email}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div style={{ width: 7, height: 7, borderRadius: 999, background: '#16a34a' }} />
+                <span className="text-xs text-slate-500 font-medium">Google</span>
+              </div>
+            </div>
+          )}
+
+          {/* eBay */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: ebayStatus?.connected ? '#fef9c3' : '#f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 15, fontWeight: 900, color: ebayStatus?.connected ? '#854d0e' : '#94a3b8' }}>e</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900">eBay</p>
+              <p className="text-xs text-slate-500">
+                {ebayStatus === null
+                  ? 'Checking…'
+                  : ebayStatus.connected && !ebayStatus.expired
+                  ? 'Connected — list cards directly from your collection'
+                  : ebayStatus.connected && ebayStatus.expired
+                  ? 'Token expired — reconnect to continue listing'
+                  : 'Not connected'}
+              </p>
+            </div>
+            {ebayLoading ? (
+              <Loader2 size={16} className="text-slate-400 animate-spin" />
+            ) : ebayStatus?.connected && !ebayStatus.expired ? (
+              <button
+                onClick={handleEbayDisconnect}
+                className="text-xs font-semibold text-red-500 px-3 py-1.5 rounded-lg"
+                style={{ background: '#fef2f2' }}
+              >
+                Disconnect
+              </button>
+            ) : (
+              <a
+                href="/api/ebay/connect"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
+                style={{ background: `${theme.primary}18`, color: theme.primary }}
+              >
+                Connect <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
+        </div>
+
         {/* Grading company */}
         <div>
           <p className="text-sm font-semibold text-slate-900 mb-1">Default Grading Company</p>
@@ -237,8 +338,16 @@ export default function SettingsPage() {
           <InfoRow label="Data Sources" value="MLB Stats API + eBay Browse API" />
           <InfoRow label="Price Refresh" value="Every 5 minutes" />
           <InfoRow label="Game Refresh" value="Every 90 seconds" />
-          <InfoRow label="eBay Credentials" value={process.env.NEXT_PUBLIC_EBAY_CONFIGURED === 'true' ? 'Connected' : 'Mock data mode'} />
         </div>
+
+        {/* Sign out */}
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm"
+          style={{ backgroundColor: theme.cardBackground }}
+        >
+          <LogOut size={15} /> Sign Out
+        </button>
       </div>
     </div>
   );

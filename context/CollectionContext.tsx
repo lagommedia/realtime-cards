@@ -13,20 +13,20 @@ export interface CollectionCard {
   year: number | null;
   set: string | null;
   grade: string | null;
+  variant: string | null;
   purchasePrice: number;
   purchaseDate: string;
   photoDataUrl: string | null;
   photoBackDataUrl: string | null;
-  variant: string | null;
   notes: string | null;
   currentValue: number | null;
   lastChecked: string | null;
-  // CollX methodology: chronological sold-price snapshots
   priceHistory: { date: string; value: number }[];
 }
 
 interface CollectionContextValue {
   cards: CollectionCard[];
+  loading: boolean;
   addCard: (data: Omit<CollectionCard, 'id' | 'addedAt' | 'currentValue' | 'lastChecked' | 'priceHistory'>) => Promise<void>;
   removeCard: (id: string) => void;
   refreshValue: (id: string) => Promise<void>;
@@ -37,6 +37,7 @@ interface CollectionContextValue {
 
 const CollectionContext = createContext<CollectionContextValue>({
   cards: [],
+  loading: false,
   addCard: async () => {},
   removeCard: () => {},
   refreshValue: async () => {},
@@ -45,11 +46,8 @@ const CollectionContext = createContext<CollectionContextValue>({
   totalCost: 0,
 });
 
-const STORAGE_KEY = 'cardtracker-collection-v1';
 const STALE_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-// CollX-style valuation: prefer most-recent sold price (actual market transaction)
-// over BIN/ask price, then use the best set match.
 async function fetchMarketValue(card: CollectionCard): Promise<number | null> {
   try {
     const params = new URLSearchParams({ name: card.playerName });
@@ -67,62 +65,62 @@ async function fetchMarketValue(card: CollectionCard): Promise<number | null> {
   }
 }
 
-function persist(cards: CollectionCard[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); } catch {}
-}
-
 export function CollectionProvider({ children }: { children: ReactNode }) {
   const [cards, setCards] = useState<CollectionCard[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as CollectionCard[];
-        // Backfill photoBackDataUrl for cards saved before front/back was introduced
-        setCards(parsed.map(c => ({ ...c, photoBackDataUrl: c.photoBackDataUrl ?? null, variant: c.variant ?? null })));
-      }
-    } catch {}
+    fetch('/api/collection')
+      .then(r => r.ok ? r.json() : { cards: [] })
+      .then(({ cards: fetched }: { cards: CollectionCard[] }) => setCards(fetched ?? []))
+      .catch(() => setCards([]))
+      .finally(() => setLoading(false));
   }, []);
 
-  const save = (next: CollectionCard[]) => {
-    setCards(next);
-    persist(next);
-  };
-
   const addCard = async (data: Omit<CollectionCard, 'id' | 'addedAt' | 'currentValue' | 'lastChecked' | 'priceHistory'>) => {
-    const card: CollectionCard = {
+    // Optimistically compute market value client-side before saving
+    const tempCard = { ...data, id: '', addedAt: '', currentValue: null, lastChecked: null, priceHistory: [] };
+    const value = await fetchMarketValue(tempCard as CollectionCard);
+    const now = new Date().toISOString();
+
+    const payload = {
       ...data,
-      id: crypto.randomUUID(),
-      addedAt: new Date().toISOString(),
-      currentValue: null,
-      lastChecked: null,
-      priceHistory: [],
+      currentValue: value ?? null,
+      lastChecked: value !== null ? now : null,
+      priceHistory: value !== null ? [{ date: now, value }] : [],
     };
-    const value = await fetchMarketValue(card);
-    if (value !== null) {
-      const now = new Date().toISOString();
-      card.currentValue = value;
-      card.lastChecked = now;
-      card.priceHistory = [{ date: now, value }];
-    }
-    save([card, ...cards]);
+
+    const res = await fetch('/api/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to save card');
+    const { card } = await res.json() as { card: CollectionCard };
+    setCards(prev => [card, ...prev]);
   };
 
-  const removeCard = (id: string) => save(cards.filter(c => c.id !== id));
+  const removeCard = async (id: string) => {
+    setCards(prev => prev.filter(c => c.id !== id));
+    await fetch(`/api/collection/${id}`, { method: 'DELETE' });
+  };
 
   const refreshValue = async (id: string) => {
     const card = cards.find(c => c.id === id);
     if (!card) return;
     const value = await fetchMarketValue(card);
     if (value === null) return;
-    const now = new Date().toISOString();
-    save(cards.map(c => c.id !== id ? c : {
-      ...c,
-      currentValue: value,
-      lastChecked: now,
-      priceHistory: [...c.priceHistory, { date: now, value }].slice(-90),
-    }));
+
+    const res = await fetch(`/api/collection/${id}/refresh`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentValue: value }),
+    });
+    if (!res.ok) return;
+    const { currentValue, lastChecked, priceHistory } = await res.json() as {
+      currentValue: number; lastChecked: string; priceHistory: { date: string; value: number }[];
+    };
+    setCards(prev => prev.map(c => c.id !== id ? c : { ...c, currentValue, lastChecked, priceHistory }));
   };
 
   const refreshAll = async () => {
@@ -135,7 +133,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
   const totalCost  = cards.reduce((s, c) => s + c.purchasePrice, 0);
 
   return (
-    <CollectionContext.Provider value={{ cards, addCard, removeCard, refreshValue, refreshAll, totalValue, totalCost }}>
+    <CollectionContext.Provider value={{ cards, loading, addCard, removeCard, refreshValue, refreshAll, totalValue, totalCost }}>
       {children}
     </CollectionContext.Provider>
   );

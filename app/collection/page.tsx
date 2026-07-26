@@ -11,7 +11,7 @@ function fmt(n: number) {
 }
 
 export default function CollectionPage() {
-  const { cards, removeCard, refreshValue, refreshAll, totalValue, totalCost } = useCollection();
+  const { cards, loading, removeCard, refreshValue, refreshAll, totalValue, totalCost } = useCollection();
   const [showAdd, setShowAdd] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
 
@@ -93,7 +93,11 @@ export default function CollectionPage() {
 
       {/* Content */}
       <div style={{ padding: '16px 16px 0' }}>
-        {cards.length === 0 ? (
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+            <RefreshCw size={28} color="#94a3b8" style={{ animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : cards.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             gap: 14, paddingTop: 80, textAlign: 'center',

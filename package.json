@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.5",
+    "@auth/pg-adapter": "^1.11.3",
     "@types/web-push": "^3.6.4",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
+    "next-auth": "^5.0.0-beta.32",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
@@ -22,6 +25,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

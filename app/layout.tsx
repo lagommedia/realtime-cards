@@ -6,7 +6,8 @@ import { LiveEventsProvider } from '@/context/LiveEventsContext';
 import { BroadcastProvider } from '@/context/BroadcastContext';
 import { GradingProvider } from '@/context/GradingContext';
 import { CollectionProvider } from '@/context/CollectionContext';
-import Navigation from '@/components/Navigation';
+import ConditionalNav from '@/components/ConditionalNav';
+import { AuthProvider } from '@/app/providers';
 
 export const metadata: Metadata = {
   title: 'CardTracker MLB',
@@ -24,27 +25,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="antialiased" style={{ color: '#fff', minHeight: '100dvh' }}>
-        <TeamProvider>
-          <BroadcastProvider>
-            <GradingProvider>
-              <WatchListProvider>
-                <CollectionProvider>
-                  <LiveEventsProvider>
-                    <div className="orb-container" aria-hidden="true">
-                      <div className="orb orb-1" />
-                      <div className="orb orb-2" />
-                      <div className="orb orb-3" />
-                    </div>
-                    <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
-                      <main className="pb-28">{children}</main>
-                      <Navigation />
-                    </div>
-                  </LiveEventsProvider>
-                </CollectionProvider>
-              </WatchListProvider>
-            </GradingProvider>
-          </BroadcastProvider>
-        </TeamProvider>
+        <AuthProvider>
+          <TeamProvider>
+            <BroadcastProvider>
+              <GradingProvider>
+                <WatchListProvider>
+                  <CollectionProvider>
+                    <LiveEventsProvider>
+                      <div className="orb-container" aria-hidden="true">
+                        <div className="orb orb-1" />
+                        <div className="orb orb-2" />
+                        <div className="orb orb-3" />
+                      </div>
+                      <div className="min-h-dvh max-w-lg mx-auto relative" style={{ zIndex: 1 }}>
+                        <main className="pb-28">{children}</main>
+                        <ConditionalNav />
+                      </div>
+                    </LiveEventsProvider>
+                  </CollectionProvider>
+                </WatchListProvider>
+              </GradingProvider>
+            </BroadcastProvider>
+          </TeamProvider>
+        </AuthProvider>
       </body>
     </html>
   );
