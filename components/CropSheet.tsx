@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Check, Sparkles, Loader2 } from 'lucide-react';
 import type { CropDetection } from '@/app/api/card/crop-detect/route';
+import { resizeForAI } from '@/lib/image-enhance';
 
 interface Props {
   imageDataUrl: string;
@@ -151,10 +152,11 @@ export default function CropSheet({ imageDataUrl, onApply, onSkip, hint, enableA
     if (!img || !container) return;
     setAiDetecting(true);
     try {
+      const smallDataUrl = await resizeForAI(imageDataUrl);
       const res = await fetch('/api/card/crop-detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageDataUrl }),
+        body: JSON.stringify({ imageDataUrl: smallDataUrl }),
       });
       const detection = await res.json() as CropDetection | null;
       if (!detection) return;

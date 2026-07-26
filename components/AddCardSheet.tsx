@@ -6,7 +6,7 @@ import { useCollection } from '@/context/CollectionContext';
 import { getSetsForYear } from '@/lib/card-sets';
 import CropSheet from '@/components/CropSheet';
 import type { CardAnalysis } from '@/app/api/card/analyze/route';
-import { enhanceCardImage } from '@/lib/image-enhance';
+import { enhanceCardImage, resizeForAI } from '@/lib/image-enhance';
 
 const GRADES = ['Raw', 'PSA 10', 'PSA 9', 'PSA 8', 'BGS 9.5', 'BGS 9', 'SGC 10', 'SGC 9'];
 const COMMON_VARIANTS = ['Refractor', 'X-Fractor', 'Gold Refractor', 'Prizm', 'Gold', 'Silver', 'Blue', 'Red', 'Purple', 'Auto', 'SuperFractor'];
@@ -116,10 +116,11 @@ export default function AddCardSheet({ onClose }: Props) {
   const analyzeInBackground = useCallback(async (dataUrl: string) => {
     setAnalyzing(true);
     try {
+      const smallDataUrl = await resizeForAI(dataUrl);
       const res = await fetch('/api/card/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageDataUrl: dataUrl }),
+        body: JSON.stringify({ imageDataUrl: smallDataUrl }),
       });
       const analysis = await res.json() as CardAnalysis;
 
