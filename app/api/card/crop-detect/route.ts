@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
       }],
     });
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}';
+    const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}';
+    const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
     const result = JSON.parse(text) as CropDetection;
     return NextResponse.json(result);
   } catch {

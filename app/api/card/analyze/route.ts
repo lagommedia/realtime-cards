@@ -78,7 +78,9 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}';
+    const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : '{}';
+    // Strip markdown code fences Claude sometimes adds despite "no markdown" instruction
+    const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
     const result = JSON.parse(text) as CardAnalysis;
     return NextResponse.json(result);
   } catch (err) {
