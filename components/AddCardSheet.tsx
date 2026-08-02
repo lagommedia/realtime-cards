@@ -5,6 +5,7 @@ import { Camera, X, ChevronRight, ChevronLeft, Check, Search, Sparkles, Loader2 
 import { useCollection } from '@/context/CollectionContext';
 import { getSetsForYear } from '@/lib/card-sets';
 import CropSheet from '@/components/CropSheet';
+import CardCameraSheet from '@/components/CardCameraSheet';
 import type { CardAnalysis } from '@/app/api/card/analyze/route';
 import { enhanceCardImage, resizeForAI } from '@/lib/image-enhance';
 
@@ -64,6 +65,7 @@ export default function AddCardSheet({ onClose }: Props) {
   const [backPhoto, setBackPhoto]     = useState<string | null>(null);
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [cropTarget, setCropTarget]   = useState<'front' | 'back' | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<'front' | 'back' | null>(null);
   const captureTargetRef              = useRef<'front' | 'back'>('front');
   const [analyzing, setAnalyzing]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,7 +161,25 @@ export default function AddCardSheet({ onClose }: Props) {
   // ── Photo flow ────────────────────────────────────────────────
   const capturePhoto = useCallback((side: 'front' | 'back') => {
     captureTargetRef.current = side;
-    fileInputRef.current?.click();
+    setCameraTarget(side);
+  }, []);
+
+  // Photo came from the guided camera — already cropped + enhanced, skip CropSheet
+  const handleCameraCapture = useCallback(async (enhancedDataUrl: string) => {
+    setCameraTarget(null);
+    const side = captureTargetRef.current;
+    if (side === 'front') {
+      setFrontPhoto(enhancedDataUrl);
+      setAiPopulated(false);
+      analyzeInBackground(enhancedDataUrl);
+    } else {
+      setBackPhoto(enhancedDataUrl);
+    }
+  }, [analyzeInBackground]);
+
+  // User tapped the gallery icon inside CardCameraSheet
+  const handleLibraryPick = useCallback(() => {
+    setTimeout(() => fileInputRef.current?.click(), 60);
   }, []);
 
   const handlePhotoChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +256,17 @@ export default function AddCardSheet({ onClose }: Props) {
 
   return (
     <>
-      {/* Crop overlay (full-screen, above sheet) */}
+      {/* Guided camera overlay */}
+      {cameraTarget !== null && (
+        <CardCameraSheet
+          side={cameraTarget}
+          onCapture={handleCameraCapture}
+          onPickFromLibrary={handleLibraryPick}
+          onClose={() => setCameraTarget(null)}
+        />
+      )}
+
+      {/* Crop overlay for library imports (full-screen, above sheet) */}
       {cropTarget !== null && pendingPhoto && (
         <CropSheet
           imageDataUrl={pendingPhoto}
