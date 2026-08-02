@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Image as GalleryIcon } from 'lucide-react';
-import { enhanceCardImage } from '@/lib/image-enhance';
+import { enhanceCardImage, resizeForAI } from '@/lib/image-enhance';
+import type { CropDetection } from '@/app/api/card/crop-detect/route';
 
 type CardMode = 'raw' | 'slabbed';
 
@@ -18,7 +19,8 @@ const THICK = 3; // L-bracket stroke thickness (px)
 
 interface Props {
   side: 'front' | 'back';
-  onCapture: (enhancedDataUrl: string) => void;
+  /** photo = card face to display/store. analyzeSource = full slab photo for AI (slabbed mode only). */
+  onCapture: (photo: string, analyzeSource?: string) => void;
   onPickFromLibrary: () => void;
   onClose: () => void;
 }
@@ -119,13 +121,50 @@ export default function CardCameraSheet({ side, onCapture, onPickFromLibrary, on
     c.width  = Math.round(srcW * outScale);
     c.height = Math.round(srcH * outScale);
     c.getContext('2d')!.drawImage(v, srcX, srcY, srcW, srcH, 0, 0, c.width, c.height);
-    const raw = c.toDataURL('image/jpeg', 0.92);
+    const capturedPhoto = c.toDataURL('image/jpeg', 0.92);
 
     setFlashing(true);
     setTimeout(() => { if (mountedRef.current) setFlashing(false); }, 180);
 
-    const enhanced = await enhanceCardImage(raw).catch(() => raw);
-    if (mountedRef.current) onCapture(enhanced);
+    if (modeRef.current === 'slabbed') {
+      // ── Slabbed: strip the plastic border to isolate the card face ──
+      // Keep the full slab photo for AI analysis (grade label is on the slab),
+      // but display/store only the cropped card face.
+      let cardFacePhoto = capturedPhoto;
+      try {
+        const smallSlab = await resizeForAI(capturedPhoto);
+        const cropRes = await fetch('/api/card/crop-detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageDataUrl: smallSlab }),
+        });
+        const detection = await cropRes.json() as CropDetection | null;
+
+        // Only apply if the detected region is meaningfully smaller than the full image
+        if (detection && (detection.w < 0.92 || detection.h < 0.92)) {
+          const img = new Image();
+          await new Promise<void>(resolve => { img.onload = () => resolve(); img.src = capturedPhoto; });
+          const cc = document.createElement('canvas');
+          const cx = Math.round(detection.x * img.width);
+          const cy = Math.round(detection.y * img.height);
+          const cw = Math.round(detection.w * img.width);
+          const ch = Math.round(detection.h * img.height);
+          cc.width = cw; cc.height = ch;
+          cc.getContext('2d')!.drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
+          cardFacePhoto = cc.toDataURL('image/jpeg', 0.92);
+        }
+      } catch {
+        // If crop-detect fails, fall back to full slab photo for display too
+      }
+
+      const enhanced = await enhanceCardImage(cardFacePhoto).catch(() => cardFacePhoto);
+      // Pass full slab as analyzeSource so AI can read the grade label
+      if (mountedRef.current) onCapture(enhanced, capturedPhoto);
+    } else {
+      // ── Raw: single photo for both display and AI analysis ──
+      const enhanced = await enhanceCardImage(capturedPhoto).catch(() => capturedPhoto);
+      if (mountedRef.current) onCapture(enhanced);
+    }
   }, [onCapture]);
 
   // ── Motion stability detection ────────────────────────────────

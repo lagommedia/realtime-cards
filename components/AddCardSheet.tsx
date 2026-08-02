@@ -164,16 +164,18 @@ export default function AddCardSheet({ onClose }: Props) {
     setCameraTarget(side);
   }, []);
 
-  // Photo came from the guided camera — already cropped + enhanced, skip CropSheet
-  const handleCameraCapture = useCallback(async (enhancedDataUrl: string) => {
+  // Photo came from the guided camera — already cropped + enhanced, skip CropSheet.
+  // analyzeSource is the full slab photo (slabbed mode) so AI can read the grade label;
+  // falls back to the display photo for raw cards.
+  const handleCameraCapture = useCallback(async (photo: string, analyzeSource?: string) => {
     setCameraTarget(null);
     const side = captureTargetRef.current;
     if (side === 'front') {
-      setFrontPhoto(enhancedDataUrl);
+      setFrontPhoto(photo);
       setAiPopulated(false);
-      analyzeInBackground(enhancedDataUrl);
+      analyzeInBackground(analyzeSource ?? photo);
     } else {
-      setBackPhoto(enhancedDataUrl);
+      setBackPhoto(photo);
     }
   }, [analyzeInBackground]);
 

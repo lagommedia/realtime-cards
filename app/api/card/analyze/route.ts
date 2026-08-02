@@ -10,16 +10,28 @@ export interface CardAnalysis {
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const PROMPT = `You are analyzing a baseball card image. Extract exactly these four fields:
-1. playerName — full player name as printed on the card (e.g. "Juan Soto")
-2. year — 4-digit year printed on the card (e.g. "2021"). Look for it in the card design, corner, or back.
-3. set — the card set/product name (e.g. "Topps Chrome", "Bowman Platinum", "Panini Prizm"). Do NOT include the year in the set name.
-4. grade — if the card is in a graded slab (PSA, BGS, SGC, CSG), return the grade like "PSA 10", "BGS 9.5", "SGC 9". If raw/ungraded, return "Raw".
+const PROMPT = `You are analyzing a baseball card photo. The card may be raw (ungraded) or sealed inside a graded slab (PSA, BGS, SGC, CSG, etc.).
+
+IF THE CARD IS IN A GRADED SLAB:
+- Read the certification label printed on the slab — it is the most reliable source of truth.
+- The label shows the grade prominently (e.g. "GEM-MT 10", "NM-MT+ 8.5", "PRISTINE 10").
+- The label also shows the player name, year, card number, and set name.
+- Prefix the grade with the grader: "PSA 10", "BGS 9.5", "SGC 10", "CSG 9", etc.
+
+IF THE CARD IS RAW (no slab):
+- Read the card face directly for all fields.
+- grade should be "Raw".
+
+Extract exactly these four fields:
+1. playerName — full player name (e.g. "Juan Soto", "Ronald Acuña Jr.")
+2. year — 4-digit year the card was issued (e.g. "2021")
+3. set — card set/product name WITHOUT the year (e.g. "Topps Chrome", "Bowman Platinum", "Topps Series 1")
+4. grade — graded grade with grader prefix (e.g. "PSA 10", "BGS 9.5") OR "Raw" if ungraded
 
 Respond with ONLY valid JSON, no markdown, no explanation:
 {"playerName":"...","year":"...","set":"...","grade":"..."}
 
-If you cannot determine a field with confidence, use null for that field.`;
+Use null for any field you cannot determine with confidence.`;
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
