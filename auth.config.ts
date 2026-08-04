@@ -16,7 +16,8 @@ export const authConfig = {
         pathname === '/login' ||
         pathname.startsWith('/api/auth') ||
         pathname === '/api/ebay/callback' ||
-        pathname === '/api/db/setup'
+        pathname === '/api/db/setup' ||
+        pathname.startsWith('/api/cron/')
       ) return true;
 
       // Redirect unauthenticated users to login

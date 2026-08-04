@@ -54,7 +54,7 @@ async function getToken(): Promise<string | null> {
   const res = await fetch(`${EBAY_API_BASE}/identity/v1/oauth2/token`, {
     method: 'POST',
     headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope%20https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope%2Fbuy.marketplace.insights',
+    body: 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope',
     cache: 'no-store',
   });
   if (!res.ok) return null;
@@ -184,7 +184,7 @@ export async function getCardSoldHistory(
 ): Promise<Array<{ date: string; price: number }>> {
   const token = await getToken();
   if (!token) return [];
-  const listings = await fetchSoldListings(query, token, 90);
+  const listings = await fetchSoldListings(query, token, 200);
   return listings
     .sort((a, b) => a.soldDate.localeCompare(b.soldDate))
     .map(l => ({ date: l.soldDate.split('T')[0], price: l.price }));

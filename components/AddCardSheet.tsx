@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, X, ChevronRight, ChevronLeft, Check, Search, Sparkles, Loader2 } from 'lucide-react';
+import { Camera, X, ChevronRight, ChevronLeft, Check, Search, Sparkles, Loader2, ShoppingBag, ExternalLink } from 'lucide-react';
+import type { EbayOrderResult } from '@/app/api/ebay/recent-orders/route';
 import { useCollection } from '@/context/CollectionContext';
 import { getSetsForYear } from '@/lib/card-sets';
 import CropSheet from '@/components/CropSheet';
@@ -85,9 +86,18 @@ export default function AddCardSheet({ onClose }: Props) {
   const [variant, setVariant] = useState('');
 
   // Step 3 — purchase
-  const [price,        setPrice]        = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
-  const [notes,        setNotes]        = useState('');
+  const [price,          setPrice]          = useState('');
+  const [purchaseDate,   setPurchaseDate]   = useState(new Date().toISOString().slice(0, 10));
+  const [notes,          setNotes]          = useState('');
+  const [purchaseSource,   setPurchaseSource]   = useState<'ebay' | 'other'>('other');
+  const [ebayItemId,       setEbayItemId]       = useState('');
+  type LookupState = 'idle' | 'loading' | 'found' | 'not_found';
+  const [ebayLookup,       setEbayLookup]       = useState<LookupState>('idle');
+  // Auto-search from connected eBay account
+  type OrdersState = 'idle' | 'loading' | 'loaded' | 'not_connected' | 'scope_error' | 'error';
+  const [ebayOrdersState,  setEbayOrdersState]  = useState<OrdersState>('idle');
+  const [ebayOrders,       setEbayOrders]       = useState<EbayOrderResult[]>([]);
+  const [selectedOrder,    setSelectedOrder]    = useState<EbayOrderResult | null>(null);
 
   // Sets available for current year
   const yearNum   = parseInt(year) || new Date().getFullYear();
@@ -225,6 +235,43 @@ export default function AddCardSheet({ onClose }: Props) {
       setBackPhoto(enhanced);
     }
   }, [cropTarget, pendingPhoto, analyzeInBackground]);
+
+  // ── eBay item lookup ──────────────────────────────────────────
+  const lookupEbayItem = useCallback(async () => {
+    if (!ebayItemId.trim()) return;
+    setEbayLookup('loading');
+    try {
+      const res = await fetch(`/api/ebay/item-lookup?itemId=${encodeURIComponent(ebayItemId.trim())}`);
+      if (!res.ok) throw new Error('not_found');
+      const data = await res.json() as { price: number | null; date: string | null };
+      if (data.price !== null) setPrice(String(data.price));
+      if (data.date) setPurchaseDate(data.date);
+      setEbayLookup(data.price !== null ? 'found' : 'not_found');
+    } catch {
+      setEbayLookup('not_found');
+    }
+  }, [ebayItemId]);
+
+  // Auto-search eBay order history when the user picks eBay as source in step 3
+  useEffect(() => {
+    if (step !== 3 || purchaseSource !== 'ebay' || !selectedPlayer) return;
+    if (ebayOrdersState !== 'idle') return; // already fetched
+
+    setEbayOrdersState('loading');
+    fetch(`/api/ebay/recent-orders?q=${encodeURIComponent(selectedPlayer.fullName)}`)
+      .then(async res => {
+        if (res.status === 403) {
+          const body = await res.json() as { error: string };
+          setEbayOrdersState(body.error === 'scope_not_approved' ? 'scope_error' : 'not_connected');
+          return;
+        }
+        if (!res.ok) { setEbayOrdersState('error'); return; }
+        const { results } = await res.json() as { results: EbayOrderResult[] };
+        setEbayOrders(results);
+        setEbayOrdersState('loaded');
+      })
+      .catch(() => setEbayOrdersState('error'));
+  }, [step, purchaseSource, selectedPlayer, ebayOrdersState]);
 
   // ── Validation ────────────────────────────────────────────────
   const canAdvanceStep1 = !analyzing; // can proceed even without photos (skip path)
@@ -592,12 +639,186 @@ export default function AddCardSheet({ onClose }: Props) {
             {/* ── Step 3: Purchase info ── */}
             {step === 3 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>
+
+                {/* Where did you buy it? */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Where did you buy it?</label>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      onClick={() => { setPurchaseSource('ebay'); setEbayLookup('idle'); setEbayOrdersState('idle'); setEbayOrders([]); setSelectedOrder(null); }}
+                      style={{
+                        flex: 1, padding: '10px 8px', borderRadius: 12,
+                        border: purchaseSource === 'ebay' ? '2px solid #3665f3' : '2px solid #e2e8f0',
+                        background: purchaseSource === 'ebay' ? '#eff6ff' : '#f8fafc',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        color: purchaseSource === 'ebay' ? '#1d4ed8' : '#64748b',
+                        fontWeight: 700, fontSize: 14, transition: 'all 0.15s',
+                      }}
+                    >
+                      <ShoppingBag size={16} /> eBay
+                    </button>
+                    <button
+                      onClick={() => setPurchaseSource('other')}
+                      style={{
+                        flex: 1, padding: '10px 8px', borderRadius: 12,
+                        border: purchaseSource === 'other' ? '2px solid #64748b' : '2px solid #e2e8f0',
+                        background: purchaseSource === 'other' ? '#f1f5f9' : '#f8fafc',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        color: purchaseSource === 'other' ? '#334155' : '#94a3b8',
+                        fontWeight: 700, fontSize: 14, transition: 'all 0.15s',
+                      }}
+                    >
+                      Elsewhere
+                    </button>
+                  </div>
+                </div>
+
+                {/* eBay order lookup */}
+                {purchaseSource === 'ebay' && (
+                  <div style={{ borderRadius: 12, background: '#eff6ff', border: '1px solid #bfdbfe', overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 14px 0' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Your eBay purchases
+                      </p>
+                    </div>
+
+                    {/* Loading */}
+                    {ebayOrdersState === 'loading' && (
+                      <div style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Loader2 size={14} color="#3b82f6" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, color: '#3b82f6', fontWeight: 600 }}>
+                          Searching your orders for {selectedPlayer?.fullName}…
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Order results */}
+                    {ebayOrdersState === 'loaded' && ebayOrders.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        {ebayOrders.slice(0, 6).map(order => {
+                          const isSelected = selectedOrder?.orderId === order.orderId && selectedOrder?.itemId === order.itemId;
+                          return (
+                            <button
+                              key={`${order.orderId}-${order.itemId}`}
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setPrice(String(order.price));
+                                if (order.date) setPurchaseDate(order.date);
+                              }}
+                              style={{
+                                width: '100%', textAlign: 'left',
+                                padding: '10px 14px',
+                                background: isSelected ? '#dbeafe' : 'transparent',
+                                borderTop: '1px solid rgba(147,197,253,0.5)',
+                                display: 'flex', alignItems: 'center', gap: 10,
+                              }}
+                            >
+                              <div style={{
+                                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                background: isSelected ? '#3665f3' : 'rgba(147,197,253,0.4)',
+                                border: `2px solid ${isSelected ? '#3665f3' : '#93c5fd'}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {isSelected && <Check size={10} color="#fff" strokeWidth={3} />}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {order.title}
+                                </p>
+                                <p style={{ fontSize: 11, color: '#64748b' }}>
+                                  {order.date ? new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                </p>
+                              </div>
+                              <p style={{ fontSize: 14, fontWeight: 800, color: '#1d4ed8', flexShrink: 0 }}>
+                                ${order.price.toFixed(2)}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* No matches */}
+                    {ebayOrdersState === 'loaded' && ebayOrders.length === 0 && (
+                      <p style={{ padding: '10px 14px 14px', fontSize: 13, color: '#3b82f6' }}>
+                        No recent orders found for {selectedPlayer?.fullName}. Enter price manually below.
+                      </p>
+                    )}
+
+                    {/* Not connected */}
+                    {ebayOrdersState === 'not_connected' && (
+                      <div style={{ padding: '10px 14px 14px' }}>
+                        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
+                          Connect your eBay account to auto-fill purchase details.
+                        </p>
+                        <a
+                          href="/settings"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 700, color: '#3665f3', textDecoration: 'none' }}
+                        >
+                          Go to Settings <ExternalLink size={12} />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Scope not approved — awaiting eBay developer approval */}
+                    {ebayOrdersState === 'scope_error' && (
+                      <p style={{ padding: '10px 14px 14px', fontSize: 13, color: '#64748b' }}>
+                        Purchase history access is pending eBay approval. Enter price manually below.
+                      </p>
+                    )}
+
+                    {/* Error */}
+                    {ebayOrdersState === 'error' && (
+                      <p style={{ padding: '10px 14px 14px', fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                        Couldn't reach eBay. Enter price manually below.
+                      </p>
+                    )}
+
+                    {/* Fallback: manual item # */}
+                    {(ebayOrdersState === 'loaded' || ebayOrdersState === 'error' || ebayOrdersState === 'scope_error') && (
+                      <div style={{ padding: '10px 14px 14px', borderTop: '1px solid rgba(147,197,253,0.4)', marginTop: 4 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>
+                          Don't see it? Look up by eBay item #
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            value={ebayItemId}
+                            onChange={e => { setEbayItemId(e.target.value); setEbayLookup('idle'); }}
+                            placeholder="e.g. 296012345678"
+                            inputMode="numeric"
+                            style={{ ...INPUT_STYLE, flex: 1, fontSize: 14 }}
+                          />
+                          <button
+                            onClick={lookupEbayItem}
+                            disabled={!ebayItemId.trim() || ebayLookup === 'loading'}
+                            style={{
+                              padding: '10px 12px', borderRadius: 10,
+                              background: ebayItemId.trim() ? '#3665f3' : '#e2e8f0',
+                              color: ebayItemId.trim() ? '#fff' : '#94a3b8',
+                              fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap',
+                              display: 'flex', alignItems: 'center', gap: 4,
+                            }}
+                          >
+                            {ebayLookup === 'loading' ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : 'Look up'}
+                          </button>
+                        </div>
+                        {ebayLookup === 'found' && (
+                          <p style={{ fontSize: 12, color: '#15803d', fontWeight: 600, marginTop: 6 }}>Price and date filled!</p>
+                        )}
+                        {ebayLookup === 'not_found' && (
+                          <p style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginTop: 6 }}>Not found — enter manually below.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>I paid *</label>
                   <div style={{ position: 'relative', marginTop: 6 }}>
                     <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>$</span>
                     <input
-                      autoFocus
+                      autoFocus={purchaseSource !== 'ebay'}
                       type="number" step="0.01" min="0"
                       value={price}
                       onChange={e => setPrice(e.target.value)}
@@ -617,7 +838,7 @@ export default function AddCardSheet({ onClose }: Props) {
                   <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="Where you bought it, condition notes…"
+                    placeholder="Condition notes, seller info…"
                     rows={2}
                     style={{ ...INPUT_STYLE, marginTop: 6, resize: 'none', fontFamily: 'inherit' }}
                   />

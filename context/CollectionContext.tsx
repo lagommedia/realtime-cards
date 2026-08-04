@@ -50,6 +50,20 @@ const STALE_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 async function fetchMarketValue(card: CollectionCard): Promise<number | null> {
   try {
+    // Build exact query: "Fernando Tatis Jr. 2019 Topps Chrome PSA 10"
+    const parts = [card.playerName, card.year, card.set, card.variant, card.grade].filter(Boolean);
+    const q = parts.join(' ');
+
+    // Prefer last actual sold price from eBay Marketplace Insights
+    const histRes = await fetch(`/api/player/${card.playerId}/card-history?q=${encodeURIComponent(q)}`);
+    if (histRes.ok) {
+      const { points } = await histRes.json() as { points: Array<{ date: string; price: number }> };
+      if (points?.length > 0) {
+        return points.at(-1)!.price;
+      }
+    }
+
+    // Fall back to active BIN listings if no sold data found
     const params = new URLSearchParams({ name: card.playerName });
     if (card.year) params.set('year', String(card.year));
     const res = await fetch(`/api/player/${card.playerId}/cards?${params}`);

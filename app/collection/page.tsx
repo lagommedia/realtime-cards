@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Package } from 'lucide-react';
-import { useCollection } from '@/context/CollectionContext';
+import { useCollection, CollectionCard } from '@/context/CollectionContext';
 import CollectionCardTile from '@/components/CollectionCardTile';
 import AddCardSheet from '@/components/AddCardSheet';
+import CardDetailSheet from '@/components/CardDetailSheet';
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -13,6 +14,7 @@ function fmt(n: number) {
 export default function CollectionPage() {
   const { cards, loading, removeCard, refreshValue, refreshAll, totalValue, totalCost } = useCollection();
   const [showAdd, setShowAdd] = useState(false);
+  const [viewingCard, setViewingCard] = useState<CollectionCard | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
 
   // Refresh stale values on mount
@@ -136,6 +138,7 @@ export default function CollectionPage() {
                 card={card}
                 onRemove={() => removeCard(card.id)}
                 onRefresh={() => refreshValue(card.id)}
+                onView={() => setViewingCard(card)}
               />
             ))}
           </div>
@@ -143,6 +146,14 @@ export default function CollectionPage() {
       </div>
 
       {showAdd && <AddCardSheet onClose={() => setShowAdd(false)} />}
+
+      {viewingCard && (
+        <CardDetailSheet
+          card={viewingCard}
+          onClose={() => setViewingCard(null)}
+          onRefresh={() => refreshValue(viewingCard.id)}
+        />
+      )}
     </div>
   );
 }

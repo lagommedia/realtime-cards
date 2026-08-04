@@ -9,6 +9,7 @@ interface Props {
   card: CollectionCard;
   onRemove: () => void;
   onRefresh: () => Promise<void>;
+  onView: () => void;
 }
 
 function fmt(n: number) {
@@ -19,10 +20,9 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export default function CollectionCardTile({ card, onRemove, onRefresh }: Props) {
+export default function CollectionCardTile({ card, onRemove, onRefresh, onView }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [showBack, setShowBack] = useState(false);
 
   const gain = card.currentValue !== null ? card.currentValue - card.purchasePrice : null;
   const gainPct = gain !== null && card.purchasePrice > 0 ? (gain / card.purchasePrice) * 100 : null;
@@ -43,39 +43,30 @@ export default function CollectionCardTile({ card, onRemove, onRefresh }: Props)
     }}>
       {/* Main row */}
       <div style={{ display: 'flex', gap: 12, padding: '12px 14px' }}>
-        {/* Photo — tappable to flip if back exists */}
+        {/* Photo — tap to open fullscreen detail */}
         <div
-          onClick={() => card.photoBackDataUrl && setShowBack(s => !s)}
+          onClick={onView}
           style={{
             width: 64, height: 90, flexShrink: 0, borderRadius: 8,
             overflow: 'hidden', background: '#f1f5f9',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: card.photoBackDataUrl ? 'pointer' : 'default',
+            cursor: 'pointer',
             position: 'relative',
           }}
         >
-          {(showBack ? card.photoBackDataUrl : card.photoDataUrl) ? (
+          {card.photoDataUrl ? (
             <img
-              src={(showBack ? card.photoBackDataUrl : card.photoDataUrl)!}
+              src={card.photoDataUrl}
               alt={card.playerName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.18s ease' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : (
             <ImageOff size={22} color="#cbd5e1" />
           )}
-          {card.photoBackDataUrl && (
-            <div style={{
-              position: 'absolute', bottom: 3, right: 3,
-              background: 'rgba(0,0,0,0.52)', borderRadius: 4,
-              padding: '1px 4px', fontSize: 8, fontWeight: 700, color: '#fff',
-            }}>
-              {showBack ? 'BACK' : 'FRONT'}
-            </div>
-          )}
         </div>
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Info — tappable to open fullscreen detail */}
+        <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onView}>
           <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {card.playerName}
           </p>
