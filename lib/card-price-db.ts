@@ -100,7 +100,15 @@ export async function upsertSales(target: UpsertTarget): Promise<number> {
     );
   });
 
-  const result = await pool.query(
+  // Count existing rows before insert so we can report actual new inserts
+  // (pg rowCount for multi-row ON CONFLICT DO NOTHING can return 0 incorrectly)
+  const { rows: before } = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM card_price_history WHERE card_query = $1`,
+    [target.cardQuery],
+  );
+  const countBefore = parseInt(before[0]?.n ?? '0', 10);
+
+  await pool.query(
     `INSERT INTO card_price_history
        (player_id, player_name, card_query, grade, sale_price, sale_date, ebay_item_id, listing_title)
      VALUES ${placeholders.join(', ')}
@@ -108,7 +116,13 @@ export async function upsertSales(target: UpsertTarget): Promise<number> {
     values,
   );
 
-  return result.rowCount ?? 0;
+  const { rows: after } = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM card_price_history WHERE card_query = $1`,
+    [target.cardQuery],
+  );
+  const countAfter = parseInt(after[0]?.n ?? '0', 10);
+
+  return countAfter - countBefore;
 }
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
