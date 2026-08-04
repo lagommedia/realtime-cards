@@ -14,6 +14,8 @@ interface Props {
   defaultView?: 'season' | 'game';
   priceMultiplier?: number;
   isLive?: boolean;
+  realHistory?: Array<{ date: string; price: number }>;
+  realForecast?: Array<{ date: string; price: number; low: number | null; high: number | null }>;
 }
 
 // Generates stable-ish seeded mock recent trades from the price range
@@ -155,7 +157,7 @@ function CIRows({ low55, wid55, low95, wid95, lineColor }: {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, isLive }: Props) {
+export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, isLive, realHistory, realForecast }: Props) {
   const isUp = prediction.direction === 'up';
   const lineColor = isUp ? '#22c55e' : '#ef4444';
   const half95 = CONE_95[prediction.confidence] ?? 0.13;
@@ -168,68 +170,62 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
   // ── Season data ──────────────────────────────────────────────────────────
 
   const { seasonData, nowDate } = useMemo(() => {
-    const rawHistory = prediction.priceSummary?.priceHistory ?? [];
-    const daily = rawHistory.map(h => ({ ...h, price: h.price * priceMultiplier }));
-    // Aggregate to weekly — groups by ISO week, keeping last price of each week
+    // Prefer real eBay sold data when available; fall back to AI prediction history
+    const hasRealHistory = realHistory && realHistory.length > 0;
+    const daily = hasRealHistory
+      ? realHistory
+      : (prediction.priceSummary?.priceHistory ?? []).map(h => ({ ...h, price: h.price * priceMultiplier }));
+
     const history = daily.length > 7 ? aggregateToWeekly(daily) : daily;
     const lastPrice = history.at(-1)?.price ?? scaledCurrentPrice;
-    const target = scaledProjectedPrice;
-    const nowDate = rawHistory.at(-1)?.date ?? new Date().toISOString().split('T')[0];
+    const nowDate   = daily.at(-1)?.date ?? new Date().toISOString().split('T')[0];
 
-    const realGameEvents = prediction.gameEvents;
-
-    // Step 1: detect all weekly price movements ≥5% across the full history.
-    // Since history is weekly-bucketed, each entry is one week — so this gives
-    // one dot per week that had a notable swing, across the full price history.
-    const movements = history
-      .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
-      .filter(m => Math.abs(m.change) >= 0.05);
-
-    const eventIdxs: Set<number> = new Set(movements.map(m => m.i));
-    const changeMap: Map<number, number> = new Map(movements.map(m => [m.i, m.change]));
+    // Game-event dots: only relevant when using prediction-model history
+    const eventIdxs: Set<number>    = new Set();
+    const changeMap: Map<number, number>  = new Map();
     const eventLabelMap: Map<number, string> = new Map();
-    const oppMap: Map<number, number> = new Map();
+    const oppMap: Map<number, number>     = new Map();
 
-    // Step 2: overlay real game events (last 7 days) on top of the baseline.
-    // These carry actual opponent team IDs and specific performance labels,
-    // replacing the price-movement baseline for any week they match.
-    if (realGameEvents && realGameEvents.length > 0) {
-      const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
+    if (!hasRealHistory) {
+      const movements = history
+        .map((h, i) => ({ i, change: i > 0 ? (h.price - history[i-1].price) / history[i-1].price : 0 }))
+        .filter(m => Math.abs(m.change) >= 0.05);
+      movements.forEach(m => { eventIdxs.add(m.i); changeMap.set(m.i, m.change); });
 
-      for (const evt of realGameEvents) {
-        if (Math.abs(evt.impactScore) * 0.35 < 5) continue;
-        const evtMs = new Date(evt.date + 'T12:00:00').getTime();
-        let bestIdx = 0, bestDiff = Infinity;
-        for (let i = 0; i < history.length; i++) {
-          const diff = Math.abs(new Date(history[i].date + 'T12:00:00').getTime() - evtMs);
-          if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-        }
-        if (bestDiff <= 30 * 86_400_000) {
-          const prev = bestByIdx.get(bestIdx);
-          if (!prev || Math.abs(evt.impactScore) > Math.abs(prev.score)) {
-            bestByIdx.set(bestIdx, { score: evt.impactScore, label: evt.label, oppTeamId: evt.opponentTeamId });
+      const realGameEvents = prediction.gameEvents;
+      if (realGameEvents && realGameEvents.length > 0) {
+        const bestByIdx = new Map<number, { score: number; label: string; oppTeamId?: number }>();
+        for (const evt of realGameEvents) {
+          if (Math.abs(evt.impactScore) * 0.35 < 5) continue;
+          const evtMs = new Date(evt.date + 'T12:00:00').getTime();
+          let bestIdx = 0, bestDiff = Infinity;
+          for (let i = 0; i < history.length; i++) {
+            const diff = Math.abs(new Date(history[i].date + 'T12:00:00').getTime() - evtMs);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+          }
+          if (bestDiff <= 30 * 86_400_000) {
+            const prev = bestByIdx.get(bestIdx);
+            if (!prev || Math.abs(evt.impactScore) > Math.abs(prev.score)) {
+              bestByIdx.set(bestIdx, { score: evt.impactScore, label: evt.label, oppTeamId: evt.opponentTeamId });
+            }
           }
         }
-      }
-
-      for (const [idx, { score, label, oppTeamId }] of bestByIdx) {
-        eventIdxs.add(idx);
-        changeMap.set(idx, (score * 0.35) / 100);
-        eventLabelMap.set(idx, label);
-        if (oppTeamId) oppMap.set(idx, oppTeamId);
+        for (const [idx, { score, label, oppTeamId }] of bestByIdx) {
+          eventIdxs.add(idx); changeMap.set(idx, (score * 0.35) / 100);
+          eventLabelMap.set(idx, label); if (oppTeamId) oppMap.set(idx, oppTeamId);
+        }
       }
     }
 
     const historicalPoints: SeasonPoint[] = history.map((h, i) => {
       const change = changeMap.get(i) ?? 0;
       const isEvent = eventIdxs.has(i);
-      const gameLabel = eventLabelMap.get(i);
       return {
         date: h.date, hist: h.price, proj: null,
         low95: h.price, wid95: 0, low55: h.price, wid55: 0,
         ...(isEvent ? {
           eventType: (change > 0 ? 'spike' : 'dip') as EventType,
-          eventLabel: gameLabel ?? buildEventLabel(change),
+          eventLabel: eventLabelMap.get(i) ?? buildEventLabel(change),
           eventChangePct: change * 100,
           opponentTeamId: oppMap.get(i),
         } : {}),
@@ -238,20 +234,32 @@ export default function RobinhoodPriceChart({ prediction, priceMultiplier = 1, i
 
     if (historicalPoints.length > 0) historicalPoints[historicalPoints.length - 1].proj = lastPrice;
 
-    const projPoints: SeasonPoint[] = Array.from({ length: PROJ_WEEKS }, (_, i) => {
-      const t = (i+1)/PROJ_WEEKS;
-      const proj = lastPrice + (target - lastPrice) * t;
-      const h95 = proj * half95 * t, h55 = proj * half55 * t;
-      const d = new Date(nowDate + 'T12:00:00'); d.setDate(d.getDate() + (i + 1) * 7);
-      return {
-        date: d.toISOString().split('T')[0], hist: null, proj,
-        low95: Math.max(0, proj - h95), wid95: h95*2,
-        low55: Math.max(0, proj - h55), wid55: h55*2,
-      };
-    });
+    // Prefer AI forecast from DB; fall back to prediction-model cone
+    const hasRealForecast = realForecast && realForecast.length > 0;
+    const projPoints: SeasonPoint[] = hasRealForecast
+      ? realForecast.map(f => {
+          const h95 = f.high !== null && f.low !== null ? (f.high - f.low) / 2 : f.price * half95;
+          const h55 = h95 * CI_55_RATIO;
+          return {
+            date: f.date, hist: null, proj: f.price,
+            low95: Math.max(0, f.price - h95), wid95: h95 * 2,
+            low55: Math.max(0, f.price - h55), wid55: h55 * 2,
+          };
+        })
+      : Array.from({ length: PROJ_WEEKS }, (_, i) => {
+          const t = (i+1)/PROJ_WEEKS;
+          const proj = lastPrice + (scaledProjectedPrice - lastPrice) * t;
+          const h95 = proj * half95 * t, h55 = proj * half55 * t;
+          const d = new Date(nowDate + 'T12:00:00'); d.setDate(d.getDate() + (i + 1) * 7);
+          return {
+            date: d.toISOString().split('T')[0], hist: null, proj,
+            low95: Math.max(0, proj - h95), wid95: h95*2,
+            low55: Math.max(0, proj - h55), wid55: h55*2,
+          };
+        });
 
     return { seasonData: [...historicalPoints, ...projPoints], nowDate };
-  }, [prediction, half95, half55, scaledCurrentPrice, scaledProjectedPrice, priceMultiplier]);
+  }, [prediction, half95, half55, scaledCurrentPrice, scaledProjectedPrice, priceMultiplier, realHistory, realForecast]);
 
   // ── Y domains ─────────────────────────────────────────────────────────────
 

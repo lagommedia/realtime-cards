@@ -9,7 +9,6 @@ import PlayerHeadshot from '@/components/PlayerHeadshot';
 import TeamLogo from '@/components/TeamLogo';
 import BaseballCardImage from '@/components/BaseballCardImage';
 import RobinhoodPriceChart from '@/components/RobinhoodPriceChart';
-import CardSoldChart from '@/components/CardSoldChart';
 import CardValueProjectionPanel from '@/components/CardValueProjection';
 import CardPeekCarousel from '@/components/CardPeekCarousel';
 import { getFeaturedCard } from '@/lib/card-utils';
@@ -304,6 +303,30 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
       .catch(() => setCardsFetchStatus('done'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded, forceExpanded]);
+
+  // Real eBay sold history + AI forecast for the price chart
+  const [realHistory, setRealHistory]   = useState<Array<{ date: string; price: number }>>([]);
+  const [realForecast, setRealForecast] = useState<Array<{ date: string; price: number; low: number | null; high: number | null }>>([]);
+
+  const cardQuery = useMemo(() => {
+    const year  = setCards[0]?.year  ?? prediction.rookieCardOptions?.[0]?.year;
+    const set   = setCards[0]?.set;
+    const grade = gradingGradeValue ?? 'PSA 10';
+    return [prediction.playerName, year, set, grade].filter(Boolean).join(' ');
+  }, [setCards, prediction.playerName, prediction.rookieCardOptions, gradingGradeValue]);
+
+  useEffect(() => {
+    const isOpen = expanded || !!forceExpanded;
+    if (!isOpen || !cardQuery) return;
+    fetch(`/api/player/${prediction.playerId}/card-history?q=${encodeURIComponent(cardQuery)}`)
+      .then(r => r.json())
+      .then((d: { points?: Array<{ date: string; price: number }>; forecast?: Array<{ date: string; price: number; low: number | null; high: number | null }> }) => {
+        setRealHistory(d.points ?? []);
+        setRealForecast(d.forecast ?? []);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardQuery, expanded, forceExpanded, prediction.playerId]);
 
   const [hofData, setHofData] = useState<HofResult | null>(null);
 
@@ -621,39 +644,9 @@ export default function TrendingPlayerCard({ prediction, rank, defaultChartView,
             defaultView={defaultChartView}
             priceMultiplier={chartMultiplier}
             isLive={isLive}
+            realHistory={realHistory}
+            realForecast={realForecast}
           />
-
-          {/* ── eBay Sold Price History (Market Movers style) ── */}
-          {(() => {
-            const year  = setCards[0]?.year ?? prediction.rookieCardOptions?.[0]?.year;
-            const set   = setCards[0]?.set;
-            // Default to PSA 10 when no grade is selected — most liquid, best matches eBay data
-            const grade = gradingGradeValue ?? 'PSA 10';
-            const q     = [prediction.playerName, year, set, grade]
-              .filter(Boolean).join(' ');
-            if (!q) return null;
-            return (
-              <div>
-                <p style={{
-                  fontSize: 10, fontWeight: 700, color: '#94a3b8',
-                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                  marginBottom: 8,
-                }}>
-                  eBay Sold Price History
-                </p>
-                <div style={{
-                  background: '#f8fafc', borderRadius: 14,
-                  padding: '14px 12px 10px', border: '1px solid #e2e8f0',
-                }}>
-                  <CardSoldChart
-                    query={q}
-                    playerId={prediction.playerId}
-                    height={140}
-                  />
-                </div>
-              </div>
-            );
-          })()}
 
           {/* ── Hall of Fame Outlook (full) ── */}
           {hofData && (() => {
